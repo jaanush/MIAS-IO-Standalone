@@ -124,7 +124,9 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
           </div>
           <div className="space-y-1">
             <Label>Status</Label>
+            {/* WORKAROUND: key forces remount — Radix Select v2.2.6 doesn't update displayed text on controlled value change (github.com/radix-ui/primitives/issues/3381) */}
             <Select
+              key={"st-" + watch("status")}
               value={watch("status")}
               onValueChange={(v) => setValue("status", v as FormValues["status"], { shouldDirty: true })}
             >

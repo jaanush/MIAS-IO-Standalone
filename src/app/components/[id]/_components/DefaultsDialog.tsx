@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import type { SignalRowState } from "./SignalGrid";
 
+// WORKAROUND: Radix Select doesn't allow empty string as value, so nullable fields use a sentinel
 const NONE = "__none__";
 
 type InputType = { id: number; code: string; name: string };

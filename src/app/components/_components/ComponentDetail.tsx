@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -64,19 +64,23 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
   const { register, handleSubmit, watch, setValue, reset, formState: { errors, isDirty } } =
     useForm<FormValues>({
       resolver: zodResolver(schema),
-      values: data
-        ? {
-            name: data.name,
-            manufacturer: data.manufacturer,
-            model: data.model,
-            version: data.version,
-            functionBlock: data.functionBlock,
-            busProtocol: data.busProtocol as FormValues["busProtocol"],
-            status: data.status as FormValues["status"],
-            description: data.description,
-          }
-        : undefined,
     });
+
+  // Sync form when data loads or changes
+  useEffect(() => {
+    if (data) {
+      reset({
+        name: data.name,
+        manufacturer: data.manufacturer,
+        model: data.model,
+        version: data.version,
+        functionBlock: data.functionBlock,
+        busProtocol: data.busProtocol as FormValues["busProtocol"],
+        status: data.status as FormValues["status"],
+        description: data.description,
+      });
+    }
+  }, [data, reset]);
 
   async function onSaveMeta(values: FormValues) {
     setIsSavingMeta(true);
@@ -142,7 +146,10 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
               </div>
               <div className="space-y-1">
                 <Label>Bus Protocol</Label>
+                {/* WORKAROUND: key forces remount — Radix Select v2.2.6 doesn't update displayed text on controlled value change (github.com/radix-ui/primitives/issues/3381) */}
+                {/* WORKAROUND: __none__ sentinel — Radix Select doesn't allow empty string as value, so nullable fields use a sentinel */}
                 <Select
+                  key={"bp-" + watch("busProtocol")}
                   value={watch("busProtocol") ?? "__none__"}
                   onValueChange={(v) => setValue("busProtocol", v === "__none__" ? null : v as FormValues["busProtocol"], { shouldDirty: true })}
                 >
@@ -168,7 +175,9 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label>Status</Label>
+                {/* WORKAROUND: key forces remount — Radix Select v2.2.6 (see busProtocol comment above) */}
                 <Select
+                  key={"st-" + watch("status")}
                   value={watch("status")}
                   onValueChange={(v) => setValue("status", v as FormValues["status"], { shouldDirty: true })}
                 >

@@ -96,7 +96,10 @@ export function ComponentCreateForm({ onCreated, onCancel }: Props) {
           </div>
           <div className="space-y-1">
             <Label>Bus Protocol</Label>
+            {/* WORKAROUND: key forces remount — Radix Select v2.2.6 doesn't update displayed text on controlled value change (github.com/radix-ui/primitives/issues/3381) */}
+            {/* WORKAROUND: __none__ sentinel — Radix Select doesn't allow empty string as value, so nullable fields use a sentinel */}
             <Select
+              key={"bp-" + watch("busProtocol")}
               value={watch("busProtocol") ?? "__none__"}
               onValueChange={(v) => setValue("busProtocol", v === "__none__" ? null : v as FormValues["busProtocol"])}
             >
@@ -116,7 +119,9 @@ export function ComponentCreateForm({ onCreated, onCancel }: Props) {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <Label>Status</Label>
+            {/* WORKAROUND: key forces remount — Radix Select v2.2.6 (see busProtocol comment above) */}
             <Select
+              key={"st-" + watch("status")}
               value={watch("status")}
               onValueChange={(v) => setValue("status", v as FormValues["status"])}
             >

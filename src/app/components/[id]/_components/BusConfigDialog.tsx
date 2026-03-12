@@ -14,6 +14,7 @@ import {
 import type { SignalRowState } from "./SignalGrid";
 import { RAW_DATA_TYPES } from "@/lib/enums";
 
+// WORKAROUND: Radix Select doesn't allow empty string as value, so nullable fields use a sentinel
 const NONE = "__none__";
 
 type Props = {

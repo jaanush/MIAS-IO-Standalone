@@ -19,6 +19,7 @@ import { RAW_DATA_TYPES, PLC_DATA_TYPES, MODBUS_REGISTER_TYPES } from "@/lib/enu
 type SignalRow = inferRouterOutputs<AppRouter>["signal"]["list"][number];
 type NetworkInfo = inferRouterOutputs<AppRouter>["signal"]["networksForProject"][number];
 
+// WORKAROUND: Radix Select doesn't allow empty string as value, so nullable fields use a sentinel
 const NONE = "__none__";
 
 const MODBUS_REG_TYPES = [
