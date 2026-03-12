@@ -1,6 +1,0 @@
-# Deploy-hemligheter -- COMMITTA ALDRIG DENNA FIL!
-AZURE_PAT="din-azure-pat-har"
-COOLIFY_TOKEN="din-coolify-token-har"
-# Valfritt: Basic Auth for demo-appar
-# BASIC_AUTH_USER="metstech"
-# BASIC_AUTH_PASS="demo2026"

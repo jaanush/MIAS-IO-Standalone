@@ -17,6 +17,7 @@ tsconfig.tsbuildinfo
 .env.local
 .env.*.local
 .coolify-env
+.deploy-env
 
 # Prisma
 prisma/migrations/
