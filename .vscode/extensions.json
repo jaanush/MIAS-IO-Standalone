@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "Prisma.prisma",
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "christian-kohler.path-intellisense",
+    "formulahendry.auto-rename-tag",
+    "usernamehw.errorlens",
+    "ms-azuretools.vscode-docker"
+  ]
+}

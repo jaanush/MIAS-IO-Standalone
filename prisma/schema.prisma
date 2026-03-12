@@ -1,0 +1,1194 @@
+// Prisma schema for MIAS-IO
+// Mirrors plc_schema.sql — use `npm run db:migrate` to apply.
+// Views, triggers, and rollback functions in plc_schema.sql must be
+// applied separately; Prisma does not manage them.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================
+// ENUMS — must match PostgreSQL enum names in plc_schema.sql
+// =============================================================
+
+enum UserRole {
+  ADMIN
+  ENGINEER
+  VIEWER
+
+  @@map("user_role")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+
+  @@map("project_status")
+}
+
+enum MemberRole {
+  OWNER
+  MEMBER
+  VIEWER
+
+  @@map("member_role")
+}
+
+// BusProtocol — used on PlcNetwork and DeviceCatalogProtocol
+enum BusProtocol {
+  MODBUS_RTU
+  MODBUS_TCP
+  PROFIBUS
+  PROFINET
+  CANBUS
+  CANOPEN
+  J1939
+  ETHERNETIP
+  DEVICENET
+  BACNET
+  ETHERCAT
+  IO_LINK
+  INTERBUS
+  CC_LINK
+
+  @@map("bus_protocol")
+}
+
+enum NetworkRole {
+  MASTER
+  SLAVE
+  ADAPTER
+  SCANNER
+
+  @@map("network_role")
+}
+
+enum CatalogDeviceType {
+  PLC
+  COUPLER
+
+  @@map("catalog_device_type")
+}
+
+enum IoCardType {
+  DI
+  DO
+  AI
+  AO
+  MIXED
+  COUNTER
+  PWM
+  SERIAL
+  IO_LINK
+  SUPPLY
+  RELAY
+
+  @@map("io_card_type")
+}
+
+// SignalOrigin — how a signal is physically delivered to the PLC
+enum SignalOrigin {
+  IEC          // hardwired IO card channel (IEC 61131-3)
+  MODBUS_RTU
+  MODBUS_TCP
+  CANBUS
+  CANOPEN
+  J1939
+  PROFIBUS
+  PROFINET
+  ETHERNETIP
+  DEVICENET
+  BACNET
+  INTERNAL     // PLC-internal variable, not connected to any IO
+
+  @@map("signal_origin")
+}
+
+enum SignalType {
+  DISCRETE
+  ANALOG
+
+  @@map("signal_type")
+}
+
+enum TriggerType {
+  NO
+  NC
+
+  @@map("trigger_type")
+}
+
+enum SwitchingType {
+  HIGH_SIDE
+  LOW_SIDE
+  BOTH
+
+  @@map("switching_type")
+}
+
+enum WireConfig {
+  TWO_WIRE
+  THREE_WIRE
+  FOUR_WIRE
+
+  @@map("wire_config")
+}
+
+// AnalogInputType enum removed — replaced by AnalogInputType catalog table
+
+enum AlarmSeverity {
+  INFO
+  WARNING
+  ALARM
+  CRITICAL
+
+  @@map("alarm_severity")
+}
+
+enum DiscreteAlarmCondition {
+  ON_TRIGGER
+  OFF_TRIGGER
+
+  @@map("discrete_alarm_condition")
+}
+
+enum AnalogAlarmCondition {
+  HIGH
+  HIGH_HIGH
+  LOW
+  LOW_LOW
+
+  @@map("analog_alarm_condition")
+}
+
+enum ComponentStatus {
+  DRAFT
+  ACTIVE
+  DEPRECATED
+
+  @@map("component_status")
+}
+
+enum ByteOrder {
+  BIG_ENDIAN
+  LITTLE_ENDIAN
+
+  @@map("byte_order")
+}
+
+// Serial parity — for MODBUS_RTU / PROFIBUS / other serial protocols
+enum SerialParity {
+  NONE
+  EVEN
+  ODD
+
+  @@map("serial_parity")
+}
+
+// CAN operating mode — for WAGO 750-658 and similar raw CAN modules
+enum CanMode {
+  TRANSPARENT
+  MAPPED
+  SNIFFER
+
+  @@map("can_mode")
+}
+
+enum SignalDirection {
+  INPUT
+  OUTPUT
+
+  @@map("signal_direction")
+}
+
+enum IoType {
+  DI
+  DO
+  AI
+  AO
+
+  @@map("io_type")
+}
+
+// ModbusRegisterType — address space within a Modbus device
+enum ModbusRegisterType {
+  COIL
+  DISCRETE_INPUT
+  HOLDING_REGISTER
+  INPUT_REGISTER
+
+  @@map("modbus_register_type")
+}
+
+// BusRawDataType — wire-level data representation
+enum BusRawDataType {
+  BOOL
+  BYTE
+  WORD
+  DWORD
+  LWORD
+  INT
+  DINT
+  LINT
+  UINT
+  UDINT
+  ULINT
+  REAL
+  LREAL
+
+  @@map("bus_raw_data_type")
+}
+
+// PlcDataType — IEC 61131-3 / CODESYS data types (how the PLC application sees the value)
+enum CatalogLifecycle {
+  ACTIVE
+  NRND           // Not Recommended for New Designs
+  LAST_BUY       // End of sales announced, still orderable
+  DISCONTINUED   // No longer orderable
+  OBSOLETE       // End of service/support
+  UNKNOWN
+
+  @@map("catalog_lifecycle")
+}
+
+enum PlcDataType {
+  BOOL
+  BYTE
+  WORD
+  DWORD
+  LWORD
+  SINT
+  INT
+  DINT
+  LINT
+  USINT
+  UINT
+  UDINT
+  ULINT
+  REAL
+  LREAL
+  TIME
+  DATE
+  TOD
+  DT
+  STRING
+  WSTRING
+  // CODESYS Safety Extension types
+  SAFEBOOL
+  SAFEINT
+  SAFEDINT
+  SAFETIME
+  SAFEWORD
+
+  @@map("plc_data_type")
+}
+
+// =============================================================
+// MODELS
+// =============================================================
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  name         String?  @db.VarChar(255)
+  role         UserRole @default(ENGINEER)
+  passwordHash String?  @db.VarChar(255) @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  projectsCreated   Project[]          @relation("ProjectCreatedBy")
+  projectMembers    ProjectMember[]
+  plcsCreated       Plc[]              @relation("PlcCreatedBy")
+  carriersCreated   IoCarrier[]        @relation("IoCarrierCreatedBy")
+  cardsCreated      IoCard[]           @relation("IoCardCreatedBy")
+  signalsCreated    Signal[]           @relation("SignalCreatedBy")
+  componentsCreated         HardwareComponent[] @relation("HardwareComponentCreatedBy")
+  componentInstancesCreated ComponentInstance[] @relation("ComponentInstanceCreatedBy")
+  codesysTasksCreated       CodesysTask[]       @relation("CodesysTaskCreatedBy")
+
+  @@map("users")
+}
+
+model PlcDataTypeCatalog {
+  id        Int    @id @default(autoincrement())
+  code      String @unique @db.VarChar(30)
+  name      String @db.VarChar(100)
+  sortOrder Int    @default(0) @map("sort_order")
+
+  analogSignals    AnalogSignal[]
+  discreteSignals  DiscreteSignal[]
+  engineeringUnits EngineeringUnit[]
+  componentSignals ComponentSignal[]
+
+  @@map("plc_data_type_catalog")
+}
+
+model EngineeringUnit {
+  id              Int     @id @default(autoincrement())
+  symbol          String  @unique @db.VarChar(20)
+  description     String? @db.VarChar(100)
+  plcDataTypeId   Int?    @map("plc_data_type_id")
+  plcDataTypeCatalog PlcDataTypeCatalog? @relation(fields: [plcDataTypeId], references: [id])
+
+  analogSignals   AnalogSignal[]
+  componentSignals ComponentSignal[]
+
+  @@map("engineering_unit")
+}
+
+model SignalSystem {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique @db.VarChar(50)
+  name        String  @db.VarChar(255)
+  description String? @db.VarChar(255)
+  signals     Signal[]
+
+  @@map("signal_system")
+}
+
+model GlobalVariableList {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique @db.VarChar(100)
+  description String? @db.VarChar(255)
+  signals     Signal[]
+
+  @@map("global_variable_list")
+}
+
+// Analog input type catalog — replaces the old AnalogInputType enum
+model AnalogInputType {
+  id        Int     @id @default(autoincrement())
+  code      String  @unique @db.VarChar(30)
+  name      String  @db.VarChar(100)
+  sortOrder Int     @default(0) @map("sort_order")
+
+  analogSignals   AnalogSignal[]
+  componentSignals ComponentSignal[]
+
+  @@map("input_type_catalog")
+}
+
+// =============================================================
+// APPROVAL — lookup table + join tables
+// =============================================================
+
+model Approval {
+  id   Int    @id @default(autoincrement())
+  code String @unique @db.VarChar(20)
+  name String @db.VarChar(100)
+
+  deviceApprovals  DeviceCatalogApproval[]
+  moduleApprovals  ModuleCatalogApproval[]
+  projectApprovals ProjectApproval[]
+
+  @@map("approval")
+}
+
+model DeviceCatalogApproval {
+  deviceCatalogId Int @map("device_catalog_id")
+  approvalId      Int @map("approval_id")
+
+  device   DeviceCatalog @relation(fields: [deviceCatalogId], references: [id], onDelete: Cascade)
+  approval Approval      @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  @@id([deviceCatalogId, approvalId])
+  @@map("device_catalog_approval")
+}
+
+model ModuleCatalogApproval {
+  moduleCatalogId Int @map("module_catalog_id")
+  approvalId      Int @map("approval_id")
+
+  module   ModuleCatalog @relation(fields: [moduleCatalogId], references: [id], onDelete: Cascade)
+  approval Approval      @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  @@id([moduleCatalogId, approvalId])
+  @@map("module_catalog_approval")
+}
+
+
+model ModuleCatalogProtocol {
+  moduleCatalogId Int         @map("module_catalog_id")
+  protocol        BusProtocol
+
+  module ModuleCatalog @relation(fields: [moduleCatalogId], references: [id], onDelete: Cascade)
+
+  @@id([moduleCatalogId, protocol])
+  @@map("module_catalog_protocol")
+}
+
+model ProjectApproval {
+  projectId  Int @map("project_id")
+  approvalId Int @map("approval_id")
+
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  approval Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, approvalId])
+  @@map("project_approval")
+}
+
+// =============================================================
+// DEVICE CATALOG — PLCs and fieldbus couplers
+// =============================================================
+
+model DeviceCatalog {
+  id            Int               @id @default(autoincrement())
+  vendorName    String            @db.VarChar(100) @map("vendor_name")
+  articleNumber String            @db.VarChar(50)  @map("article_number")
+  description   String?
+  type          CatalogDeviceType
+
+  // PLC only
+  series          String? @db.VarChar(50)
+  generation      Int?  @db.SmallInt
+  programMemoryKb Int?  @map("program_memory_kb")
+  ramMemoryKb     Int?  @map("ram_memory_kb")
+  dataMemoryKb    Int?  @map("data_memory_kb")
+  eco             Boolean @default(false)
+
+  // IO bus (both PLC and COUPLER)
+  maxModules       Int? @db.SmallInt @map("max_modules")
+  busPowerBudgetMa Int? @map("bus_power_budget_ma")
+
+  // Power supply (both)
+  supplyVoltageMinV Int? @db.SmallInt @map("supply_voltage_min_v")
+  supplyVoltageMaxV Int? @db.SmallInt @map("supply_voltage_max_v")
+  internalCurrentMa Int? @map("internal_current_ma")
+
+  // Environmental (both)
+  ipRating    String  @default("IP20") @db.VarChar(10) @map("ip_rating")
+  tempMinC    Int?    @db.SmallInt @map("temp_min_c")
+  tempMaxC    Int?    @db.SmallInt @map("temp_max_c")
+  extendedTemp Boolean @default(false) @map("extended_temp")
+
+  // Network (both)
+  ethernetPorts      Int?    @db.SmallInt @map("ethernet_ports")
+  dataRateMbit       Int?    @db.SmallInt @map("data_rate_mbit")
+  hasSDCard          Boolean @default(false) @map("has_sd_card")
+  hasMediaRedundancy Boolean @default(false) @map("has_media_redundancy")
+
+  // Physical dimensions (both)
+  widthMm  Int? @db.SmallInt @map("width_mm")
+  heightMm Int? @db.SmallInt @map("height_mm")
+  depthMm  Int? @db.SmallInt @map("depth_mm")
+
+  notes     String?
+
+  // Lifecycle
+  lifecycleStatus    CatalogLifecycle @default(UNKNOWN) @map("lifecycle_status")
+  successorArticle   String?          @db.VarChar(50)    @map("successor_article")
+  lifecycleCheckedAt DateTime?        @map("lifecycle_checked_at")
+
+  // Documentation
+  manualUrl          String?          @map("manual_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  plcs           Plc[]
+  carriers       IoCarrier[]
+  protocols      DeviceCatalogProtocol[]
+  approvals DeviceCatalogApproval[]
+
+  @@unique([vendorName, articleNumber])
+  @@map("device_catalog")
+}
+
+// Protocol support + protocol-specific addressing constraints per device
+model DeviceCatalogProtocol {
+  id              Int         @id @default(autoincrement())
+  deviceCatalogId Int         @map("device_catalog_id")
+  protocol        BusProtocol
+  baudRateMaxKbit Int?        @map("baud_rate_max_kbit")
+  nodeAddressMin  Int?        @db.SmallInt @map("node_address_min")
+  nodeAddressMax  Int?        @db.SmallInt @map("node_address_max")
+
+  device DeviceCatalog @relation(fields: [deviceCatalogId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceCatalogId, protocol])
+  @@map("device_catalog_protocol")
+}
+
+// =============================================================
+// MODULE CATALOG — IO cards / modules
+// =============================================================
+
+model ModuleCatalog {
+  id                        Int        @id @default(autoincrement())
+  vendorName                String     @db.VarChar(100) @map("vendor_name")
+  articleNumber             String     @db.VarChar(50)  @map("article_number")
+  description               String?
+  cardType                  IoCardType @map("card_type")
+  maxInputChannels          Int?       @db.SmallInt @map("max_input_channels")
+  maxOutputChannels         Int?       @db.SmallInt @map("max_output_channels")
+  bitResolution             Int?       @db.SmallInt @map("bit_resolution")
+  supplyVoltageField        String?    @db.VarChar(20) @map("supply_voltage_field")
+  filterTimeMs              Decimal?   @db.Decimal(8, 3) @map("filter_time_ms")
+  galvanicIsolation         Boolean?   @default(true) @map("galvanic_isolation")
+  isolationVoltageV         Int?       @db.SmallInt @map("isolation_voltage_v")
+  tempMinC                  Int?       @db.SmallInt @map("temp_min_c")
+  tempMaxC                  Int?       @db.SmallInt @map("temp_max_c")
+  maxChannelCurrentMa       Int?       @db.SmallInt @map("max_channel_current_ma")
+  shortCircuitProtected     Boolean    @default(false) @map("short_circuit_protected")
+  providesNetwork           Boolean     @default(false) @map("provides_network")
+  ipRating                  String     @default("IP20") @db.VarChar(10) @map("ip_rating")
+  moduleWidthMm             Int?       @db.SmallInt @map("module_width_mm")
+  signalRange               String?    @db.VarChar(50) @map("signal_range")
+  busCurrentConsumptionMa   Int?       @db.SmallInt @map("bus_current_consumption_ma")
+  fieldCurrentConsumptionMa Int?       @db.SmallInt @map("field_current_consumption_ma")
+  conversionTimeMs          Decimal?   @db.Decimal(8, 2) @map("conversion_time_ms")
+  notes                     String?
+
+  // Lifecycle
+  lifecycleStatus    CatalogLifecycle @default(UNKNOWN) @map("lifecycle_status")
+  successorArticle   String?          @db.VarChar(50)    @map("successor_article")
+  lifecycleCheckedAt DateTime?        @map("lifecycle_checked_at")
+
+  // Documentation
+  manualUrl          String?          @map("manual_url")
+
+  createdAt                 DateTime   @default(now()) @map("created_at")
+  updatedAt                 DateTime   @updatedAt @map("updated_at")
+
+  ioCards        IoCard[]
+  approvals ModuleCatalogApproval[]
+  protocols      ModuleCatalogProtocol[]
+
+  @@unique([vendorName, articleNumber])
+  @@map("module_catalog")
+}
+
+// =============================================================
+// PROJECT
+// =============================================================
+
+model Project {
+  id            Int           @id @default(autoincrement())
+  projectNumber String?       @db.VarChar(50) @map("project_number")
+  name          String        @db.VarChar(255)
+  client        String?       @db.VarChar(255)
+  location      String?       @db.VarChar(255)
+  status        ProjectStatus @default(ACTIVE)
+  createdBy     String?       @db.Uuid @map("created_by")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  creator           User?                  @relation("ProjectCreatedBy", fields: [createdBy], references: [id])
+  members           ProjectMember[]
+  approvals         ProjectApproval[]
+  plcs              Plc[]
+  signals           Signal[]
+  hardwareComponents HardwareComponent[]
+  componentInstances ComponentInstance[]
+  codesysTasks      CodesysTask[]
+  codesysSettings   CodesysSettings?
+
+  @@map("project")
+}
+
+model ProjectMember {
+  id        Int        @id @default(autoincrement())
+  projectId Int        @map("project_id")
+  userId    String     @db.Uuid @map("user_id")
+  role      MemberRole @default(MEMBER)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_member")
+}
+
+// =============================================================
+// PLC HARDWARE — project-level instances
+// =============================================================
+
+model Plc {
+  id        Int       @id @default(autoincrement())
+  projectId Int       @map("project_id")
+  catalogId Int?      @map("catalog_id")
+  name      String    @db.VarChar(255)
+  model     String?   @db.VarChar(100)
+  ipAddress String?   @db.VarChar(45) @map("ip_address")
+  notes     String?
+  deletedAt DateTime? @map("deleted_at")
+  createdBy String?   @db.Uuid @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  project  Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  catalog  DeviceCatalog? @relation(fields: [catalogId], references: [id])
+  creator  User?          @relation("PlcCreatedBy", fields: [createdBy], references: [id])
+  networks PlcNetwork[]
+  carriers IoCarrier[]
+  ports    PlcPort[]
+
+  @@map("plc")
+}
+
+// NULL io_card_id = hosted by PLC CPU. SET = hosted by that IO card.
+model PlcNetwork {
+  id          Int         @id @default(autoincrement())
+  plcId       Int         @map("plc_id")
+  ioCardId    Int?        @map("io_card_id")
+  protocol    BusProtocol
+  role        NetworkRole
+  nodeAddress Int?        @db.SmallInt @map("node_address")
+  description String?     @db.VarChar(255)
+
+  // Serial / fieldbus (MODBUS_RTU, PROFIBUS, etc.)
+  baudRateKbit  Int?          @map("baud_rate_kbit")
+  baudRateBps   Int?          @map("baud_rate_bps")
+  serialParity  SerialParity? @map("serial_parity")
+  serialStopBits Int?         @db.SmallInt @map("serial_stop_bits")
+
+  // Ethernet / TCP (MODBUS_TCP, PROFINET, ETHERNETIP, BACNET)
+  ipAddress     String?       @db.VarChar(45) @map("ip_address")
+  ipPort        Int?          @db.SmallInt @map("ip_port")
+
+  // CAN (CANBUS, CANOPEN, J1939, DEVICENET)
+  canMode         CanMode? @map("can_mode")
+  canHeartbeatMs  Int?     @map("can_heartbeat_ms")
+  canSyncPeriodMs Int?     @map("can_sync_period_ms")
+
+  // General polling / cycle (MODBUS_RTU, MODBUS_TCP, CANBUS, etc.)
+  cyclePeriodMs Int? @map("cycle_period_ms")
+
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  plc          Plc          @relation(fields: [plcId], references: [id], onDelete: Cascade)
+  ioCard       IoCard?      @relation("NetworkHostCard", fields: [ioCardId], references: [id])
+  carriers     IoCarrier[]
+  busSignals   BusSignal[]
+  plcPorts     PlcPort[]
+  carrierPorts CarrierPort[]
+  instances    ComponentInstance[]
+
+  @@map("plc_network")
+}
+
+model IoCarrier {
+  id              Int       @id @default(autoincrement())
+  plcId           Int       @map("plc_id")
+  catalogId       Int?      @map("catalog_id")
+  plcNetworkId    Int?      @map("plc_network_id")
+  name            String    @db.VarChar(255)
+  model           String?   @db.VarChar(100)
+  ipAddress       String?   @db.VarChar(45) @map("ip_address")
+  nodeAddress      Int?      @db.SmallInt @map("node_address")
+  firmwareVersion  String?   @db.VarChar(20) @map("firmware_version")
+  modbusInputBase  Int?      @map("modbus_input_base")   // start word address of this carrier in BCInputData[]
+  modbusOutputBase Int?      @map("modbus_output_base")  // start word address of this carrier in BCOutputData[]
+  notes            String?
+  deletedAt        DateTime? @map("deleted_at")
+  createdBy        String?   @db.Uuid @map("created_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  plc     Plc            @relation(fields: [plcId], references: [id], onDelete: Cascade)
+  catalog DeviceCatalog? @relation(fields: [catalogId], references: [id])
+  network PlcNetwork?    @relation(fields: [plcNetworkId], references: [id])
+  creator User?          @relation("IoCarrierCreatedBy", fields: [createdBy], references: [id])
+  cards   IoCard[]
+  ports   CarrierPort[]
+
+  @@map("io_carrier")
+}
+
+model IoCard {
+  id                    Int        @id @default(autoincrement())
+  carrierId             Int        @map("carrier_id")
+  catalogId             Int?       @map("catalog_id")
+  slotPosition          Int        @db.SmallInt @map("slot_position")
+  cardType              IoCardType @map("card_type")
+  name                  String?    @db.VarChar(255)
+  vendorArticleNumber   String?    @db.VarChar(50) @map("vendor_article_number")
+  maxInputChannels      Int?       @db.SmallInt @map("max_input_channels")
+  maxOutputChannels     Int?       @db.SmallInt @map("max_output_channels")
+  bitResolution         Int?       @db.SmallInt @map("bit_resolution")
+  providesNetwork       Boolean    @default(false) @map("provides_network")
+  supplyVoltageField    String?    @db.VarChar(20) @map("supply_voltage_field")
+  filterTimeMs          Decimal?   @db.Decimal(8, 3) @map("filter_time_ms")
+  galvanicIsolation     Boolean?   @default(true) @map("galvanic_isolation")
+  isolationVoltageV     Int?       @db.SmallInt @map("isolation_voltage_v")
+  tempMinC              Int?       @db.SmallInt @map("temp_min_c")
+  tempMaxC              Int?       @db.SmallInt @map("temp_max_c")
+  maxChannelCurrentMa   Int?       @db.SmallInt @map("max_channel_current_ma")
+  shortCircuitProtected Boolean    @default(false) @map("short_circuit_protected")
+  notes                 String?
+  deletedAt             DateTime?  @map("deleted_at")
+  createdBy             String?    @db.Uuid @map("created_by")
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
+
+  carrier        IoCarrier      @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+  catalog        ModuleCatalog? @relation(fields: [catalogId], references: [id])
+  creator        User?          @relation("IoCardCreatedBy", fields: [createdBy], references: [id])
+  signals        Signal[]
+  hostedNetworks PlcNetwork[]   @relation("NetworkHostCard")
+
+  @@unique([carrierId, slotPosition])
+  @@map("io_card")
+}
+
+// Per-port IP and bus assignment for multi-port PLCs and carriers
+model PlcPort {
+  id           Int     @id @default(autoincrement())
+  plcId        Int     @map("plc_id")
+  portNumber   Int     @db.SmallInt @map("port_number")
+  label        String? @db.VarChar(20)
+  ipAddress    String? @db.VarChar(45) @map("ip_address")
+  plcNetworkId Int?    @map("plc_network_id")
+
+  plc     Plc         @relation(fields: [plcId], references: [id], onDelete: Cascade)
+  network PlcNetwork? @relation(fields: [plcNetworkId], references: [id], onDelete: SetNull)
+
+  @@unique([plcId, portNumber])
+  @@map("plc_port")
+}
+
+model CarrierPort {
+  id           Int     @id @default(autoincrement())
+  carrierId    Int     @map("carrier_id")
+  portNumber   Int     @db.SmallInt @map("port_number")
+  label        String? @db.VarChar(20)
+  ipAddress    String? @db.VarChar(45) @map("ip_address")
+  plcNetworkId Int?    @map("plc_network_id")
+
+  carrier IoCarrier   @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+  network PlcNetwork? @relation(fields: [plcNetworkId], references: [id], onDelete: SetNull)
+
+  @@unique([carrierId, portNumber])
+  @@map("carrier_port")
+}
+
+// =============================================================
+// SIGNALS — project-scoped, optionally assigned to hardware
+// =============================================================
+
+model Signal {
+  id               Int          @id @default(autoincrement())
+  projectId        Int          @map("project_id")
+  instanceSignalId Int?         @map("instance_signal_id")
+  ioCardId         Int?         @map("io_card_id")
+  channelPosition  Int?         @db.SmallInt @map("channel_position")
+  direction        SignalDirection?
+  systemId         Int?         @map("system_id")
+  componentTag     String?      @db.VarChar(100) @map("component_tag")
+  drawingRef       String?      @db.VarChar(100) @map("drawing_ref")
+  cabinetLocation  String?      @db.VarChar(50)  @map("cabinet_location")
+  gvlId            Int?         @map("gvl_id")
+  origin           SignalOrigin @default(IEC) @map("origin")
+  signalType       SignalType   @map("signal_type")
+  tag              String?      @db.VarChar(150)
+  tagSuffix        String?      @db.VarChar(100) @map("tag_suffix")
+  description      String?
+  notes            String?
+  // Alarm configuration
+  alarmGroup       String?      @db.Char(1)     @map("alarm_group")       // A, B, or C (METS_Lib priority tier)
+  alarmBlockMask   String?      @db.VarChar(5)  @map("alarm_block_mask")  // 5-char: D-HH-H-L-LL, "0"=active "1"=blocked
+  commBlockMask    String?      @db.VarChar(5)  @map("comm_block_mask")   // same format, for commissioning phase
+  fatBlock         Boolean      @default(false) @map("fat_block")          // block ALL alarms in AlarmInitFAT
+  suppressionSt    String?      @map("suppression_st")                    // ST expression for .Suppression assignment
+  specialAlarmFb   String?      @db.VarChar(100) @map("special_alarm_fb")  // overrides FB_AlarmDigital/Analogue
+  specialAlarmInput String?     @db.VarChar(255) @map("special_alarm_input") // extra param for special alarm FB
+  anaToDigAlarm    Boolean      @default(false) @map("ana_to_dig_alarm")  // force analogue signal to use FB_AlarmDigital
+  // Code generation flags
+  isRetain         Boolean      @default(false) @map("is_retain")         // VAR_GLOBAL RETAIN
+  isPersistent     Boolean      @default(false) @map("is_persistent")     // VAR_GLOBAL PERSISTENT
+  loggingEnabled   Boolean      @default(false) @map("logging_enabled")   // generate AnyConversion() logging call
+  fbNameOverride   String?      @db.VarChar(255) @map("fb_name_override") // overrides auto-generated tag prefix
+  useShortName     Boolean      @default(false) @map("use_short_name")    // use System_Component only (not full hardware path)
+  createdBy        String?      @db.Uuid @map("created_by")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  instanceSignal InstanceSignal?  @relation(fields: [instanceSignalId], references: [id])
+  ioCard         IoCard?          @relation(fields: [ioCardId], references: [id])
+  creator        User?            @relation("SignalCreatedBy", fields: [createdBy], references: [id])
+  discreteSignal DiscreteSignal?
+  analogSignal   AnalogSignal?
+  busSignal      BusSignal?
+  system         SignalSystem?       @relation(fields: [systemId], references: [id])
+  gvl            GlobalVariableList? @relation(fields: [gvlId], references: [id])
+
+  // Unique per card channel when assigned — NULLs are allowed to repeat in PostgreSQL
+  @@unique([ioCardId, channelPosition])
+  @@map("signal")
+}
+
+// Bus-specific addressing — present when signal.origin != IEC
+model BusSignal {
+  signalId      Int                  @id @map("signal_id")
+  plcNetworkId  Int?                 @map("plc_network_id")
+
+  // Modbus
+  unitId          Int?               @db.SmallInt @map("unit_id")
+  registerType    ModbusRegisterType? @map("register_type")
+  registerOffset  Int?               @map("register_offset")
+
+  // CAN / raw CAN bus addressing (CANBUS / DBC)
+  nodeId         Int?     @db.SmallInt @map("node_id")
+  canId          Int?     @map("can_id")
+  bitOffset      Int?     @map("bit_offset")
+  bitLength      Int?     @db.SmallInt @map("bit_length")
+  isMuxIndicator Boolean  @default(false) @map("is_mux_indicator")
+  muxId          Int?     @db.SmallInt @map("mux_id")
+  // CANopen addressing (CANOPEN)
+  canopenIndex    Int?    @map("canopen_index")
+  canopenSubIndex Int?    @db.SmallInt @map("canopen_sub_index")
+  // J1939 addressing (J1939)
+  j1939Pgn        Int?    @map("j1939_pgn")
+  j1939Spn        Int?    @map("j1939_spn")
+
+  // Data representation
+  rawDataType BusRawDataType @map("raw_data_type")
+  plcDataType PlcDataType    @map("plc_data_type")
+  byteOrder   ByteOrder      @map("byte_order")
+  // Communication timeout (ms) — how long PLC waits before declaring timeout
+  timeoutMs   Int?           @map("timeout_ms")
+
+  signal     Signal      @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  plcNetwork PlcNetwork? @relation(fields: [plcNetworkId], references: [id], onDelete: SetNull)
+
+  @@map("bus_signal")
+}
+
+model DiscreteSignal {
+  signalId        Int            @id @map("signal_id")
+  trigger         TriggerType    @default(NO)
+  filterTimeMs    Decimal?       @db.Decimal(8, 3) @map("filter_time_ms")
+  switchingType   SwitchingType? @map("switching_type")
+  signalVoltage   String?        @db.VarChar(20) @map("signal_voltage")
+  plcDataTypeId   Int?           @map("plc_data_type_id")
+
+  signal         Signal             @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  alarms         DiscreteAlarm[]
+  plcDataType    PlcDataTypeCatalog? @relation(fields: [plcDataTypeId], references: [id])
+
+  @@map("discrete_signal")
+}
+
+model AnalogSignal {
+  signalId           Int             @id @map("signal_id")
+  inputTypeId        Int?            @map("input_type_id")
+  inputType          AnalogInputType? @relation(fields: [inputTypeId], references: [id])
+  wireConfig         WireConfig?     @map("wire_config")
+  rawMin             Decimal?        @db.Decimal(12, 4) @map("raw_min")
+  rawMax             Decimal?        @db.Decimal(12, 4) @map("raw_max")
+  scaleMin           Decimal?        @db.Decimal(12, 4) @map("scale_min")
+  scaleMax           Decimal?        @db.Decimal(12, 4) @map("scale_max")
+  clampLow           Decimal?        @db.Decimal(12, 4) @map("clamp_low")
+  clampHigh          Decimal?        @db.Decimal(12, 4) @map("clamp_high")
+  deadband           Decimal?        @db.Decimal(12, 4)
+  engineeringUnitId  Int?            @map("engineering_unit_id")
+  plcDataTypeId      Int?            @map("plc_data_type_id")
+  detectWireBreak    Boolean         @default(false) @map("detect_wire_break")
+  detectShortCircuit Boolean         @default(false) @map("detect_short_circuit")
+  detectOutOfRange   Boolean         @default(false) @map("detect_out_of_range")
+  namurNe43          Boolean         @default(false) @map("namur_ne43")
+  // Code generation — scaling
+  rawZero            Decimal?        @db.Decimal(12, 4) @map("raw_zero")           // ADC zero point for deadband/bidirectional scaling
+  useTankLevel       Boolean         @default(false)    @map("use_tank_level")     // use FB_TankLevel instead of FB_AnalogueIn
+  scalingFbOverride  String?         @db.VarChar(100)   @map("scaling_fb_override") // non-default scaling FB name
+  // Deadband raw values
+  deadbandRawMin     Decimal?        @db.Decimal(12, 4) @map("deadband_raw_min")
+  deadbandRawZero    Decimal?        @db.Decimal(12, 4) @map("deadband_raw_zero")
+  deadbandRawMax     Decimal?        @db.Decimal(12, 4) @map("deadband_raw_max")
+  // Sensor failure detection overrides
+  sensorFailRaw      Decimal?        @db.Decimal(12, 4) @map("sensor_fail_raw")
+  sensorFailMargin   Decimal?        @db.Decimal(12, 4) @map("sensor_fail_margin")
+  sensorFailBehavior String?         @db.VarChar(50)    @map("sensor_fail_behavior")
+  sensorFailDelayMs  Int?            @map("sensor_fail_delay_ms")
+
+  signal          Signal              @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  engineeringUnit EngineeringUnit?    @relation(fields: [engineeringUnitId], references: [id])
+  plcDataTypeCatalog PlcDataTypeCatalog? @relation(fields: [plcDataTypeId], references: [id])
+  alarms          AnalogAlarm[]
+
+  @@map("analog_signal")
+}
+
+model DiscreteAlarm {
+  id           Int                    @id @default(autoincrement())
+  signalId     Int                    @map("signal_id")
+  condition    DiscreteAlarmCondition
+  severity     AlarmSeverity          @default(ALARM)
+  alarmGroup   String?                @db.Char(1) @map("alarm_group")  // A/B/C — METS_Lib priority tier
+  delaySeconds Int                    @default(0) @db.SmallInt @map("delay_seconds")
+  message      String?                @db.VarChar(255)
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+
+  signal DiscreteSignal @relation(fields: [signalId], references: [signalId], onDelete: Cascade)
+
+  @@unique([signalId, condition])
+  @@map("discrete_alarm")
+}
+
+model AnalogAlarm {
+  id           Int                  @id @default(autoincrement())
+  signalId     Int                  @map("signal_id")
+  condition    AnalogAlarmCondition
+  setpoint     Decimal              @db.Decimal(12, 4)
+  hysteresis   Decimal              @default(0) @db.Decimal(12, 4)
+  severity     AlarmSeverity        @default(ALARM)
+  alarmGroup   String?              @db.Char(1) @map("alarm_group")  // A/B/C — METS_Lib priority tier
+  delaySeconds Int                  @default(0) @db.SmallInt @map("delay_seconds")
+  message      String?              @db.VarChar(255)
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  signal AnalogSignal @relation(fields: [signalId], references: [signalId], onDelete: Cascade)
+
+  @@unique([signalId, condition])
+  @@map("analog_alarm")
+}
+
+// =============================================================
+// CLIENT HARDWARE — templates and project instances
+// =============================================================
+
+// project_id = NULL → global/shared component; SET → project-private
+model HardwareComponent {
+  id           Int             @id @default(autoincrement())
+  projectId    Int?            @map("project_id")
+  name         String          @db.VarChar(255)
+  manufacturer String?         @db.VarChar(100)
+  model        String?         @db.VarChar(100)
+  version          String?         @db.VarChar(50)
+  functionBlock    String?         @db.VarChar(100) @map("function_block")
+  minCanIdOffset   Int?            @map("min_can_id_offset")
+  busProtocol      BusProtocol?    @map("bus_protocol")
+  status           ComponentStatus @default(DRAFT)
+  description    String?
+  createdBy      String?         @db.Uuid @map("created_by")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  project   Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator   User?               @relation("HardwareComponentCreatedBy", fields: [createdBy], references: [id])
+  signals   ComponentSignal[]
+  instances ComponentInstance[]
+  pdoConfigs PdoConfig[]
+
+  @@map("hardware_component")
+}
+
+model ComponentSignal {
+  id                   Int              @id @default(autoincrement())
+  componentId          Int              @map("component_id")
+  channelOffset        Int              @db.SmallInt @map("channel_offset")
+  ioType               IoType           @map("io_type")
+  origin               SignalOrigin?    @map("origin")
+  tagSuffix            String?          @db.VarChar(50) @map("tag_suffix")
+  description          String?          @db.VarChar(255)
+  // PLC data type (IEC 61131-3)
+  plcDataTypeId        Int?             @map("plc_data_type_id")
+  // Bus data representation
+  rawDataType          BusRawDataType?  @map("raw_data_type")
+  byteOrder            ByteOrder?       @map("byte_order")
+  // CAN / raw CAN bus addressing (CANBUS / DBC)
+  canNodeId            Int?     @db.SmallInt @map("can_node_id")
+  canId                Int?     @map("can_id")
+  bitOffset            Int?     @map("bit_offset")
+  bitLength            Int?     @db.SmallInt @map("bit_length")
+  isMuxIndicator       Boolean  @default(false) @map("is_mux_indicator")
+  muxId                Int?     @db.SmallInt @map("mux_id")
+  // CANopen addressing (CANOPEN)
+  canopenIndex         Int?     @map("canopen_index")
+  canopenSubIndex      Int?     @db.SmallInt @map("canopen_sub_index")
+  // J1939 addressing (J1939)
+  j1939Pgn             Int?     @map("j1939_pgn")
+  j1939Spn             Int?     @map("j1939_spn")
+  // Modbus addressing
+  modbusUnitId         Int?             @db.SmallInt @map("modbus_unit_id")
+  modbusRegisterType   ModbusRegisterType? @map("modbus_register_type")
+  modbusRegisterOffset Int?             @map("modbus_register_offset")
+  // Bus communication timeout (ms)
+  timeoutMs            Int?             @map("timeout_ms")
+  // Whether this signal is active/used in this component
+  active               Boolean          @default(true)
+  // Discrete defaults
+  defaultTrigger       TriggerType?     @map("default_trigger")
+  defaultFilterTimeMs  Decimal?         @db.Decimal(8, 3) @map("default_filter_time_ms")
+  defaultSwitchingType SwitchingType?   @map("default_switching_type")
+  // Analog defaults
+  defaultInputTypeId   Int?             @map("default_input_type_id")
+  defaultInputType     AnalogInputType? @relation(fields: [defaultInputTypeId], references: [id])
+  defaultWireConfig    WireConfig?      @map("default_wire_config")
+  defaultScaleMin      Decimal?         @db.Decimal(12, 4) @map("default_scale_min")
+  defaultScaleMax      Decimal?         @db.Decimal(12, 4) @map("default_scale_max")
+  defaultEuId          Int?             @map("default_eu_id")
+
+  // Optional link to PDO this signal is mapped into (CANopen only)
+  pdoConfigId     Int?             @map("pdo_config_id")
+
+  component       HardwareComponent        @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  defaultEu       EngineeringUnit?         @relation(fields: [defaultEuId], references: [id])
+  plcDataTypeCatalog PlcDataTypeCatalog?   @relation(fields: [plcDataTypeId], references: [id])
+  pdoConfig       PdoConfig?               @relation("SignalPdo", fields: [pdoConfigId], references: [id], onDelete: SetNull)
+  discreteAlarms  ComponentDiscreteAlarm[]
+  analogAlarms    ComponentAnalogAlarm[]
+  instanceSignals InstanceSignal[]
+
+  @@unique([componentId, channelOffset])
+  @@map("component_signal")
+}
+
+model ComponentDiscreteAlarm {
+  id                Int                    @id @default(autoincrement())
+  componentSignalId Int                    @map("component_signal_id")
+  condition         DiscreteAlarmCondition
+  severity          AlarmSeverity          @default(ALARM)
+  delaySeconds      Int                    @default(0) @db.SmallInt @map("delay_seconds")
+  message           String?                @db.VarChar(255)
+
+  componentSignal ComponentSignal @relation(fields: [componentSignalId], references: [id], onDelete: Cascade)
+
+  @@unique([componentSignalId, condition])
+  @@map("component_discrete_alarm")
+}
+
+model ComponentAnalogAlarm {
+  id                Int                  @id @default(autoincrement())
+  componentSignalId Int                  @map("component_signal_id")
+  condition         AnalogAlarmCondition
+  setpoint          Decimal              @db.Decimal(12, 4)
+  hysteresis        Decimal              @default(0) @db.Decimal(12, 4)
+  severity          AlarmSeverity        @default(ALARM)
+  delaySeconds      Int                  @default(0) @db.SmallInt @map("delay_seconds")
+  message           String?              @db.VarChar(255)
+
+  componentSignal ComponentSignal @relation(fields: [componentSignalId], references: [id], onDelete: Cascade)
+
+  @@unique([componentSignalId, condition])
+  @@map("component_analog_alarm")
+}
+
+model ComponentInstance {
+  id           Int        @id @default(autoincrement())
+  projectId    Int        @map("project_id")
+  componentId  Int        @map("component_id")
+  plcNetworkId Int?       @map("plc_network_id")
+  name         String     @db.VarChar(255)
+  tag          String?    @db.VarChar(50)
+  byteOrder    ByteOrder? @map("byte_order")
+  canIdOffset            Int?       @map("can_id_offset")
+  functionBlockOverride  String?    @db.VarChar(100) @map("function_block_override")
+  notes                  String?
+  createdBy              String?    @db.Uuid @map("created_by")
+  createdAt              DateTime   @default(now()) @map("created_at")
+  updatedAt              DateTime   @updatedAt @map("updated_at")
+
+  project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  component  HardwareComponent @relation(fields: [componentId], references: [id])
+  network    PlcNetwork?       @relation(fields: [plcNetworkId], references: [id])
+  creator    User?             @relation("ComponentInstanceCreatedBy", fields: [createdBy], references: [id])
+  signals    InstanceSignal[]
+
+  @@map("component_instance")
+}
+
+// templateDirty = false → signal matches component template (safe to propagate)
+// templateDirty = true  → signal was manually edited (skip during propagation, show revert button)
+// One InstanceSignal can have multiple Signal rows (redundant wiring)
+model InstanceSignal {
+  id                Int              @id @default(autoincrement())
+  instanceId        Int              @map("instance_id")
+  componentSignalId Int              @map("component_signal_id")
+  templateDirty     Boolean          @default(false) @map("template_dirty")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  instance        ComponentInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  componentSignal ComponentSignal   @relation(fields: [componentSignalId], references: [id])
+  signals         Signal[]          // one InstanceSignal → many Signals (supports redundant wiring)
+
+  @@unique([instanceId, componentSignalId])
+  @@map("instance_signal")
+}
+
+// PDO configuration for CANopen devices — one record per PDO per component.
+// Stores the communication parameters that are written to the device via SDO
+// during commissioning (EventTimer, InhibitTime, transmission type, COB-ID).
+// component_signal.timeout_ms = PLC monitoring threshold (separate concept).
+model PdoConfig {
+  id              Int           @id @default(autoincrement())
+  componentId     Int           @map("component_id")
+  direction       PdoDirection  // TPDO = device→PLC, RPDO = PLC→device
+  pdoNumber       Int           @map("pdo_number")   // 1–4
+  nodeId          Int?          @db.SmallInt @map("node_id")           // CANopen node ID
+  cobId           Int?          @map("cob_id")                         // COB-ID override (null = default)
+  transmissionType Int?         @db.SmallInt @map("transmission_type") // 0–255 per CANopen spec
+  eventTimerMs    Int?          @map("event_timer_ms")                 // ms — written to device object 0x1800+/0x1400+ sub5
+  inhibitTimeUs   Int?          @map("inhibit_time_us")                // μs — written to device sub3
+  syncWindowUs    Int?          @map("sync_window_us")                 // μs — sync window length sub6
+  description     String?       @db.VarChar(255)
+
+  component HardwareComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  signals   ComponentSignal[] @relation("SignalPdo")
+
+  @@unique([componentId, direction, pdoNumber])
+  @@map("pdo_config")
+}
+
+enum PdoDirection {
+  TPDO  // Device transmits → PLC receives
+  RPDO  // PLC transmits → Device receives
+
+  @@map("pdo_direction")
+}
+
+model CodesysSettings {
+  projectId       Int    @id @map("project_id")
+  fbAlarmDigital  String @default("FB_AlarmDigital")              @db.VarChar(100) @map("fb_alarm_digital")
+  fbAlarmAnalogue String @default("FB_AlarmAnalogue")             @db.VarChar(100) @map("fb_alarm_analogue")
+  fbAnalogScaling String @default("FB_AnalogueIn_DeadBand_rev3") @db.VarChar(100) @map("fb_analog_scaling")
+  fbTankLevel     String @default("FB_TankLevel")                 @db.VarChar(100) @map("fb_tank_level")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("codesys_settings")
+}
+
+enum CodesysTaskStatus {
+  QUEUED
+  CLAIMED
+  SUCCESS
+  FAILURE
+
+  @@map("codesys_task_status")
+}
+
+model CodesysTask {
+  id          String            @id @default(uuid()) @db.Uuid
+  projectId   Int               @map("project_id")
+  type        String            @db.VarChar(50)
+  params      Json?
+  status      CodesysTaskStatus @default(QUEUED)
+  claimedAt   DateTime?         @map("claimed_at")
+  completedAt DateTime?         @map("completed_at")
+  resultLog   String[]          @map("result_log")
+  resultError String?           @map("result_error")
+  createdBy   String?           @db.Uuid @map("created_by")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator User?   @relation("CodesysTaskCreatedBy", fields: [createdBy], references: [id])
+
+  @@map("codesys_task")
+}

@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+
+# Build
+dist/
+build/
+tsconfig.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+.coolify-env
+
+# Prisma
+prisma/migrations/
+prisma/set_password.sql
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+
+# Claude Code (local agent config/memory)
+.claude/
+
+# Generated exports (CODESYS ST code output)
+exports/
+
+# Import files
+import/
+
+# Reference data (PDFs, DBC files, vendor docs — large binaries, not committed)
+data/
+
+# Project-specific analysis docs (not source code)
+claude_project_handoff.md
+lasse_maja_mias_technical_document.md
+
