@@ -1,5 +1,9 @@
 import type { PrismaClient } from "../generated/prisma/client/client";
-import { hashPassword } from "../../src/lib/auth";
+import bcrypt from "bcryptjs";
+
+function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
 
 export async function seedProject(prisma: PrismaClient) {
   console.log("Seeding default project + admin user...");
