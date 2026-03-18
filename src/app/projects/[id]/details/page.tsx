@@ -50,7 +50,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
     reset,
     formState: { errors, isDirty },
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: { name: "", projectNumber: "", client: "", location: "", status: "ACTIVE" },
   });
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireApiKey } from "../../_auth";
-import { computeCarrierAddresses } from "../../_address";
+import { computeCarrierAddresses, type AddressOffsets } from "../../_address";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authError = requireApiKey(req);
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Fetch GVLs referenced by this project's signals
   const gvls = await db.globalVariableList.findMany({
     where: { signals: { some: { projectId } } },
-    select: { id: true, name: true, description: true },
+    select: { id: true, name: true, description: true, generationMode: true },
     orderBy: { name: "asc" },
   });
 
@@ -222,15 +222,42 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           timeoutMs: true,
         },
       },
+      instanceSignal: {
+        select: {
+          id: true,
+          instance: {
+            select: {
+              id: true,
+              tag: true,
+              name: true,
+              componentId: true,
+              component: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
 
-  // Compute IEC addresses per carrier
+  // Compute IEC addresses per carrier — accumulate offsets globally within each PLC
   const addressMap = new Map<number, string | null>();
   for (const plc of project.plcs) {
-    for (const carrier of plc.carriers) {
+    let globalOffsets: AddressOffsets = { di: 0, do: 0, ai: 0, ao: 0 };
+    // Sort carriers by first card slot position (local bus first, then remote)
+    const sortedCarriers = [...plc.carriers].sort((a, b) => {
+      const aMin = a.cards.length > 0 ? Math.min(...a.cards.map((c) => c.slotPosition)) : Infinity;
+      const bMin = b.cards.length > 0 ? Math.min(...b.cards.map((c) => c.slotPosition)) : Infinity;
+      return aMin - bMin;
+    });
+    for (const carrier of sortedCarriers) {
       const carriersignals = signals.filter((s) => s.ioCard?.carrierId === carrier.id);
-      const addresses = computeCarrierAddresses(carrier.cards, carriersignals);
+      const { addresses, nextOffsets } = computeCarrierAddresses(carrier.cards, carriersignals, globalOffsets);
+      globalOffsets = nextOffsets;
       for (const [sigId, addr] of addresses) addressMap.set(sigId, addr);
     }
   }
@@ -278,6 +305,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
+    const instance = s.instanceSignal
+      ? {
+          id: s.instanceSignal.instance.id,
+          tag: s.instanceSignal.instance.tag,
+          name: s.instanceSignal.instance.name,
+          componentId: s.instanceSignal.instance.componentId,
+          componentName: s.instanceSignal.instance.component.name,
+        }
+      : null;
+
     return {
       id: s.id,
       tag: s.tag,
@@ -292,6 +329,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       drawingRef: s.drawingRef,
       cabinetLocation: s.cabinetLocation,
       ioCard,
+      instance,
       channelPosition: s.channelPosition,
       plcAddress,
       // Code gen

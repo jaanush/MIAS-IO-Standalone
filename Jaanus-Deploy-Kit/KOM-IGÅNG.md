@@ -1,44 +1,59 @@
 # Kom igång med Deploy — Jaanus
 
-Denna guide tar dig från noll till en körande app på vår Coolify-server (neptun).
+Denna guide tar dig från noll till en körande app på vår Coolify-server.
 
-## Förutsättningar
+## Steg 0: Förutsättningar
+
+Innan du börjar, se till att du har:
 
 | Vad | Hur | Test |
 |-----|-----|------|
 | **FortiClient VPN** | IT installerar | Kan ansluta till Ö-borgen ZTNA |
 | **Git** | https://git-scm.com | `git --version` |
 | **Node.js 20+** | https://nodejs.org (LTS) | `node --version` |
-| **Azure DevOps-åtkomst** | Johan lägger till dig i org `metstechnology` | Kan öppna dev.azure.com |
+| **Azure DevOps-åtkomst** | Johan/IT lägger till dig | Kan öppna dev.azure.com |
 
 ## Steg 1: Kopiera deploy-filerna till ditt projekt
 
-Kopiera dessa filer till **roten av ditt projekt**:
+Kopiera dessa två filer till **roten av ditt projekt**:
 
 ```
 mitt-projekt/
-├── deploy.sh          ← Från detta kit
-├── .deploy-env        ← Från detta kit (ifylld med tokens)
+├── deploy.sh          ← Kopiera från detta kit
+├── .deploy-env        ← Kopiera och fyll i (se nedan)
 ├── package.json
 ├── src/
 └── ...
 ```
 
 ### deploy.sh
-
-Kopiera `deploy.sh` och ändra **bara konfigurationen** överst:
+Kopiera `deploy.sh` från detta kit. Öppna den och ändra **bara konfigurationen** överst:
 
 ```bash
-APP_NAME="mitt-app"              # Unikt namn (inga mellanslag, små bokstäver)
+APP_NAME="mitt-app"              # Byt till ditt appnamn (unikt, inga mellanslag)
 APP_PORT="3000"                  # Port din app lyssnar på
-DOMAIN="mitt-app.demo.neptun.oborgen.ztna"
-NEEDS_DB="false"                 # "true" om du behöver PostgreSQL
-BASIC_AUTH="false"               # "true" för lösenordsskydd
+NEEDS_DB="false"                 # Ändra till "true" om du behöver PostgreSQL
+BASIC_AUTH="false"               # Ändra till "true" för lösenordsskydd
+DEPLOY_ENV="demo"                # Miljö: demo / staging / prod
 ```
 
-### .deploy-env
+Domän, DNS-zon och Coolify-miljö härleds automatiskt från `DEPLOY_ENV`:
 
-Redan ifylld med tokens — lägg den i projektets rot.
+| DEPLOY_ENV | Domän | Coolify-miljö |
+|------------|-------|---------------|
+| demo | `mitt-app.demo.neptun.ztna` | demos |
+| staging | `mitt-app.staging.neptun.ztna` | staging |
+| prod | `mitt-app.prod.neptun.ztna` | production |
+
+### .deploy-env
+Johan ger dig en `.deploy-env`-fil med tokens ifyllda. Lägg den i projektets rot.
+
+Om du skapar den själv, kopiera `deploy-env.example` → `.deploy-env` och fyll i:
+
+```
+AZURE_PAT="din-azure-pat-från-johan"
+COOLIFY_TOKEN="din-coolify-token-från-johan"
+```
 
 **Viktigt:** `.deploy-env` ska ALDRIG committas till git! deploy.sh skapar `.gitignore` automatiskt.
 
@@ -50,15 +65,20 @@ bash deploy.sh
 ```
 
 Scriptet gör allt automatiskt:
-1. Skapar git-repo i Azure DevOps
+1. Skapar git-repo i Azure DevOps (om det inte finns)
 2. Pushar din kod
 3. Skapar appen i Coolify
-4. Bygger och startar containern (nixpacks — auto-detekterar framework)
-5. Konfigurerar HTTPS + routing
-6. Skapar databas om NEEDS_DB=true
-7. Kör migrationer om Prisma detekteras
+4. Bygger och startar containern
+5. Konfigurerar HTTPS
+6. Skapar databas (om NEEDS_DB=true)
+7. Kör migrationer (om DB_MIGRATE_CMD är satt)
 
-**Vänta 2–5 minuter.** Appen är sedan live på `https://APP_NAME.demo.neptun.oborgen.ztna`.
+**Vänta 2–5 minuter.** Appen är sedan live!
+
+## Steg 3: Kolla att det fungerar
+
+- Öppna `https://mitt-app.demo.neptun.ztna` (FortiClient måste vara aktiv)
+- Eller kolla i Deploy Portal: `https://portal.neptun.ztna`
 
 ## Uppdatera appen
 
@@ -69,6 +89,23 @@ Samma kommando varje gång:
 bash deploy.sh
 ```
 
+## Deploy Portal
+
+**URL:** `https://portal.neptun.ztna` (kräver FortiClient)
+
+Logga in med ditt namn. Där kan du:
+- Se status på dina appar
+- Se loggar (container + build)
+- Rollbacka till en tidigare version
+- Ändra miljövariabler
+- Starta/stoppa/ta bort appar
+
+## Rollback (om något går fel)
+
+1. Öppna Deploy Portal → din app → fliken **Deploys**
+2. Klicka **Rollback** vid en tidigare lyckad deploy
+3. Klart — under 1 minut
+
 ## Vanliga portval
 
 | Framework | Port |
@@ -76,50 +113,64 @@ bash deploy.sh
 | Next.js | 3000 |
 | Express | 3001 |
 | FastAPI | 8000 |
-| Vite (preview) | 4173 |
+| Vite | 4173 |
 
 ## Med databas (PostgreSQL)
 
 Ändra i deploy.sh:
 ```bash
 NEEDS_DB="true"
+DB_MIGRATE_CMD="npx prisma migrate deploy"   # Om du använder Prisma
 ```
 
-Databasen skapas automatiskt vid första deploy. `DATABASE_URL` sätts som miljövariabel i containern.
+Databasen skapas automatiskt vid första deploy. `DATABASE_URL` sätts som miljövariabel.
 
-Om du använder Prisma detekteras det automatiskt — migrationer körs vid varje deploy.
+## Multi-app (backend + frontend)
 
-## Miljövariabler
+Om din app har separat backend och frontend, använd `deploy-multi.sh`:
 
-Lägg till i deploy.sh:
+```
+min-app/
+├── deploy.sh              ← Kopiera från detta kit
+├── deploy-multi.sh        ← Kopiera från detta kit
+├── .deploy-env            ← Tokens (samma fil som vanligt)
+├── backend/               ← Backend-repo
+│   ├── package.json
+│   └── ...
+└── frontend/              ← Frontend-repo
+    ├── package.json
+    └── ...
+```
+
+Öppna `deploy-multi.sh` och ändra:
+
 ```bash
-APP_ENV_VARS="KEY1=value1 KEY2=value2"           # Runtime
-APP_ENV_VARS_BUILD="NEXT_PUBLIC_API_URL=https://..."  # Byggtid
+BACKEND_APP_NAME="MinApp-Backend"     # Unikt namn för backend
+BACKEND_PORT="3001"                    # Port backend lyssnar på
+BACKEND_NEEDS_DB="true"               # Backend behöver oftast DB
+
+FRONTEND_APP_NAME="MinApp"            # Unikt namn för frontend
+FRONTEND_PORT="4173"                   # Vite preview-port
 ```
 
-Variabler som redan finns i Coolify skrivs inte över — säkert att köra deploy.sh flera gånger.
+Kör sedan:
 
-## Deploy Portal
+```bash
+bash deploy-multi.sh
+```
 
-**URL:** https://deploy-portal.demo.neptun.oborgen.ztna (kräver FortiClient)
-
-Logga in med: **jaanus.heeringsson**
-
-Där kan du:
-- Se status och loggar för alla dina appar
-- Rollbacka till en tidigare version
-- Starta/stoppa containrar
-- Se och ändra miljövariabler
+Scriptet deployer backend först, sedan frontend. Frontend får automatiskt `VITE_API_URL` som pekar på backend.
 
 ## Felsökning
 
 | Problem | Lösning |
 |---------|---------|
-| `.deploy-env saknas` | Kopiera `.deploy-env` till projektets rot |
-| 502 Bad Gateway | Kolla att `APP_PORT` stämmer |
-| Connection refused | Starta FortiClient VPN |
-| HTTPS timeout | Ny subdomän — be Johan lägga till ZTNA-destination |
-| Bygger men tom sida | Kolla i Coolify-dashboard: neptun.oborgen.ztna:8000 |
+| "FEL: .deploy-env saknas" | Kopiera `.deploy-env` till projektets rot |
+| "permission denied" | Kör: `chmod +x deploy.sh` |
+| 502 Bad Gateway | Kolla att `APP_PORT` stämmer med porten appen lyssnar på |
+| "Connection refused" | Starta FortiClient VPN |
+| Appen bygger men sidan är tom | Kolla loggar i Deploy Portal |
+| HTTPS timeout | Ny subdomän? Be Johan/IT lägga till ZTNA-destination |
 
 ## Frågor?
 

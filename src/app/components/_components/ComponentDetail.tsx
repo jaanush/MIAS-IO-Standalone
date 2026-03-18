@@ -63,7 +63,7 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
 
   const { register, handleSubmit, watch, setValue, reset, formState: { errors, isDirty } } =
     useForm<FormValues>({
-      resolver: zodResolver(schema),
+      resolver: zodResolver(schema) as any,
     });
 
   // Sync form when data loads or changes

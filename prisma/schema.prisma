@@ -4,12 +4,12 @@
 // applied separately; Prisma does not manage them.
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "./generated/prisma/client"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // =============================================================
@@ -354,10 +354,11 @@ model SignalSystem {
 }
 
 model GlobalVariableList {
-  id          Int     @id @default(autoincrement())
-  name        String  @unique @db.VarChar(100)
-  description String? @db.VarChar(255)
-  signals     Signal[]
+  id             Int               @id @default(autoincrement())
+  name           String            @unique @db.VarChar(100)
+  description    String?           @db.VarChar(255)
+  generationMode GvlGenerationMode @default(FLAT_VARS) @map("generation_mode")
+  signals        Signal[]
 
   @@map("global_variable_list")
 }
@@ -1171,6 +1172,13 @@ enum CodesysTaskStatus {
   FAILURE
 
   @@map("codesys_task_status")
+}
+
+enum GvlGenerationMode {
+  FLAT_VARS
+  FB_INSTANCES
+
+  @@map("gvl_generation_mode")
 }
 
 model CodesysTask {

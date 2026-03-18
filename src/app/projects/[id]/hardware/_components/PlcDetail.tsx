@@ -151,7 +151,7 @@ export function PlcDetail({ plc, projectId, onRefresh }: Props) {
     reset,
     formState: { errors, isDirty },
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: { name: plc.name, notes: plc.notes ?? "" },
   });
 

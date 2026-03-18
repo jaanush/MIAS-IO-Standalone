@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
-import type { PlcDataType } from "@prisma/client";
+import type { PlcDataType } from "../../../prisma/generated/prisma/client/client";
 import { SIGNAL_ORIGINS, SIGNAL_TYPES, SIGNAL_DIRECTIONS, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, RAW_DATA_TYPES, PLC_DATA_TYPES, BYTE_ORDERS, MODBUS_REGISTER_TYPES, DISCRETE_ALARM_CONDITIONS, ANALOG_ALARM_CONDITIONS, ALARM_SEVERITIES, BUS_PROTOCOLS, type SignalOrigin } from "@/lib/enums";
 
 const signalInclude = {

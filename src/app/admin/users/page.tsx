@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "../../../../prisma/generated/prisma/client/client";
 import { USER_ROLES } from "@/lib/enums";
 
 import {
@@ -132,7 +132,7 @@ export default function UsersPage() {
   // ── Create form ──────────────────────────────────────────────────────────
 
   const createForm = useForm<CreateFormValues>({
-    resolver: zodResolver(createSchema),
+    resolver: zodResolver(createSchema) as any,
     defaultValues: { email: "", name: "", role: "ENGINEER", password: "" },
   });
 
@@ -154,7 +154,7 @@ export default function UsersPage() {
   // ── Edit form ────────────────────────────────────────────────────────────
 
   const editForm = useForm<EditFormValues>({
-    resolver: zodResolver(editSchema),
+    resolver: zodResolver(editSchema) as any,
     defaultValues: { name: "", role: "ENGINEER", password: "" },
   });
 

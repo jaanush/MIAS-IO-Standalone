@@ -176,6 +176,9 @@ export type PdoDirection = (typeof PDO_DIRECTIONS)[number];
 export const CODESYS_TASK_STATUSES = ["QUEUED", "CLAIMED", "SUCCESS", "FAILURE"] as const;
 export type CodesysTaskStatus = (typeof CODESYS_TASK_STATUSES)[number];
 
+export const GVL_GENERATION_MODES = ["FLAT_VARS", "FB_INSTANCES"] as const;
+export type GvlGenerationMode = (typeof GVL_GENERATION_MODES)[number];
+
 // ── Users & projects ───────────────────────────────────────────────────────────
 
 export const USER_ROLES = ["ADMIN", "ENGINEER", "VIEWER"] as const;

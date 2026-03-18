@@ -158,8 +158,8 @@ export function ProjectBusConfigDialog({ open, onClose, signal, networks, onSave
     }
   }
 
-  const inp = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring";
-  const sel = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring";
+  const inp = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-hidden focus:ring-1 focus:ring-ring";
+  const sel = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-hidden focus:ring-1 focus:ring-ring";
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>

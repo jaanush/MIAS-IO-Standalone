@@ -93,7 +93,7 @@ export function CarrierDetail({ carrier, projectId, networks, onRefresh }: Props
     reset,
     formState: { errors, isDirty },
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       name: carrier.name,
       ipAddress: carrier.ipAddress ?? "",

@@ -118,7 +118,7 @@ export function ModuleForm({ defaultValues, approvals = [], onSubmit, onDelete, 
     setValue,
     formState: { errors },
   } = useForm<ModuleFormValues>({
-    resolver: zodResolver(moduleSchema),
+    resolver: zodResolver(moduleSchema) as any,
     defaultValues: {
       shortCircuitProtected: false,
       providesNetwork: false,
@@ -356,7 +356,7 @@ export function ModuleForm({ defaultValues, approvals = [], onSubmit, onDelete, 
           <textarea
             {...register("notes")}
             rows={3}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
             placeholder="Internal notes…"
           />
         </Field>

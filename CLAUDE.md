@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## General Rules
+
+- If possible, avoid using shell commands that generate user approval dialogs. Prefer non-interactive alternatives.
+
 ## Project Overview
 
 **MIAS-IO** is a PLC hardware management system ("MIAS I/O Editor") — a web application for managing PLC hardware setups, IO configurations, and signal definitions.

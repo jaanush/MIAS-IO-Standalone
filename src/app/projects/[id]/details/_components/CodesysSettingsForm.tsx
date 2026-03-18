@@ -25,7 +25,7 @@ export function CodesysSettingsForm({ projectId }: { projectId: number }) {
   });
 
   const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       fbAlarmDigital: "FB_AlarmDigital",
       fbAlarmAnalogue: "FB_AlarmAnalogue",

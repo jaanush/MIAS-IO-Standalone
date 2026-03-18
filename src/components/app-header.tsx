@@ -43,7 +43,7 @@ export function AppHeader({ user }: { user: HeaderUser }) {
   }
 
   return (
-    <header className="flex h-14 items-center border-b bg-muted/40 px-4 shrink-0 shadow-sm">
+    <header className="flex h-14 items-center border-b bg-muted/40 px-4 shrink-0 shadow-xs">
       {/* Left — logo */}
       <div className="flex w-48 items-center">
         <Link href="/">

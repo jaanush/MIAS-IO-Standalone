@@ -132,7 +132,7 @@ export function DeviceForm({
     control,
     formState: { errors },
   } = useForm<DeviceFormValues>({
-    resolver: zodResolver(deviceFormSchema),
+    resolver: zodResolver(deviceFormSchema) as any,
     defaultValues: {
       vendorName: "",
       articleNumber: "",
@@ -424,7 +424,7 @@ export function DeviceForm({
         <textarea
           {...register("notes")}
           rows={3}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           placeholder="Additional notes…"
         />
       </section>

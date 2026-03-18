@@ -68,7 +68,7 @@ export default function EditCouplerPage({ params }: { params: Promise<{ id: stri
     notes: data.notes,
     approvalIds: data.approvals.map((a) => a.approvalId),
     protocols: data.protocols.map((p) => ({
-      protocol: p.protocol as DeviceFormValues["protocols"][number]["protocol"],
+      protocol: p.protocol as NonNullable<DeviceFormValues["protocols"]>[number]["protocol"],
       baudRateMaxKbit: p.baudRateMaxKbit,
       nodeAddressMin: p.nodeAddressMin,
       nodeAddressMax: p.nodeAddressMax,

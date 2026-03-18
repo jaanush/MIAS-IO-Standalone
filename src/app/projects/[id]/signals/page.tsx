@@ -472,8 +472,8 @@ function EditRow({
   onBlurSave: (vals: EditValues) => void;
   onCancel: () => void;
 }) {
-  const inp = "h-7 w-full rounded border border-input bg-background px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring";
-  const sel = "h-7 w-full rounded border border-input bg-background px-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring";
+  const inp = "h-7 w-full rounded border border-input bg-background px-1.5 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring";
+  const sel = "h-7 w-full rounded border border-input bg-background px-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring";
   const isDisc = values.signalType === "DISCRETE";
   const isAnlg = values.signalType === "ANALOG";
 
@@ -762,7 +762,7 @@ function FilterCell({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const base = "h-6 w-full rounded border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring";
+  const base = "h-6 w-full rounded border border-input bg-background text-xs focus:outline-hidden focus:ring-1 focus:ring-ring";
 
   if (TEXT_FILTER_COLS.has(colKey)) {
     return (

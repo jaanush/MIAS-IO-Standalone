@@ -20,6 +20,7 @@ tsconfig.tsbuildinfo
 .deploy-env
 
 # Prisma
+prisma/generated/
 prisma/migrations/
 prisma/set_password.sql
 

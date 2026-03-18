@@ -8,7 +8,7 @@ export const codesysRouter = createTRPCRouter({
       z.object({
         projectId: z.number().int(),
         type: z.string().min(1).max(50),
-        params: z.record(z.unknown()).optional(),
+        params: z.record(z.string(), z.unknown()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {

@@ -182,7 +182,7 @@ export function ComponentGroup({
                 editingName ? (
                   <input
                     autoFocus
-                    className="text-sm font-medium bg-background border border-input rounded px-1.5 py-0 h-6 focus:outline-none focus:ring-1 focus:ring-ring w-48"
+                    className="text-sm font-medium bg-background border border-input rounded px-1.5 py-0 h-6 focus:outline-hidden focus:ring-1 focus:ring-ring w-48"
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
                     onBlur={commitRename}
@@ -228,7 +228,7 @@ export function ComponentGroup({
                     <input
                       autoFocus
                       type="number"
-                      className="bg-background border border-input rounded px-1.5 py-0 h-5 w-16 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="bg-background border border-input rounded px-1.5 py-0 h-5 w-16 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring"
                       value={offsetInput}
                       onChange={(e) => setOffsetInput(e.target.value)}
                       onBlur={commitOffset}
@@ -239,7 +239,7 @@ export function ComponentGroup({
                   ) : (
                     <span
                       className={cn(
-                        "cursor-text hover:underline decoration-dotted min-w-[1.5rem] text-center",
+                        "cursor-text hover:underline decoration-dotted min-w-6 text-center",
                         // Amber when offset is not a clean multiple of minCanIdOffset
                         canIdOffset != null && minCanIdOffset != null && minCanIdOffset > 0 && canIdOffset % minCanIdOffset !== 0
                           && "text-amber-600 dark:text-amber-400"
@@ -269,7 +269,7 @@ export function ComponentGroup({
                   {editingFb ? (
                     <input
                       autoFocus
-                      className="bg-background border border-input rounded px-1.5 py-0 h-5 w-36 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="bg-background border border-input rounded px-1.5 py-0 h-5 w-36 text-xs font-mono focus:outline-hidden focus:ring-1 focus:ring-ring"
                       value={fbInput}
                       onChange={(e) => setFbInput(e.target.value)}
                       onBlur={commitFb}
@@ -280,7 +280,7 @@ export function ComponentGroup({
                   ) : (
                     <span
                       className={cn(
-                        "cursor-text hover:underline decoration-dotted min-w-[2rem] font-mono",
+                        "cursor-text hover:underline decoration-dotted min-w-8 font-mono",
                         fbIsDirty && "text-amber-600 dark:text-amber-400"
                       )}
                       onClick={() => setEditingFb(true)}
@@ -300,7 +300,7 @@ export function ComponentGroup({
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
                     <select
-                      className="bg-background border border-input rounded px-1 py-0 h-5 text-xs focus:outline-none focus:ring-1 focus:ring-ring max-w-[12rem]"
+                      className="bg-background border border-input rounded px-1 py-0 h-5 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring max-w-48"
                       value={plcNetworkId ?? ""}
                       onChange={(e) => {
                         const val = e.target.value;

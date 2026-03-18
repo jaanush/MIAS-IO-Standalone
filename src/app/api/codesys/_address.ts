@@ -1,6 +1,6 @@
 /**
  * IEC 61131-3 address computation for hardwired IO signals.
- * Offsets are carrier-scoped and accumulate by slot position order.
+ * Offsets accumulate globally across all carriers within a PLC.
  */
 
 type CardForAddress = {
@@ -19,21 +19,25 @@ type SignalForAddress = {
   origin: string;
 };
 
-/** Compute IEC addresses for all IEC signals within a carrier's cards. */
+export type AddressOffsets = { di: number; do: number; ai: number; ao: number };
+
+/** Compute IEC addresses for all IEC signals within a carrier's cards.
+ *  `initialOffsets` carries the cumulative byte/word counts from preceding carriers. */
 export function computeCarrierAddresses(
   cards: CardForAddress[],
-  signals: SignalForAddress[]
-): Map<number, string | null> {
-  const result = new Map<number, string | null>();
+  signals: SignalForAddress[],
+  initialOffsets: AddressOffsets = { di: 0, do: 0, ai: 0, ao: 0 },
+): { addresses: Map<number, string | null>; nextOffsets: AddressOffsets } {
+  const addresses = new Map<number, string | null>();
 
   // Sort cards by slot position
   const sorted = [...cards].sort((a, b) => a.slotPosition - b.slotPosition);
 
-  // Running byte/word offsets per address space
-  let diByteOffset = 0;
-  let doByteOffset = 0;
-  let aiWordOffset = 0;
-  let aoWordOffset = 0;
+  // Running byte/word offsets per address space — start from previous carrier's end
+  let diByteOffset = initialOffsets.di;
+  let doByteOffset = initialOffsets.do;
+  let aiWordOffset = initialOffsets.ai;
+  let aoWordOffset = initialOffsets.ao;
 
   // Map card id → starting offsets
   const cardOffsets = new Map<number, { di: number; do: number; ai: number; ao: number }>();
@@ -73,14 +77,14 @@ export function computeCarrierAddresses(
   // Assign addresses to signals
   for (const sig of signals) {
     if (sig.origin !== "IEC" || sig.ioCardId == null || sig.channelPosition == null) {
-      result.set(sig.id, null);
+      addresses.set(sig.id, null);
       continue;
     }
 
     const offsets = cardOffsets.get(sig.ioCardId);
     const card = sorted.find((c) => c.id === sig.ioCardId);
     if (!offsets || !card) {
-      result.set(sig.id, null);
+      addresses.set(sig.id, null);
       continue;
     }
 
@@ -114,16 +118,37 @@ export function computeCarrierAddresses(
         addr = null;
     }
 
-    result.set(sig.id, addr);
+    addresses.set(sig.id, addr);
   }
 
-  return result;
+  return {
+    addresses,
+    nextOffsets: { di: diByteOffset, do: doByteOffset, ai: aiWordOffset, ao: aoWordOffset },
+  };
 }
 
-/** Sanitize a signal tag for use as an IEC 61131-3 variable name. */
+/** Sanitize a signal tag for use as an IEC 61131-3 variable name (max 64 chars). */
 export function tagToVarName(tag: string | null | undefined): string {
   if (!tag) return "SIG_UNNAMED";
   const sanitized = tag.replace(/[^a-zA-Z0-9_]/g, "_");
   const prefixed = /^[0-9]/.test(sanitized) ? `SIG_${sanitized}` : sanitized;
-  return prefixed.slice(0, 32);
+  return prefixed.slice(0, 64);
+}
+
+/** Deduplicate variable names by appending _2, _3, ... on collision. */
+export function deduplicateVarNames(names: string[]): string[] {
+  const counts = new Map<string, number>();
+  const result: string[] = [];
+  for (const name of names) {
+    const count = (counts.get(name) ?? 0) + 1;
+    counts.set(name, count);
+    if (count === 1) {
+      result.push(name);
+    } else {
+      // Ensure suffix still fits within 64 chars
+      const suffix = `_${count}`;
+      result.push(name.slice(0, 64 - suffix.length) + suffix);
+    }
+  }
+  return result;
 }

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { db } from "@/lib/db";
-import type { SignalOrigin, PlcDataType } from "@prisma/client";
+import type { SignalOrigin, PlcDataType } from "../../../prisma/generated/prisma/client/client";
 import { BUS_PROTOCOLS, NETWORK_ROLES, SERIAL_PARITY, CAN_MODES, SIGNAL_ORIGINS } from "@/lib/enums";
 
 // ── Shared include shapes ─────────────────────────────────────────────────────

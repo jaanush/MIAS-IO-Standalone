@@ -4,8 +4,11 @@
 # Azure DevOps Personal Access Token (för git push)
 AZURE_PAT="din-azure-pat-här"
 
-# Coolify API-token (be Johan om den)
+# Coolify API-token
 COOLIFY_TOKEN="din-coolify-token-här"
+
+# Constellation DNS (valfritt — auto-registrerar A-post vid deploy)
+DNS_TOKEN="din-constellation-dns-token"
 
 # Basic Auth (valfritt — används om BASIC_AUTH="true" i deploy.sh)
 BASIC_AUTH_USER="metstech"

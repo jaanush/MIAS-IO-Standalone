@@ -6,11 +6,13 @@
  *        Defaults to project 1.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../../prisma/generated/prisma/client/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import * as fs from "fs";
 import * as path from "path";
 
-const db = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const db = new PrismaClient({ adapter });
 const PROJECT_ID = Number(process.argv[2] ?? 1);
 const OUTPUT_DIR = path.join(process.cwd(), "exports", "PLC");
 
@@ -291,7 +293,7 @@ function genAlarmInit(opts: {
   const mask = opts.blockMask ?? "";
   const groupNum = opts.alarmGroup === "A" ? 0 : opts.alarmGroup === "B" ? 1 : opts.alarmGroup === "C" ? 2 : 0;
 
-  if (opts.bz === "DIG" || opts.bz === "DIG") {
+  if (opts.bz === "DIG") {
     const blockAll = opts.fatMode ? "TRUE" : (mask[0] === "1" ? "TRUE" : "FALSE");
     // NO/NC resolution: NC in GVL_Physical → TRUE, NC elsewhere → FALSE, NO → TRUE
     let noNcVal = "TRUE";
@@ -719,15 +721,19 @@ async function main() {
 
   // Also build AT address map (reuse existing logic)
   const { computeCarrierAddresses } = await import("../app/api/codesys/_address");
+  type Offsets = { di: number; do: number; ai: number; ao: number };
   const atAddressMap = new Map<number, string | null>();
   for (const plc of project.plcs) {
+    let globalOffsets: Offsets = { di: 0, do: 0, ai: 0, ao: 0 };
     for (const carrier of plc.carriers) {
       const carrierSignals = signals.filter((s) => s.ioCard?.carrierId === carrier.id);
-      const addrs = computeCarrierAddresses(
+      const { addresses, nextOffsets } = computeCarrierAddresses(
         carrier.cards.map((c) => ({ id: c.id, slotPosition: c.slotPosition, cardType: c.cardType, maxInputChannels: c.maxInputChannels, maxOutputChannels: c.maxOutputChannels })),
-        carrierSignals.map((s) => ({ id: s.id, ioCardId: s.ioCardId, channelPosition: s.channelPosition, direction: s.direction, origin: s.origin }))
+        carrierSignals.map((s) => ({ id: s.id, ioCardId: s.ioCardId, channelPosition: s.channelPosition, direction: s.direction, origin: s.origin })),
+        globalOffsets
       );
-      for (const [sigId, addr] of addrs) atAddressMap.set(sigId, addr);
+      globalOffsets = nextOffsets;
+      for (const [sigId, addr] of addresses) atAddressMap.set(sigId, addr);
     }
   }
 

@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const registered = searchParams.get("registered") === "true";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,11 +40,17 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30">
-      <div className="w-full max-w-sm rounded-lg border bg-background p-8 shadow-sm">
+      <div className="w-full max-w-sm rounded-lg border bg-background p-8 shadow-xs">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold">MIAS-IO</h1>
           <p className="mt-1 text-sm text-muted-foreground">Sign in to continue</p>
         </div>
+
+        {registered && (
+          <p className="mb-4 rounded-md bg-green-50 p-3 text-center text-sm text-green-700">
+            Account created. Sign in to get started.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -75,9 +84,16 @@ export default function LoginPage() {
           )}
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Signing in..." : "Sign in"}
           </Button>
         </form>
+
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="text-primary underline-offset-4 hover:underline">
+            Register
+          </Link>
+        </p>
       </div>
     </main>
   );

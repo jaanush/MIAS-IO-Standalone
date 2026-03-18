@@ -47,7 +47,7 @@ export function ComponentCreateForm({ onCreated, onCancel }: Props) {
   });
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: { status: "DRAFT" },
   });
 

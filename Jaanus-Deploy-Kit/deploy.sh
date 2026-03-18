@@ -1,42 +1,91 @@
 #!/bin/bash
-# Deploy till Coolify via Azure DevOps
-# Kor: bash deploy.sh
+# Deploy till Coolify via Azure DevOps — MASTER TEMPLATE
+# Kor: bash deploy.sh [--app-dir /stig/till/app]
 #
 # Hanterar bade nya appar och befintliga.
 # Kraver: .deploy-env med hemligheter (se deploy-env.example)
+#
+# Kan styras via miljovariabler (anvands av deploy-multi.sh):
+#   DEPLOY_APP_NAME, DEPLOY_APP_PORT, DEPLOY_NEEDS_DB, DEPLOY_DB_TYPE,
+#   DEPLOY_BASIC_AUTH, DEPLOY_DB_MIGRATE_CMD, DEPLOY_AZURE_REPO,
+#   DEPLOY_APP_ENV_VARS, DEPLOY_APP_ENV_VARS_BUILD
+#
+# Senast uppdaterad: 2026-03-12
+# Andringslogg:
+#   - Argument-parsning: --app-dir (for multi-app deploy, t.ex. monorepo)
+#   - DEPLOY_* miljovariabler for att overstyra all konfiguration
+#   - DNS hanteras av IT via wildcard (*.neptun.ztna)
+#   - Prisma auto-migration med Prisma 7-flaggor (--from-migrations, --to-schema)
+#   - Auto-detektering av Prisma for DB_MIGRATE_CMD
+#   - Traefik-labels-verifiering efter deploy
+#   - Smart container restart (bara DB-appar)
+#   - Windows-saker openssl (JSON.stringify)
 set -euo pipefail
+
+# --- Argument-parsning ---
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_WORK_DIR="$SCRIPT_DIR"   # Standardvarde: samma katalog som scriptet
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --app-dir) APP_WORK_DIR="$(cd "$2" && pwd)"; shift 2 ;;
+        *) shift ;;
+    esac
+done
 
 # =============================================
 # KONFIGURATION (andra per app)
 # =============================================
-APP_NAME="ANDRA-MIG"            # Unikt namn -> containernamn + subdoman (t.ex. "mitt-app")
-APP_PORT="3000"                  # Port appen lyssnar pa (Next.js=3000, FastAPI=8000, Vite=4173)
-DOMAIN="${APP_NAME}.demo.neptun.oborgen.ztna"
-NEEDS_DB="false"                 # "true" om du behover PostgreSQL
-DB_TYPE="postgresql"             # postgresql / redis / mariadb / mongodb
-BASIC_AUTH="false"               # "true" for HTTP Basic Auth (losenordsskydd)
-DB_MIGRATE_CMD=""                # Kors i containern efter deploy (auto-satts om Prisma detekteras)
+# Varje varde kan overstyras med DEPLOY_* miljovariabel (se deploy-multi.sh)
+APP_NAME="${DEPLOY_APP_NAME:-ANDRA-MIG}"    # Unikt namn -> containernamn + subdoman
+APP_PORT="${DEPLOY_APP_PORT:-3000}"          # Port appen lyssnar pa (Next.js=3000, FastAPI=8000, Vite=4173)
+NEEDS_DB="${DEPLOY_NEEDS_DB:-false}"         # "true" om du behover PostgreSQL
+DB_TYPE="${DEPLOY_DB_TYPE:-postgresql}"      # postgresql / redis / mariadb / mongodb
+BASIC_AUTH="${DEPLOY_BASIC_AUTH:-false}"     # "true" for HTTP Basic Auth (losenordsskydd)
+DB_MIGRATE_CMD="${DEPLOY_DB_MIGRATE_CMD:-}" # Kors i containern efter deploy (auto-satts om Prisma detekteras)
+
+# Miljo: demo / staging / prod
+DEPLOY_ENV="${DEPLOY_ENV:-demo}"
 
 # Azure DevOps (andra normalt inte dessa)
 AZURE_ORG="metstechnology"
 AZURE_PROJECT="MetstechNeptunus"
-AZURE_REPO="${AZURE_REPO:-$APP_NAME}"
+AZURE_REPO="${DEPLOY_AZURE_REPO:-${AZURE_REPO:-$APP_NAME}}"
 
 # Coolify (andra normalt inte dessa)
-COOLIFY_URL="http://neptun.oborgen.ztna:8000"
+COOLIFY_URL="http://coolify.neptun.ztna:8000"
 COOLIFY_PROJECT_UUID="0ff286d9-378a-4eb1-a021-0fd077d77700"
 COOLIFY_SERVER_UUID="lo0c04ssg0wksokscok0ck00"
-COOLIFY_ENVIRONMENT="demos"
+
+# --- Automatisk miljo-mappning (harleds fran DEPLOY_ENV) ---
+case "$DEPLOY_ENV" in
+    demo)
+        COOLIFY_ENVIRONMENT="demos"
+        DOMAIN="${APP_NAME}.demo.neptun.ztna"
+        ;;
+    staging)
+        COOLIFY_ENVIRONMENT="staging"
+        DOMAIN="${APP_NAME}.staging.neptun.ztna"
+        ;;
+    prod|production)
+        COOLIFY_ENVIRONMENT="production"
+        DOMAIN="${APP_NAME}.prod.neptun.ztna"
+        ;;
+    *)
+        echo "FEL: Okand miljo: $DEPLOY_ENV (tillatna: demo, staging, prod)"
+        exit 1
+        ;;
+esac
 
 # Extra env-variabler (runtime)
-APP_ENV_VARS=""
+APP_ENV_VARS="${DEPLOY_APP_ENV_VARS:-}"
 # Extra env-variabler (byggtid)
-APP_ENV_VARS_BUILD=""
+APP_ENV_VARS_BUILD="${DEPLOY_APP_ENV_VARS_BUILD:-}"
 
 # =============================================
 # HEMLIGHETER
 # =============================================
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# .deploy-env letas alltid upp relativt till deploy.sh (inte app-katalogen)
 ENV_FILE="$SCRIPT_DIR/.deploy-env"
 
 if [ ! -f "$ENV_FILE" ]; then
@@ -193,6 +242,7 @@ trigger_deploy() {
 }
 
 # --- wait_for_deploy() --- Vanta pa att deploy blir klar
+# Skriver slutstatus till stdout: finished / failed / cancelled / timeout
 wait_for_deploy() {
     local dep_uuid="$1"
     local status=""
@@ -238,7 +288,7 @@ retry 3 5 "Coolify-anslutning" test_coolify || fail "Kan inte na Coolify pa $COO
 echo ""
 echo "[1/5] Push till Azure DevOps..."
 
-cd "$SCRIPT_DIR"
+cd "$APP_WORK_DIR"
 
 # Skapa Azure-repo om den inte finns
 AZURE_API="https://dev.azure.com/${AZURE_ORG}/${AZURE_PROJECT}/_apis"
@@ -283,9 +333,44 @@ elif [ "$CURRENT_REMOTE" != "$REPO_REMOTE" ]; then
     git remote set-url origin "$REPO_REMOTE"
 fi
 
+# --- Prisma: generera klient + migration (Prisma 7) ---
+if [ -f "prisma/schema.prisma" ]; then
+    log "Genererar Prisma-klient..."
+    npx prisma generate 2>/dev/null || warn "prisma generate misslyckades (ej kritiskt for push)"
+
+    # Kolla om det finns schemaandringar utan migrationsfil
+    log "Kontrollerar Prisma-schema mot migrationer..."
+    NEEDS_MIGRATION="no"
+    npx prisma migrate diff \
+        --from-migrations prisma/migrations \
+        --to-schema prisma/schema.prisma \
+        --exit-code > /dev/null 2>&1 || NEEDS_MIGRATION="yes"
+
+    if [ "$NEEDS_MIGRATION" = "yes" ]; then
+        MIGRATION_TIMESTAMP=$(date '+%Y%m%d%H%M%S')
+        MIGRATION_NAME="${MIGRATION_TIMESTAMP}_auto_schema_update"
+
+        log "Schemaandringar detekterade — skapar migration: $MIGRATION_NAME"
+        mkdir -p "prisma/migrations/$MIGRATION_NAME"
+        npx prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema prisma/schema.prisma \
+            --script > "prisma/migrations/$MIGRATION_NAME/migration.sql" 2>/dev/null
+
+        if [ -s "prisma/migrations/$MIGRATION_NAME/migration.sql" ]; then
+            log "Migration skapad: prisma/migrations/$MIGRATION_NAME/migration.sql"
+        else
+            warn "Tom migration — tar bort"
+            rm -rf "prisma/migrations/$MIGRATION_NAME"
+        fi
+    else
+        log "Schema OK — inga nya migrationer behovs"
+    fi
+fi
+
 git add -A
 git commit -m "deploy: $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
-git push origin main 2>/dev/null || git push -u origin main
+git push --force origin main 2>/dev/null || git push --force -u origin main
 log "Pushat till Azure DevOps"
 
 GIT_CLONE_URL="https://pat:${AZURE_PAT}@dev.azure.com/${AZURE_ORG}/${AZURE_PROJECT}/_git/${AZURE_REPO}"
@@ -296,8 +381,26 @@ GIT_CLONE_URL="https://pat:${AZURE_PAT}@dev.azure.com/${AZURE_ORG}/${AZURE_PROJE
 echo ""
 echo "[2/5] Konfigurerar app i Coolify..."
 
-APP_UUID=$(api GET "/applications" | \
-    node -e "const d=[];process.stdin.on('data',c=>d.push(c));process.stdin.on('end',()=>{const apps=JSON.parse(d.join(''));const a=apps.find(a=>a.name==='$APP_NAME');if(a)process.stdout.write(a.uuid)})" 2>/dev/null || echo "")
+EXISTING_APP=$(api GET "/applications" | \
+    node -e "const d=[];process.stdin.on('data',c=>d.push(c));process.stdin.on('end',()=>{const apps=JSON.parse(d.join(''));const a=apps.find(a=>a.name==='$APP_NAME');if(a)console.log(JSON.stringify({uuid:a.uuid,fqdn:a.fqdn||'',env:a.environment?.name||'unknown'}))})" 2>/dev/null || echo "")
+
+APP_UUID=""
+if [ -n "$EXISTING_APP" ]; then
+    APP_UUID=$(echo "$EXISTING_APP" | node -e "const d=[];process.stdin.on('data',c=>d.push(c));process.stdin.on('end',()=>{process.stdout.write(JSON.parse(d.join('')).uuid||'')})" 2>/dev/null)
+    EXISTING_FQDN=$(echo "$EXISTING_APP" | node -e "const d=[];process.stdin.on('data',c=>d.push(c));process.stdin.on('end',()=>{process.stdout.write(JSON.parse(d.join('')).fqdn||'')})" 2>/dev/null)
+    EXISTING_ENV=$(echo "$EXISTING_APP" | node -e "const d=[];process.stdin.on('data',c=>d.push(c));process.stdin.on('end',()=>{process.stdout.write(JSON.parse(d.join('')).env||'')})" 2>/dev/null)
+
+    # Kolla om befintlig app pekar pa en annan doman (= troligen fel app)
+    if [ -n "$EXISTING_FQDN" ] && ! echo "$EXISTING_FQDN" | grep -qi "$DOMAIN"; then
+        echo ""
+        warn "En app med namnet '$APP_NAME' finns redan!"
+        warn "  UUID:   $APP_UUID"
+        warn "  Doman:  $EXISTING_FQDN"
+        warn "  Miljo:  $EXISTING_ENV"
+        echo ""
+        fail "Appnamnet ar upptaget. Ta bort den befintliga appen i Coolify-dashboard eller valj ett annat APP_NAME."
+    fi
+fi
 
 if [ -z "$APP_UUID" ]; then
     log "Skapar ny app: $APP_NAME"
@@ -358,7 +461,6 @@ const labels=[
     \`traefik.http.routers.https-0-\${uuid}.entryPoints=https\`,
     \`traefik.http.routers.https-0-\${uuid}.rule=Host(\${bt}\${domain}\${bt}) && PathPrefix(\${bt}/\${bt})\`,
     \`traefik.http.routers.https-0-\${uuid}.service=https-0-\${uuid}\`,
-    \`traefik.http.routers.https-0-\${uuid}.tls.certresolver=letsencrypt\`,
     \`traefik.http.routers.https-0-\${uuid}.tls=true\`,
     \`traefik.http.services.http-0-\${uuid}.loadbalancer.server.port=\${port}\`,
     \`traefik.http.services.https-0-\${uuid}.loadbalancer.server.port=\${port}\`,
@@ -480,6 +582,12 @@ if [ "$NEEDS_DB" = "true" ]; then
             done
             echo ""
 
+            # Konfigurera schemalagd backup (daglig kl 03:00)
+            api_checked "Backup-config" POST "/databases/$DB_UUID/backups" \
+                "{\"frequency\":\"0 3 * * *\",\"save_s3\":false,\"database_type\":\"$DB_TYPE\"}" > /dev/null 2>&1 && \
+                log "Schemalagd backup konfigurerad (daglig kl 03:00)" || \
+                log "Backup redan konfigurerad eller ej tillganglig"
+
             # Hamta DATABASE_URL
             DB_URL=$(api GET "/databases/$DB_UUID" | \
                 node -e "const d=[];process.stdin.on('data',c=>d.push(c));process.stdin.on('end',()=>{try{const r=JSON.parse(d.join(''));process.stdout.write(r.internal_db_url||'')}catch{}})" 2>/dev/null)
@@ -557,6 +665,7 @@ const d=[];process.stdin.on('data',c=>d.push(c));process.stdin.on('end',()=>{
         const logs=r.logs||r.log||'';
         const lines=logs.split('\n');
         const issues=[];
+        // Specifika felmoenster (inte generiskt 'error' som matchar npm warn etc.)
         const hasRealError=lines.some(l=>/Error:|error:|FAILED|ERR!/.test(l)&&/prisma|migrate|database/i.test(l)&&!/npm warn/i.test(l));
         if(hasRealError) issues.push('Prisma/databas-fel i loggarna');
         if(logs.includes('post-deployment command failed')) issues.push('Post-deploy-kommandot misslyckades');
@@ -573,6 +682,7 @@ const d=[];process.stdin.on('data',c=>d.push(c));process.stdin.on('end',()=>{
         if [ -n "$REDEPLOY_UUID" ]; then
             REDEPLOY_STATUS=$(wait_for_deploy "$REDEPLOY_UUID") || true
             if [ "$REDEPLOY_STATUS" = "finished" ]; then
+                # Kontrollera migrering igen
                 REDEPLOY_LOGS=$(api GET "/deployments/$REDEPLOY_UUID" 2>/dev/null || echo "")
                 REDEPLOY_ISSUES=$(echo "$REDEPLOY_LOGS" | node -e "
 const d=[];process.stdin.on('data',c=>d.push(c));process.stdin.on('end',()=>{

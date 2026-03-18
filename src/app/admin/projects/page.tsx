@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { ProjectStatus, MemberRole } from "@prisma/client";
+import type { ProjectStatus, MemberRole } from "../../../../prisma/generated/prisma/client/client";
 import { PROJECT_STATUS } from "@/lib/enums";
 
 import {
@@ -158,7 +158,7 @@ export default function ProjectsPage() {
   // ── Create form ──────────────────────────────────────────────────────────
 
   const createForm = useForm<CreateFormValues>({
-    resolver: zodResolver(createSchema),
+    resolver: zodResolver(createSchema) as any,
     defaultValues: { name: "", client: "", location: "", status: "ACTIVE" },
   });
 
@@ -180,7 +180,7 @@ export default function ProjectsPage() {
   // ── Edit form ────────────────────────────────────────────────────────────
 
   const editForm = useForm<EditFormValues>({
-    resolver: zodResolver(editSchema),
+    resolver: zodResolver(editSchema) as any,
     defaultValues: { name: "", client: "", location: "", status: "ACTIVE" },
   });
 

@@ -8,13 +8,14 @@ Changes require agreement from both sides before implementation.
 
 ## Overview
 
-MIAS-IO exposes a read-only REST API that CODESYS IronPython scripts call to fetch
-project data and generate CODESYS project artifacts (GVLs, hardware config, etc.).
+MIAS-IO exposes a REST API that CODESYS IronPython scripts call to fetch
+project data, generate CODESYS project artifacts (GVLs, hardware config, etc.),
+and write back discovered hardware topology.
 The CODESYS scripts live in `codesys-scripts/` and only call these endpoints — they
 do not touch `src/` or `prisma/`.
 
 ```
-MIAS-IO web app  ──GET──►  /api/codesys/*  ──JSON──►  CODESYS IronPython script
+MIAS-IO web app  ◄──►  /api/codesys/*  ◄──►  CODESYS IronPython script
 ```
 
 ---
@@ -139,6 +140,13 @@ and derive everything they need from it.
         "plcName": "PLC-01",
         "carrierName": "Local Bus"
       },
+      "instance": {
+        "id": 42,
+        "tag": "861-G01",
+        "name": "Diesel Genset",
+        "componentId": 7,
+        "componentName": "ComAP Genset Controller"
+      },
       "channelPosition": 0,
       "plcAddress": "%IW0",
       "plcDataType": "INT",
@@ -195,6 +203,7 @@ and derive everything they need from it.
       "gvlId": 1,
       "gvlName": "GVL_IO",
       "ioCard": null,
+      "instance": null,
       "channelPosition": null,
       "plcAddress": null,
       "plcDataType": "BOOL",
@@ -225,6 +234,12 @@ and derive everything they need from it.
 }
 ```
 
+**Notes on `instance`:**
+- `null` when the signal has no component instance binding (`instanceSignalId = null`)
+- When present, contains the component instance tag/name and the parent component ID/name
+- `componentId` + `componentName` identify the `HardwareComponent` — the plugin can use
+  `componentId` to look up the associated function block in its own database
+
 **Notes on `plcAddress`:**
 - Computed server-side from `ioCard.slotPosition` + `channelPosition` + `cardType`
 - Format follows IEC 61131-3: `%IX{byte}.{bit}` (DI), `%QX{byte}.{bit}` (DO),
@@ -237,6 +252,98 @@ and derive everything they need from it.
 |---|---|
 | `401` | Missing or invalid `X-API-Key` |
 | `403` | Project exists but requesting user has no access |
+| `404` | Project not found |
+
+---
+
+### `POST /api/codesys/project/{id}/hardware`
+
+Write-back endpoint: CODESYS posts its discovered device topology so MIAS-IO can
+compare it against the configured hardware and flag mismatches. This is a
+**read-compare** operation — it does not create or modify hardware in the database.
+
+**Path parameter:** `id` — integer project ID
+
+**Request body (`application/json`):**
+
+```json
+{
+  "source": "codesys_scan",
+  "scannedAt": "2026-03-11T10:15:00Z",
+  "plcs": [
+    {
+      "name": "PLC-01",
+      "ipAddress": "192.168.1.10",
+      "deviceId": "0000 0750 0000 0000",
+      "children": [
+        {
+          "name": "Local Bus",
+          "deviceId": "0000 0750 0000 0000",
+          "modules": [
+            {
+              "slot": 0,
+              "moduleId": "0000 0750 1405 0000",
+              "articleNumber": "750-1405"
+            },
+            {
+              "slot": 1,
+              "moduleId": "0000 0750 0430 0000",
+              "articleNumber": "750-430"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `source` | string | Identifies where the scan came from (e.g. `"codesys_scan"`) |
+| `scannedAt` | string | ISO 8601 timestamp of when the scan was performed |
+| `plcs[].name` | string | PLC name — matched case-insensitively against DB |
+| `plcs[].ipAddress` | string | Fallback match key if name doesn't match |
+| `plcs[].deviceId` | string | CODESYS device identifier (logged, not matched) |
+| `plcs[].children[].name` | string | Carrier/bus segment name — matched case-insensitively |
+| `plcs[].children[].modules[].slot` | int | Slot position (0-based) — matched against `io_card.slot_position` |
+| `plcs[].children[].modules[].articleNumber` | string | Module article number — compared against catalog |
+
+**Matching logic:**
+1. PLCs matched by name (case-insensitive) or IP address
+2. Children matched by name against carriers; if no name match, falls back to matching by overlapping card article numbers at the same slot positions
+3. Modules matched by slot position; article numbers verified against DB
+
+**Response: `200 OK`**
+
+```json
+{
+  "accepted": true,
+  "matched": 3,
+  "unrecognised": 0,
+  "warnings": []
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `accepted` | bool | Always `true` on 200 |
+| `matched` | int | Number of items (PLCs, carriers, modules) successfully matched |
+| `unrecognised` | int | Number of scanned items not found in the DB |
+| `warnings` | string[] | Human-readable messages about mismatches, missing items, or conflicts |
+
+**Warning examples:**
+- `PLC "PLC-02" (192.168.1.11) not found in project`
+- `Slot 3 on carrier "Local Bus": DB has 750-1405, scan has 750-430`
+- `Slot 5 on carrier "Local Bus": DB has 750-430 but not found in scan`
+- `Slot 2 on carrier "Local Bus": scanned module 750-1506 exists in catalog but not assigned in project`
+
+**Errors:**
+
+| Status | Meaning |
+|---|---|
+| `400` | Invalid JSON or missing `plcs` array |
+| `401` | Missing or invalid `X-API-Key` |
 | `404` | Project not found |
 
 ---
@@ -259,7 +366,12 @@ Rules for variable name generation:
 - Use `signal.tag` as the variable name
 - Replace all non-alphanumeric characters with `_`
 - Ensure name starts with a letter (prefix `SIG_` if tag starts with a digit)
-- Truncate to 32 characters
+- Truncate to 64 characters (CODESYS identifier limit)
+- Deduplicate collisions by appending `_2`, `_3`, etc.
+
+**Generation modes:**
+- `FLAT_VARS` (default): One variable per signal — `tag : plcDataType;`
+- `FB_INSTANCES`: One FB instance per component instance — `instanceTag : functionBlock;`
 
 ---
 
