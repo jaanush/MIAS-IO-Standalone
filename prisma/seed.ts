@@ -15,7 +15,28 @@ async function main() {
 
   console.log("Running main data seed (seed_data.sql)...");
   const sql = fs.readFileSync(seedFile, "utf-8");
-  await prisma.$executeRawUnsafe(sql);
+
+  // Wrap in a transaction that truncates all non-user tables first,
+  // then inserts the seed data. TRUNCATE CASCADE handles FK deps.
+  const wrappedSql = `
+    BEGIN;
+    TRUNCATE
+      analog_alarm, discrete_alarm,
+      analog_signal, discrete_signal, bus_signal, signal,
+      pdo_config, instance_signal, component_instance,
+      component_analog_alarm, component_discrete_alarm, component_signal, hardware_component,
+      io_card, carrier_port, plc_port, plc_network, io_carrier, plc,
+      global_variable_list, codesys_settings, codesys_task,
+      project_approval, project,
+      module_catalog_approval, module_catalog_protocol, module_catalog,
+      device_catalog_approval, device_catalog_protocol, device_catalog,
+      engineering_unit, input_type_catalog, plc_data_type_catalog, signal_system, approval
+    CASCADE;
+    ${sql}
+    COMMIT;
+  `;
+
+  await prisma.$executeRawUnsafe(wrappedSql);
   console.log("Seed complete.");
 }
 
