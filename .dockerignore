@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.env
+.env.local
+.env.*.local
+.deploy-env
+data/
+exports/
+import/
+*.log
+.DS_Store
+Thumbs.db

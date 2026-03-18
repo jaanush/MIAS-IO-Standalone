@@ -393,7 +393,8 @@ if [ -z "$APP_UUID" ]; then
         environment_name:'$COOLIFY_ENVIRONMENT',
         git_repository:'$GIT_CLONE_URL',
         git_branch:'main',
-        build_pack:'nixpacks',
+        build_pack:'dockerfile',
+        dockerfile_location:'/Dockerfile',
         name:'$APP_NAME',
         description:'Deployed via deploy.sh',
         domains:'https://$DOMAIN',
@@ -419,7 +420,7 @@ if [ -z "$APP_UUID" ]; then
 else
     log "App finns: $APP_UUID"
     retry 2 3 "Uppdatera app-config" \
-        api_checked "App PATCH" PATCH "/applications/$APP_UUID" "{\"git_repository\":\"$GIT_CLONE_URL\",\"domains\":\"https://$DOMAIN\"}" > /dev/null \
+        api_checked "App PATCH" PATCH "/applications/$APP_UUID" "{\"git_repository\":\"$GIT_CLONE_URL\",\"domains\":\"https://$DOMAIN\",\"build_pack\":\"dockerfile\",\"dockerfile_location\":\"/Dockerfile\"}" > /dev/null \
         || warn "Kunde inte uppdatera app-config"
 fi
 
