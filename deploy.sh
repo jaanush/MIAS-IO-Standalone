@@ -37,7 +37,7 @@ done
 # KONFIGURATION (andra per app)
 # =============================================
 # Varje varde kan overstyras med DEPLOY_* miljovariabel (se deploy-multi.sh)
-APP_NAME="${DEPLOY_APP_NAME:-io.demo.neptun.ztna}"    # Unikt namn -> containernamn + subdoman
+APP_NAME="${DEPLOY_APP_NAME:-io}"    # Unikt namn -> containernamn + subdoman
 APP_PORT="${DEPLOY_APP_PORT:-3000}"          # Port appen lyssnar pa (Next.js=3000, FastAPI=8000, Vite=4173)
 NEEDS_DB="${DEPLOY_NEEDS_DB:-true}"         # "true" om du behover PostgreSQL
 DB_TYPE="${DEPLOY_DB_TYPE:-postgresql}"      # postgresql / redis / mariadb / mongodb
