@@ -22,28 +22,12 @@ export async function seedSql(prisma: PrismaClient) {
     console.log(`  Running ${file}...`);
     const sql = fs.readFileSync(filePath, "utf-8");
 
-    // Split on semicolons but skip empty statements and comments-only blocks
-    const statements = sql
-      .split(/;\s*\n/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--"));
-
-    let executed = 0;
-    for (const stmt of statements) {
-      // Skip pure comment blocks and SELECT statements (summaries)
-      if (/^\s*--/m.test(stmt) && !/INSERT|UPDATE|DELETE|CREATE|ALTER/i.test(stmt)) continue;
-      if (/^\s*SELECT\b/i.test(stmt)) continue;
-
-      try {
-        await prisma.$executeRawUnsafe(stmt);
-        executed++;
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        // Skip "already exists" errors for idempotency
-        if (msg.includes("already exists") || msg.includes("duplicate key")) continue;
-        console.warn(`  Warning in ${file}: ${msg.slice(0, 200)}`);
-      }
+    try {
+      await prisma.$executeRawUnsafe(sql);
+      console.log(`  ${file}: OK`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn(`  ${file}: ERROR — ${msg.slice(0, 300)}`);
     }
-    console.log(`  ${file}: ${executed} statements executed`);
   }
 }
