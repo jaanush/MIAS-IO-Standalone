@@ -33,7 +33,8 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <TrpcProvider>
-            <div className="flex h-screen flex-col overflow-hidden">
+            <div className="aurora-bg dark:block hidden" aria-hidden="true" />
+            <div className="relative z-10 flex h-screen flex-col overflow-hidden">
               {session && <AppHeader user={session} />}
               <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
             </div>

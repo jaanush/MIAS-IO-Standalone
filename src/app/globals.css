@@ -130,3 +130,55 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Aurora borealis background effect */
+:root {
+  --aurora-stripes: repeating-linear-gradient(
+    105deg,
+    #0e0e0e 0% 7%,
+    transparent 10%,
+    transparent 12%,
+    #0e0e0e 16%
+  );
+  --aurora-colors: repeating-linear-gradient(
+    105deg,
+    #14e81e80 10%,
+    #00ea8d80 15%,
+    #017ed580 20%,
+    #b53dff80 25%,
+    #8d00c480 30%
+  );
+}
+
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--aurora-stripes), var(--aurora-colors);
+  background-size: 300%, 200%;
+  background-position: 50% 50%, 50% 50%;
+  filter: blur(10px) saturate(200%);
+  mask-image: radial-gradient(ellipse at 100% 0%, #0e0e0e 18%, transparent 65%);
+  opacity: 0.5;
+}
+
+.aurora-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--aurora-stripes), var(--aurora-colors);
+  background-size: 200%, 100%;
+  animation: aurora 60s linear infinite;
+  background-attachment: fixed;
+  mix-blend-mode: difference;
+}
+
+@keyframes aurora {
+  from {
+    background-position: center;
+  }
+  to {
+    background-position: 500% 50%, 250% 100%;
+  }
+}
