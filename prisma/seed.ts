@@ -16,8 +16,6 @@ async function main() {
   console.log("Running main data seed (seed_data.sql)...");
   const sql = fs.readFileSync(seedFile, "utf-8");
 
-  // Wrap in a transaction that truncates all non-user tables first,
-  // then inserts the seed data. TRUNCATE CASCADE handles FK deps.
   const wrappedSql = `
     BEGIN;
     TRUNCATE
@@ -32,7 +30,28 @@ async function main() {
       device_catalog_approval, device_catalog_protocol, device_catalog,
       engineering_unit, input_type_catalog, plc_data_type_catalog, signal_system, approval
     CASCADE;
+
     ${sql}
+
+    -- Reset all sequences to max(id)+1 so new inserts get correct IDs
+    DO $$
+    DECLARE r RECORD;
+    BEGIN
+      FOR r IN
+        SELECT s.relname AS seq, t.relname AS tab, a.attname AS col
+        FROM pg_class s
+        JOIN pg_depend d ON d.objid = s.oid
+        JOIN pg_class t ON t.oid = d.refobjid
+        JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+        WHERE s.relkind = 'S' AND t.relkind = 'r'
+      LOOP
+        EXECUTE format(
+          'SELECT setval(%L, COALESCE((SELECT MAX(%I) FROM %I), 0) + 1, false)',
+          r.seq, r.col, r.tab
+        );
+      END LOOP;
+    END $$;
+
     COMMIT;
   `;
 
