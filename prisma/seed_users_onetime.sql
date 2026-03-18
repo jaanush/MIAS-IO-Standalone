@@ -23,7 +23,7 @@ UPDATE component_instance SET created_by = 'efe1273a-5cb6-46fe-a179-a0b94372e35f
 UPDATE codesys_task SET created_by = 'efe1273a-5cb6-46fe-a179-a0b94372e35f' WHERE created_by IS NULL;
 
 -- Add Jaanus as OWNER on all projects
-INSERT INTO project_member (project_id, user_id, role, joined_at)
+INSERT INTO project_member (project_id, user_id, role, created_at)
 SELECT id, 'efe1273a-5cb6-46fe-a179-a0b94372e35f', 'OWNER', NOW()
 FROM project
 ON CONFLICT (project_id, user_id) DO UPDATE SET role = 'OWNER';
