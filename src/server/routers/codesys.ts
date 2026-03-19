@@ -99,7 +99,7 @@ export const codesysRouter = createTRPCRouter({
         where: {
           disconnectedAt: null,
           lastHeartbeatAt: { gte: cutoff },
-          ...(input?.projectId ? { miasProjectId: input.projectId } : {}),
+          ...(input?.projectId ? { OR: [{ miasProjectId: input.projectId }, { miasProjectId: null }] } : {}),
         },
         select: {
           id: true,
