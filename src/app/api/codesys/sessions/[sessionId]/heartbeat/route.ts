@@ -12,15 +12,21 @@ export async function POST(
   const { sessionId } = await params;
   const body = await req.json();
 
-  // Update session with heartbeat + project state
+  // Update session with heartbeat + project state + optional metadata
+  const updateData: Record<string, unknown> = {
+    lastHeartbeatAt: new Date(),
+    projectOpen: body.projectOpen ?? false,
+    projectPath: body.projectPath ?? null,
+    miasProjectId: body.miasProjectId ?? null,
+  };
+  // Only update metadata when provided (most heartbeats omit it)
+  if (body.metadata) {
+    updateData.metadata = body.metadata;
+  }
+
   const session = await db.codesysSession.update({
     where: { id: sessionId },
-    data: {
-      lastHeartbeatAt: new Date(),
-      projectOpen: body.projectOpen ?? false,
-      projectPath: body.projectPath ?? null,
-      miasProjectId: body.miasProjectId ?? null,
-    },
+    data: updateData,
   }).catch(() => null);
 
   if (!session) {

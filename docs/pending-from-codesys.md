@@ -115,9 +115,19 @@ Called on every poll cycle to keep the session alive and fetch pending tasks.
 {
   "projectOpen": true,
   "projectPath": "C:\\Projects\\MyProject.project",
-  "miasProjectId": 1
+  "miasProjectId": 1,
+  "metadata": {
+    "projectName": "MIAS_Template_PLC_2.1.0",
+    "gvlCount": 12,
+    "pouCount": 45,
+    "dutCount": 8
+  }
 }
 ```
+
+The `metadata` field is **only included when it has changed** since the last
+heartbeat. Most heartbeats will omit it. When present, MIAS-IO should update
+the stored session metadata. When absent, keep the previous values.
 
 **Response: `200 OK`**
 ```json

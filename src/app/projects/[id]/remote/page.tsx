@@ -52,12 +52,22 @@ export default function RemotePage({ params }: { params: Promise<{ id: string }>
                     <div className="text-xs text-muted-foreground">{s.email}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   <Badge variant="outline" className="text-[10px]">v{s.pluginVersion}</Badge>
                   {s.projectOpen && (
                     <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
                       Project Open
                     </Badge>
+                  )}
+                  {(s as any).metadata?.projectName && (
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {(s as any).metadata.projectName}
+                    </span>
+                  )}
+                  {(s as any).metadata && (
+                    <span className="text-[10px] text-muted-foreground">
+                      GVL:{(s as any).metadata.gvlCount ?? 0} POU:{(s as any).metadata.pouCount ?? 0} DUT:{(s as any).metadata.dutCount ?? 0}
+                    </span>
                   )}
                   <span className="text-[10px] text-muted-foreground">
                     {new Date(s.lastHeartbeatAt).toLocaleTimeString()}

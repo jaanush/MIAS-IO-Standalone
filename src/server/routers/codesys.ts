@@ -92,14 +92,14 @@ export const codesysRouter = createTRPCRouter({
   // ── Sessions ────────────────────────────────────────────────────────
   activeSessions: protectedProcedure
     .input(z.object({ projectId: z.number().int().optional() }).optional())
-    .query(async ({ input }) => {
-      // Sessions with heartbeat within last 30 seconds are considered active
+    .query(async ({ input, ctx }) => {
+      // Sessions with heartbeat within last 30 seconds, owned by the logged-in user
       const cutoff = new Date(Date.now() - 30_000);
       return db.codesysSession.findMany({
         where: {
           disconnectedAt: null,
           lastHeartbeatAt: { gte: cutoff },
-          // No project filter — sessions are global; user ensures matching projects
+          userId: ctx.session.userId,
         },
         select: {
           id: true,
@@ -108,6 +108,7 @@ export const codesysRouter = createTRPCRouter({
           pluginVersion: true,
           miasProjectId: true,
           projectOpen: true,
+          metadata: true,
           lastHeartbeatAt: true,
         },
         orderBy: { lastHeartbeatAt: "desc" },
