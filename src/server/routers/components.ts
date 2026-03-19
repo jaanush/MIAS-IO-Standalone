@@ -120,6 +120,7 @@ export const componentsRouter = createTRPCRouter({
 
   componentCreate: protectedProcedure
     .input(z.object({
+      projectId: z.number().int().optional().nullable(),
       name: z.string().min(1),
       manufacturer: z.string().optional().nullable(),
       model: z.string().optional().nullable(),
@@ -131,7 +132,7 @@ export const componentsRouter = createTRPCRouter({
     }))
     .mutation(({ input }) =>
       db.hardwareComponent.create({
-        data: { ...input, projectId: null },
+        data: { ...input, projectId: input.projectId ?? null },
         include: componentInclude,
       })
     ),

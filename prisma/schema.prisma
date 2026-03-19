@@ -797,6 +797,15 @@ model Signal {
   tagSuffix        String?      @db.VarChar(100) @map("tag_suffix")
   description      String?
   notes            String?
+  // ISA instrument identification
+  instrumentTag        String?  @db.VarChar(50)  @map("instrument_tag")         // e.g. "362.2.001"
+  signalClassification String?  @db.VarChar(10)  @map("signal_classification")  // ISA code: XA, XI, XC, etc.
+  subsystem            String?  @db.VarChar(255) @map("subsystem")              // e.g. "EXP. TK 362.11.07"
+  element              String?  @db.VarChar(255)                                // e.g. "LOW LEVEL"
+  signalFunction       String?  @db.VarChar(100) @map("signal_function")        // e.g. "ALARM", "MONITORING"
+  supplierName         String?  @db.VarChar(255) @map("supplier_name")
+  supplierSensorType   String?  @db.VarChar(255) @map("supplier_sensor_type")
+  normalValue          String?  @db.VarChar(100) @map("normal_value")
   // Alarm configuration
   alarmGroup       String?      @db.Char(1)     @map("alarm_group")       // A, B, or C (METS_Lib priority tier)
   alarmBlockMask   String?      @db.VarChar(5)  @map("alarm_block_mask")  // 5-char: D-HH-H-L-LL, "0"=active "1"=blocked

@@ -82,6 +82,15 @@ const signalCreateInput = z.object({
   loggingEnabled: z.boolean().optional().default(false),
   fbNameOverride: z.string().max(255).optional().nullable(),
   useShortName: z.boolean().optional().default(false),
+  // ISA instrument identification
+  instrumentTag: z.string().max(50).optional().nullable(),
+  signalClassification: z.string().max(10).optional().nullable(),
+  subsystem: z.string().max(255).optional().nullable(),
+  element: z.string().max(255).optional().nullable(),
+  signalFunction: z.string().max(100).optional().nullable(),
+  supplierName: z.string().max(255).optional().nullable(),
+  supplierSensorType: z.string().max(255).optional().nullable(),
+  normalValue: z.string().max(100).optional().nullable(),
   // Discrete
   trigger: z.enum(TRIGGER_TYPES).optional().default("NO"),
   filterTimeMs: z.number().optional().nullable(),
@@ -153,6 +162,15 @@ export const signalRouter = createTRPCRouter({
       loggingEnabled,
       fbNameOverride,
       useShortName,
+      // ISA identification
+      instrumentTag,
+      signalClassification,
+      subsystem,
+      element,
+      signalFunction,
+      supplierName,
+      supplierSensorType,
+      normalValue,
       // discrete
       trigger,
       filterTimeMs,
@@ -211,6 +229,14 @@ export const signalRouter = createTRPCRouter({
         loggingEnabled: loggingEnabled ?? false,
         fbNameOverride: fbNameOverride ?? null,
         useShortName: useShortName ?? false,
+        instrumentTag: instrumentTag ?? null,
+        signalClassification: signalClassification ?? null,
+        subsystem: subsystem ?? null,
+        element: element ?? null,
+        signalFunction: signalFunction ?? null,
+        supplierName: supplierName ?? null,
+        supplierSensorType: supplierSensorType ?? null,
+        normalValue: normalValue ?? null,
         ...(signalType === "DISCRETE"
           ? {
               discreteSignal: {

@@ -210,9 +210,19 @@ export const projectHardwareRouter = createTRPCRouter({
         notes: z.string().optional().nullable(),
       })
     )
-    .mutation(({ input }) =>
-      db.plc.create({ data: input, include: plcInclude })
-    ),
+    .mutation(async ({ input }) => {
+      const plc = await db.plc.create({ data: input, include: plcInclude });
+      // Auto-create a local carrier for the PLC's own IO bus
+      await db.ioCarrier.create({
+        data: {
+          plcId: plc.id,
+          name: `${input.name}-LOCAL`,
+          catalogId: input.catalogId ?? null,
+        },
+      });
+      // Re-fetch to include the new carrier
+      return db.plc.findUniqueOrThrow({ where: { id: plc.id }, include: plcInclude });
+    }),
 
   plcUpdate: protectedProcedure
     .input(

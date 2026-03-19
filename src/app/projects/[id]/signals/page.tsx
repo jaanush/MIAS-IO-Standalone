@@ -21,10 +21,13 @@ import type { AppRouter } from "@/server/routers/_app";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Check, X, Trash2, Settings2, Upload, Layers, ChevronUp, ChevronDown, ChevronRight, ChevronsUpDown, Network, Bell, RotateCcw } from "lucide-react";
+import { Plus, Check, X, Trash2, Settings2, Upload, Layers, ChevronUp, ChevronDown, ChevronRight, ChevronsUpDown, Network, Bell, RotateCcw, FileSpreadsheet, FileCode, Columns3 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { AddEditSignalDialog } from "./_components/AddEditSignalDialog";
 import { ImportSignalsDialog } from "./_components/ImportSignalsDialog";
+import { ImportMpvDialog } from "./_components/ImportMpvDialog";
 import { AddFromComponentDialog } from "./_components/AddFromComponentDialog";
 import { ProjectBusConfigDialog } from "./_components/ProjectBusConfigDialog";
 import { ProjectAlarmsDialog } from "./_components/ProjectAlarmsDialog";
@@ -262,7 +265,7 @@ function Td({ children, className }: { children?: React.ReactNode; className?: s
 
 // ── Display row ───────────────────────────────────────────────────────────────
 
-function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDelete, onBusConfig, onAlarms, onRevert, isRevertPending }: {
+function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDelete, onBusConfig, onAlarms, onRevert, isRevertPending, hiddenColumns }: {
   signal: SignalRow;
   selected: boolean;
   onToggleSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -271,11 +274,13 @@ function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDe
   onAlarms: () => void;
   onRevert?: () => void;
   isRevertPending?: boolean;
+  hiddenColumns: Set<ColKey>;
 }) {
   const ioCode = getSignalIoCode(signal);
   const typeColor = TYPE_COLORS[ioCode] ?? "bg-muted border-border text-muted-foreground";
   const isDisc = signal.signalType === "DISCRETE";
   const isAnlg = signal.signalType === "ANALOG";
+  const h = hiddenColumns;
 
   const hardware = signal.ioCard
     ? `${signal.ioCard.carrier.plc.name} / ${signal.ioCard.carrier.name} / Slot ${signal.ioCard.slotPosition + 1}`
@@ -289,147 +294,86 @@ function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDe
       )}
       onClick={onEdit}
     >
-      <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          className="h-3.5 w-3.5 rounded border-input cursor-pointer"
-          checked={selected}
-          onChange={onToggleSelect}
-        />
-      </td>
-      <Td><span className="text-xs text-muted-foreground truncate block" title={signal.system?.name}>{signal.system?.name ?? "—"}</span></Td>
-      <Td><span className="text-xs text-muted-foreground truncate block">{signal.componentTag ?? "—"}</span></Td>
-      <Td><span className="block truncate text-sm" title={signal.description ?? undefined}>{signal.description ?? ""}</span></Td>
-      <Td>
+      {!h.has("select") && <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
+        <input type="checkbox" className="h-3.5 w-3.5 rounded border-input cursor-pointer" checked={selected} onChange={onToggleSelect} />
+      </td>}
+      {!h.has("system") && <Td><span className="text-xs text-muted-foreground truncate block" title={signal.system?.name}>{signal.system?.name ?? "—"}</span></Td>}
+      {!h.has("component") && <Td><span className="text-xs text-muted-foreground truncate block">{signal.componentTag ?? "—"}</span></Td>}
+      {!h.has("desc") && <Td><span className="block truncate text-sm" title={signal.description ?? undefined}>{signal.description ?? ""}</span></Td>}
+      {!h.has("tag") && <Td>
         {signal.tag
           ? <span className="font-mono text-xs truncate block">{signal.tag}</span>
           : <span className="text-muted-foreground/40 text-xs italic">—</span>}
-      </Td>
-      <Td>
+      </Td>}
+      {!h.has("card") && <Td>
         {signal.origin === "IEC"
           ? hardware
             ? <span className="text-xs block truncate">{hardware}</span>
             : <span className="text-xs text-muted-foreground/40">—</span>
           : <span className="text-xs text-muted-foreground italic">Via network</span>}
-      </Td>
-      <Td className="text-center">
-        <span className="text-xs tabular-nums">
-          {signal.origin === "IEC" && signal.channelPosition != null ? signal.channelPosition : ""}
-        </span>
-      </Td>
-      <Td>
-        <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-medium", typeColor)}>
-          {ioCode}
-        </Badge>
-      </Td>
-      <Td><span className="text-xs text-muted-foreground truncate block">{signal.origin}</span></Td>
-      <Td className="text-center">
+      </Td>}
+      {!h.has("ch") && <Td className="text-center">
+        <span className="text-xs tabular-nums">{signal.origin === "IEC" && signal.channelPosition != null ? signal.channelPosition : ""}</span>
+      </Td>}
+      {!h.has("io") && <Td>
+        <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-medium", typeColor)}>{ioCode}</Badge>
+      </Td>}
+      {!h.has("origin") && <Td><span className="text-xs text-muted-foreground truncate block">{signal.origin}</span></Td>}
+      {!h.has("bus") && <Td className="text-center">
         {signal.origin !== "IEC" && signal.origin !== "INTERNAL" ? (
-          <button
-            type="button"
-            title={signal.busSignal ? "Edit bus config" : "Add bus config"}
-            className={cn(
-              "rounded p-0.5 transition-colors",
-              signal.busSignal
-                ? "text-blue-600 hover:bg-blue-50"
-                : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent"
-            )}
+          <button type="button" title={signal.busSignal ? "Edit bus config" : "Add bus config"}
+            className={cn("rounded p-0.5 transition-colors", signal.busSignal ? "text-blue-600 hover:bg-blue-50" : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent")}
             onClick={(e) => { e.stopPropagation(); onBusConfig(); }}
-          >
-            <Network className="h-3.5 w-3.5" />
-          </button>
+          ><Network className="h-3.5 w-3.5" /></button>
         ) : <span className="text-xs text-muted-foreground/25">—</span>}
-      </Td>
-      {/* CAN ID (resolved = raw + instance offset) */}
-      <Td className="text-center">
+      </Td>}
+      {!h.has("canid") && <Td className="text-center">
         {(() => {
           const rawCanId = signal.busSignal?.canId ?? signal.instanceSignal?.componentSignal?.canId ?? null;
           if (rawCanId == null) return <span className="text-xs text-muted-foreground/25">—</span>;
           const offset = signal.instanceSignal?.instance?.canIdOffset ?? 0;
           const resolved = rawCanId + offset;
-          return (
-            <span
-              className="font-mono text-xs tabular-nums"
-              title={offset !== 0 ? `Raw: 0x${rawCanId.toString(16).toUpperCase()} + offset ${offset >= 0 ? "+" : ""}${offset}` : undefined}
-            >
-              {`0x${resolved.toString(16).toUpperCase()}`}
-            </span>
-          );
+          return <span className="font-mono text-xs tabular-nums" title={offset !== 0 ? `Raw: 0x${rawCanId.toString(16).toUpperCase()} + offset ${offset >= 0 ? "+" : ""}${offset}` : undefined}>{`0x${resolved.toString(16).toUpperCase()}`}</span>;
         })()}
-      </Td>
-
-      {/* Alarms */}
-      <Td className="text-center">
+      </Td>}
+      {!h.has("alarms") && <Td className="text-center">
         {(() => {
-          const count = isDisc
-            ? (signal.discreteSignal?.alarms?.length ?? 0)
-            : (signal.analogSignal?.alarms?.length ?? 0);
+          const count = isDisc ? (signal.discreteSignal?.alarms?.length ?? 0) : (signal.analogSignal?.alarms?.length ?? 0);
           return (
-            <button
-              type="button"
-              title={count > 0 ? `${count} alarm${count === 1 ? "" : "s"}` : "No alarms"}
+            <button type="button" title={count > 0 ? `${count} alarm${count === 1 ? "" : "s"}` : "No alarms"}
               className="flex items-center justify-center gap-0.5 rounded p-0.5 transition-colors hover:bg-accent"
               onClick={(e) => { e.stopPropagation(); onAlarms(); }}
             >
               <Bell className={cn("h-3.5 w-3.5", count > 0 ? "text-amber-500" : "text-muted-foreground/30")} />
-              {count > 0 && (
-                <span className="text-[10px] font-medium text-amber-600 tabular-nums">{count}</span>
-              )}
+              {count > 0 && <span className="text-[10px] font-medium text-amber-600 tabular-nums">{count}</span>}
             </button>
           );
         })()}
-      </Td>
-
+      </Td>}
       {/* Discrete-only */}
-      {isDisc ? (
-        <>
-          <Td><span className="text-xs">{signal.discreteSignal?.trigger ?? "—"}</span></Td>
-          <Td>
-            <span className="text-xs text-muted-foreground">
-              {signal.discreteSignal?.filterTimeMs != null
-                ? `${Number(signal.discreteSignal.filterTimeMs)} ms` : "—"}
-            </span>
-          </Td>
-        </>
-      ) : <><Na /><Na /></>}
-
+      {!h.has("trigger") && (isDisc ? <Td><span className="text-xs">{signal.discreteSignal?.trigger ?? "—"}</span></Td> : <Na />)}
+      {!h.has("filter") && (isDisc ? <Td><span className="text-xs text-muted-foreground">{signal.discreteSignal?.filterTimeMs != null ? `${Number(signal.discreteSignal.filterTimeMs)} ms` : "—"}</span></Td> : <Na />)}
       {/* Analog-only */}
-      {isAnlg ? (
-        <>
-          <Td><span className="text-xs truncate block">{signal.analogSignal?.inputType?.name ?? "—"}</span></Td>
-          <Td>
-            <span className="text-xs text-muted-foreground">
-              {signal.analogSignal?.wireConfig
-                ? (WIRE_CONFIG_LABELS[signal.analogSignal.wireConfig] ?? signal.analogSignal.wireConfig)
-                : "—"}
-            </span>
-          </Td>
-          <Td><span className="text-xs text-muted-foreground">{signal.analogSignal?.engineeringUnit?.symbol ?? "—"}</span></Td>
-          <Td className="text-right"><span className="text-xs tabular-nums">{signal.analogSignal?.scaleMin != null ? Number(signal.analogSignal.scaleMin) : "—"}</span></Td>
-          <Td className="text-right"><span className="text-xs tabular-nums">{signal.analogSignal?.scaleMax != null ? Number(signal.analogSignal.scaleMax) : "—"}</span></Td>
-          <Td>
-            {(() => {
-              const euType = signal.analogSignal?.engineeringUnit?.plcDataTypeCatalog?.code;
-              const sigType = signal.analogSignal?.plcDataTypeCatalog?.code;
-              const resolved = euType ?? sigType;
-              return resolved
-                ? <span className={cn("text-xs font-mono", euType && "text-purple-600")} title={euType ? "From EU" : undefined}>{resolved}</span>
-                : <span className="text-xs text-muted-foreground/40">—</span>;
-            })()}
-          </Td>
-        </>
-      ) : <><Na /><Na /><Na /><Na /><Na /><Na /></>}
-
-      <Td><span className="text-xs text-muted-foreground truncate block">{signal.gvl?.name ?? "—"}</span></Td>
-      <Td><span className="text-xs text-muted-foreground truncate block">{signal.drawingRef ?? "—"}</span></Td>
-      <Td><span className="text-xs text-muted-foreground">{signal.cabinetLocation ?? "—"}</span></Td>
-      <Td>
+      {!h.has("itype") && (isAnlg ? <Td><span className="text-xs truncate block">{signal.analogSignal?.inputType?.name ?? "—"}</span></Td> : <Na />)}
+      {!h.has("wire") && (isAnlg ? <Td><span className="text-xs text-muted-foreground">{signal.analogSignal?.wireConfig ? (WIRE_CONFIG_LABELS[signal.analogSignal.wireConfig] ?? signal.analogSignal.wireConfig) : "—"}</span></Td> : <Na />)}
+      {!h.has("eu") && (isAnlg ? <Td><span className="text-xs text-muted-foreground">{signal.analogSignal?.engineeringUnit?.symbol ?? "—"}</span></Td> : <Na />)}
+      {!h.has("smin") && (isAnlg ? <Td className="text-right"><span className="text-xs tabular-nums">{signal.analogSignal?.scaleMin != null ? Number(signal.analogSignal.scaleMin) : "—"}</span></Td> : <Na />)}
+      {!h.has("smax") && (isAnlg ? <Td className="text-right"><span className="text-xs tabular-nums">{signal.analogSignal?.scaleMax != null ? Number(signal.analogSignal.scaleMax) : "—"}</span></Td> : <Na />)}
+      {!h.has("dtype") && (isAnlg ? <Td>{(() => {
+        const euType = signal.analogSignal?.engineeringUnit?.plcDataTypeCatalog?.code;
+        const sigType = signal.analogSignal?.plcDataTypeCatalog?.code;
+        const resolved = euType ?? sigType;
+        return resolved ? <span className={cn("text-xs font-mono", euType && "text-purple-600")} title={euType ? "From EU" : undefined}>{resolved}</span> : <span className="text-xs text-muted-foreground/40">—</span>;
+      })()}</Td> : <Na />)}
+      {!h.has("gvl") && <Td><span className="text-xs text-muted-foreground truncate block">{signal.gvl?.name ?? "—"}</span></Td>}
+      {!h.has("drawing") && <Td><span className="text-xs text-muted-foreground truncate block">{signal.drawingRef ?? "—"}</span></Td>}
+      {!h.has("cabinet") && <Td><span className="text-xs text-muted-foreground">{signal.cabinetLocation ?? "—"}</span></Td>}
+      {!h.has("actions") && <Td>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {signal.instanceSignal?.templateDirty && onRevert && (
             <button type="button" title="Revert to component template defaults"
               className="rounded p-1 hover:bg-accent text-amber-500 hover:text-amber-600 disabled:opacity-50"
-              disabled={isRevertPending}
-              onClick={(e) => { e.stopPropagation(); onRevert(); }}
+              disabled={isRevertPending} onClick={(e) => { e.stopPropagation(); onRevert(); }}
             ><RotateCcw className="h-3.5 w-3.5" /></button>
           )}
           <button type="button" title="Advanced"
@@ -438,13 +382,10 @@ function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDe
           ><Settings2 className="h-3.5 w-3.5" /></button>
           <button type="button" title="Delete"
             className="rounded p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm(`Delete signal "${signal.tag ?? signal.description ?? `#${signal.id}`}"?`)) onDelete();
-            }}
+            onClick={(e) => { e.stopPropagation(); if (confirm(`Delete signal "${signal.tag ?? signal.description ?? `#${signal.id}`}"?`)) onDelete(); }}
           ><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
-      </Td>
+      </Td>}
     </tr>
   );
 }
@@ -453,7 +394,7 @@ function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDe
 
 function EditRow({
   values, cards, units, inputTypes, plcDataTypes, systems, gvls,
-  signals, editingId, isNew, isSaving,
+  signals, editingId, isNew, isSaving, hiddenColumns,
   onChange, onSave, onBlurSave, onCancel,
 }: {
   values: EditValues;
@@ -467,6 +408,7 @@ function EditRow({
   editingId?: number;
   isNew?: boolean;
   isSaving?: boolean;
+  hiddenColumns: Set<ColKey>;
   onChange: (v: Partial<EditValues>) => void;
   onSave: (vals: EditValues) => void;
   onBlurSave: (vals: EditValues) => void;
@@ -509,6 +451,8 @@ function EditRow({
     }, 150);
   }
 
+  const h = hiddenColumns;
+
   function GrayCell() {
     return <td className="px-2 py-1 align-middle text-center"><span className="text-xs text-muted-foreground/25">—</span></td>;
   }
@@ -523,24 +467,19 @@ function EditRow({
       }}
     >
       {/* Checkbox placeholder — not selectable in edit mode */}
-      <td className="px-2 py-1 align-middle">
+      {!h.has("select") && <td className="px-2 py-1 align-middle">
         <span className="block h-3.5 w-3.5" />
-      </td>
-      {/* System */}
-      <Td>
+      </td>}
+      {!h.has("system") && <Td>
         <select className={sel} value={values.systemId ?? ""} onChange={(e) => onChange({ systemId: e.target.value ? Number(e.target.value) : null })}>
           <option value="">—</option>
           {systems.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-      </Td>
-      {/* Component */}
-      <Td><input className={inp} value={values.componentTag} onChange={(e) => onChange({ componentTag: e.target.value })} placeholder="e.g. 625-M01" /></Td>
-      {/* Description */}
-      <Td><input className={inp} value={values.description} onChange={(e) => onChange({ description: e.target.value })} placeholder="Description" autoFocus={isNew} /></Td>
-      {/* Tag */}
-      <Td><input className={inp} value={values.tag} onChange={(e) => onChange({ tag: e.target.value })} placeholder="TAG" /></Td>
-      {/* Card */}
-      <Td>
+      </Td>}
+      {!h.has("component") && <Td><input className={inp} value={values.componentTag} onChange={(e) => onChange({ componentTag: e.target.value })} placeholder="e.g. 625-M01" /></Td>}
+      {!h.has("desc") && <Td><input className={inp} value={values.description} onChange={(e) => onChange({ description: e.target.value })} placeholder="Description" autoFocus={isNew} /></Td>}
+      {!h.has("tag") && <Td><input className={inp} value={values.tag} onChange={(e) => onChange({ tag: e.target.value })} placeholder="TAG" /></Td>}
+      {!h.has("card") && <Td>
         {values.origin === "IEC" ? (
           <select className={sel} value={values.ioCardId ?? ""} onChange={handleCardChange}>
             <option value="">— Unassigned —</option>
@@ -553,129 +492,91 @@ function EditRow({
         ) : (
           <span className="text-xs text-muted-foreground italic">Via network</span>
         )}
-      </Td>
-      {/* Ch */}
-      <Td>
+      </Td>}
+      {!h.has("ch") && <Td>
         {values.origin === "IEC"
           ? <input className={cn(inp, "text-center")} type="number" min={0} value={values.channelPosition} onChange={(e) => onChange({ channelPosition: e.target.value })} placeholder="0" />
           : <span className="text-xs text-muted-foreground">—</span>}
-      </Td>
-      {/* IO type (combined signal type + direction) */}
-      <Td>
-        <select
-          className={sel}
+      </Td>}
+      {!h.has("io") && <Td>
+        <select className={sel}
           value={`${values.signalType === "DISCRETE" ? "D" : "A"}${values.direction === "OUTPUT" ? "O" : "I"}`}
           onChange={(e) => {
             const code = e.target.value;
             const signalType: "DISCRETE" | "ANALOG" = code.startsWith("D") ? "DISCRETE" : "ANALOG";
             const direction: "INPUT" | "OUTPUT" = code.endsWith("O") ? "OUTPUT" : "INPUT";
-            const defaultPdt = signalType === "DISCRETE"
-              ? (plcDataTypes.find((d) => d.code === "BOOL")?.id ?? null)
-              : (plcDataTypes.find((d) => d.code === "REAL")?.id ?? null);
+            const defaultPdt = signalType === "DISCRETE" ? (plcDataTypes.find((d) => d.code === "BOOL")?.id ?? null) : (plcDataTypes.find((d) => d.code === "REAL")?.id ?? null);
             onChange({ signalType, direction, plcDataTypeId: defaultPdt });
           }}
         >
-          <option value="DI">DI</option>
-          <option value="DO">DO</option>
-          <option value="AI">AI</option>
-          <option value="AO">AO</option>
+          <option value="DI">DI</option><option value="DO">DO</option><option value="AI">AI</option><option value="AO">AO</option>
         </select>
-      </Td>
-      {/* Origin */}
-      <Td>
+      </Td>}
+      {!h.has("origin") && <Td>
         <select className={sel} value={values.origin} onChange={(e) => onChange({ origin: e.target.value })}>
           {SIGNAL_ORIGINS.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
-      </Td>
-      {/* Bus */}
-      <GrayCell />
-      {/* CAN ID */}
-      <GrayCell />
-      {/* Alarms */}
-      <GrayCell />
-      {/* Discrete-only */}
-      {isDisc ? (
-        <>
-          <Td>
-            <select className={sel} value={values.trigger} onChange={(e) => onChange({ trigger: e.target.value as "NO" | "NC" })}>
-              <option value="NO">NO</option>
-              <option value="NC">NC</option>
-            </select>
-          </Td>
-          <Td><input className={cn(inp, "text-right")} type="number" min={0} value={values.filterTimeMs} onChange={(e) => onChange({ filterTimeMs: e.target.value })} placeholder="ms" /></Td>
-        </>
-      ) : <><GrayCell /><GrayCell /></>}
-      {/* Analog-only */}
-      {isAnlg ? (
-        <>
-          <Td>
-            <select className={sel} value={values.inputTypeId ?? ""} onChange={(e) => {
-              const typeId = e.target.value ? Number(e.target.value) : null;
-              const selectedType = inputTypes.find((t) => t.id === typeId);
-              const update: Partial<EditValues> = { inputTypeId: typeId };
-              if (selectedType?.code === "PT100" || selectedType?.code === "PT1000") {
-                const degUnit = units.find((u) => u.symbol === "°C");
-                if (degUnit) update.engineeringUnitId = degUnit.id;
-              }
-              onChange(update);
-            }}>
+      </Td>}
+      {!h.has("bus") && <GrayCell />}
+      {!h.has("canid") && <GrayCell />}
+      {!h.has("alarms") && <GrayCell />}
+      {!h.has("trigger") && (isDisc ? <Td>
+        <select className={sel} value={values.trigger} onChange={(e) => onChange({ trigger: e.target.value as "NO" | "NC" })}>
+          <option value="NO">NO</option><option value="NC">NC</option>
+        </select>
+      </Td> : <GrayCell />)}
+      {!h.has("filter") && (isDisc ? <Td><input className={cn(inp, "text-right")} type="number" min={0} value={values.filterTimeMs} onChange={(e) => onChange({ filterTimeMs: e.target.value })} placeholder="ms" /></Td> : <GrayCell />)}
+      {!h.has("itype") && (isAnlg ? <Td>
+        <select className={sel} value={values.inputTypeId ?? ""} onChange={(e) => {
+          const typeId = e.target.value ? Number(e.target.value) : null;
+          const selectedType = inputTypes.find((t) => t.id === typeId);
+          const update: Partial<EditValues> = { inputTypeId: typeId };
+          if (selectedType?.code === "PT100" || selectedType?.code === "PT1000") {
+            const degUnit = units.find((u) => u.symbol === "°C");
+            if (degUnit) update.engineeringUnitId = degUnit.id;
+          }
+          onChange(update);
+        }}>
+          <option value="">—</option>
+          {inputTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      </Td> : <GrayCell />)}
+      {!h.has("wire") && (isAnlg ? <Td>
+        <select className={sel} value={values.wireConfig} onChange={(e) => onChange({ wireConfig: e.target.value as EditValues["wireConfig"] })}>
+          <option value="">—</option><option value="TWO_WIRE">2-Wire</option><option value="THREE_WIRE">3-Wire</option><option value="FOUR_WIRE">4-Wire</option>
+        </select>
+      </Td> : <GrayCell />)}
+      {!h.has("eu") && (isAnlg ? <Td>
+        <select className={sel} value={values.engineeringUnitId ?? ""} onChange={(e) => onChange({ engineeringUnitId: e.target.value ? Number(e.target.value) : null })}>
+          <option value="">—</option>
+          {units.map((u) => <option key={u.id} value={u.id}>{u.symbol}</option>)}
+        </select>
+      </Td> : <GrayCell />)}
+      {!h.has("smin") && (isAnlg ? <Td><input className={cn(inp, "text-right")} type="number" value={values.scaleMin} onChange={(e) => onChange({ scaleMin: e.target.value })} placeholder="min" /></Td> : <GrayCell />)}
+      {!h.has("smax") && (isAnlg ? <Td><input className={cn(inp, "text-right")} type="number" value={values.scaleMax} onChange={(e) => onChange({ scaleMax: e.target.value })} placeholder="max" /></Td> : <GrayCell />)}
+      {!h.has("dtype") && (isAnlg ? <Td>
+        {(() => {
+          const euTypeId = values.engineeringUnitId ? (units.find((u) => u.id === values.engineeringUnitId)?.plcDataTypeId ?? null) : null;
+          const euTypeCode = euTypeId ? (plcDataTypes.find((t) => t.id === euTypeId)?.code ?? null) : null;
+          return euTypeCode ? (
+            <span className="text-xs font-mono text-purple-600 px-1" title="Overridden by EU">{euTypeCode}</span>
+          ) : (
+            <select className={sel} value={values.plcDataTypeId ?? ""} onChange={(e) => onChange({ plcDataTypeId: e.target.value ? Number(e.target.value) : null })}>
               <option value="">—</option>
-              {inputTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {plcDataTypes.map((t) => <option key={t.id} value={t.id}>{t.code}</option>)}
             </select>
-          </Td>
-          <Td>
-            <select className={sel} value={values.wireConfig} onChange={(e) => onChange({ wireConfig: e.target.value as EditValues["wireConfig"] })}>
-              <option value="">—</option>
-              <option value="TWO_WIRE">2-Wire</option>
-              <option value="THREE_WIRE">3-Wire</option>
-              <option value="FOUR_WIRE">4-Wire</option>
-            </select>
-          </Td>
-          <Td>
-            <select className={sel} value={values.engineeringUnitId ?? ""} onChange={(e) => onChange({ engineeringUnitId: e.target.value ? Number(e.target.value) : null })}>
-              <option value="">—</option>
-              {units.map((u) => <option key={u.id} value={u.id}>{u.symbol}</option>)}
-            </select>
-          </Td>
-          <Td><input className={cn(inp, "text-right")} type="number" value={values.scaleMin} onChange={(e) => onChange({ scaleMin: e.target.value })} placeholder="min" /></Td>
-          <Td><input className={cn(inp, "text-right")} type="number" value={values.scaleMax} onChange={(e) => onChange({ scaleMax: e.target.value })} placeholder="max" /></Td>
-          <Td>
-            {(() => {
-              const euTypeId = values.engineeringUnitId
-                ? (units.find((u) => u.id === values.engineeringUnitId)?.plcDataTypeId ?? null)
-                : null;
-              const euTypeCode = euTypeId
-                ? (plcDataTypes.find((t) => t.id === euTypeId)?.code ?? null)
-                : null;
-              return euTypeCode ? (
-                <span className="text-xs font-mono text-purple-600 px-1" title="Overridden by EU">{euTypeCode}</span>
-              ) : (
-                <select
-                  className={sel}
-                  value={values.plcDataTypeId ?? ""}
-                  onChange={(e) => onChange({ plcDataTypeId: e.target.value ? Number(e.target.value) : null })}
-                >
-                  <option value="">—</option>
-                  {plcDataTypes.map((t) => <option key={t.id} value={t.id}>{t.code}</option>)}
-                </select>
-              );
-            })()}
-          </Td>
-        </>
-      ) : <><GrayCell /><GrayCell /><GrayCell /><GrayCell /><GrayCell /><GrayCell /></>}
-      {/* GVL */}
-      <Td>
+          );
+        })()}
+      </Td> : <GrayCell />)}
+      {!h.has("gvl") && <Td>
         <select className={sel} value={values.gvlId ?? ""} onChange={(e) => onChange({ gvlId: e.target.value ? Number(e.target.value) : null })}>
           <option value="">—</option>
           {gvls.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
         </select>
-      </Td>
-      {/* Drawing */}
-      <Td><input className={inp} value={values.drawingRef} onChange={(e) => onChange({ drawingRef: e.target.value })} placeholder="625-E01" /></Td>
-      {/* Cabinet */}
-      <Td><input className={inp} value={values.cabinetLocation} onChange={(e) => onChange({ cabinetLocation: e.target.value })} placeholder="A01" /></Td>
-      {/* Actions */}
-      <Td>
+      </Td>}
+      {!h.has("drawing") && <Td><input className={inp} value={values.drawingRef} onChange={(e) => onChange({ drawingRef: e.target.value })} placeholder="625-E01" /></Td>}
+      {!h.has("cabinet") && <Td><input className={inp} value={values.cabinetLocation} onChange={(e) => onChange({ cabinetLocation: e.target.value })} placeholder="A01" /></Td>}
+      {!h.has("actions") && <Td>
         <div className="flex items-center gap-1">
           <button type="button" className="rounded p-1 hover:bg-green-100 text-green-700 disabled:opacity-40" onClick={() => onSave(valuesRef.current)} disabled={isSaving} title="Save (Enter)">
             <Check className="h-4 w-4" />
@@ -684,7 +585,7 @@ function EditRow({
             <X className="h-4 w-4" />
           </button>
         </div>
-      </Td>
+      </Td>}
     </tr>
   );
 }
@@ -864,7 +765,9 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const [busConfigSignal, setBusConfigSignal] = useState<SignalRow | null>(null);
   const [alarmSignal, setAlarmSignal] = useState<SignalRow | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showImportMpv, setShowImportMpv] = useState(false);
   const [showAddFromComponent, setShowAddFromComponent] = useState(false);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<ColKey>>(new Set());
   const [showCreateComponent, setShowCreateComponent] = useState(false);
   const [grouped, setGrouped] = useState(true);
 
@@ -1115,7 +1018,8 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
     setGlobalFilter("");
   }
 
-  const totalWidth = COL_DEFS.reduce((sum, d) => sum + widths[d.key], 0);
+  const visibleCols = useMemo(() => COL_DEFS.filter((d) => !hiddenColumns.has(d.key)), [hiddenColumns]);
+  const totalWidth = visibleCols.reduce((sum, d) => sum + widths[d.key], 0);
   const boolTypeId = plcDataTypes.find((t) => t.code === "BOOL")?.id ?? null;
 
   const editRowProps = {
@@ -1183,6 +1087,39 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline">
+                <Columns3 className="h-4 w-4 mr-1" /> Columns
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-52 max-h-80 overflow-y-auto p-2">
+              <div className="space-y-0.5">
+                {COL_DEFS.filter((d) => d.key !== "select" && d.key !== "actions").map((d) => (
+                  <label key={d.key} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 rounded border-input"
+                      checked={!hiddenColumns.has(d.key)}
+                      onChange={() => {
+                        setHiddenColumns((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(d.key)) next.delete(d.key);
+                          else next.add(d.key);
+                          return next;
+                        });
+                      }}
+                    />
+                    <span className={d.disc ? "text-muted-foreground" : d.anlg ? "text-muted-foreground" : ""}>
+                      {d.label}
+                      {d.disc && <span className="ml-1 text-[10px] text-blue-500">DI/DO</span>}
+                      {d.anlg && <span className="ml-1 text-[10px] text-purple-500">AI/AO</span>}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
           <Button
             size="sm"
             variant={grouped ? "secondary" : "ghost"}
@@ -1192,9 +1129,23 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
             <Layers className="h-4 w-4 mr-1" />
             {grouped ? "Grouped" : "Flat"}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setShowImport(true)}>
-            <Upload className="h-4 w-4 mr-1" /> Import
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                <Upload className="h-4 w-4 mr-1" /> Import
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowImport(true)}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Wulkan
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowImportMpv(true)}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                MPV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" variant="outline" onClick={() => setShowAddFromComponent(true)}>
             <Layers className="h-4 w-4 mr-1" /> From Component
           </Button>
@@ -1208,12 +1159,12 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
       <div className="flex-1 overflow-auto min-w-0" ref={gridRef}>
         <table className="border-collapse text-sm" style={{ width: totalWidth, tableLayout: "fixed" }}>
           <colgroup>
-            {COL_DEFS.map((d) => <col key={d.key} style={{ width: widths[d.key] }} />)}
+            {visibleCols.map((d) => <col key={d.key} style={{ width: widths[d.key] }} />)}
           </colgroup>
           <thead className="sticky top-0 z-10 bg-background">
             {/* Sort header row */}
             <tr className="border-b">
-              {COL_DEFS.map((d) => {
+              {visibleCols.map((d) => {
                 const col = table.getColumn(d.key);
                 const sorted = col?.getIsSorted();
                 const canSort = col?.getCanSort() ?? false;
@@ -1267,7 +1218,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
             </tr>
             {/* Column filter row */}
             <tr className="border-b bg-muted/30">
-              {COL_DEFS.map((d) => {
+              {visibleCols.map((d) => {
                 const col = table.getColumn(d.key);
                 const hasFilter = TEXT_FILTER_COLS.has(d.key) || FACET_FILTER_COLS.has(d.key);
                 if (!hasFilter || !col) {
@@ -1289,7 +1240,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
           </thead>
           <tbody>
             {isAddingNew && (
-              <EditRow
+              <EditRow hiddenColumns={hiddenColumns}
                 values={newValues}
                 {...editRowProps}
                 isNew
@@ -1353,7 +1304,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                       const signal = row.original;
                       if (editingId === signal.id && editValues) {
                         return (
-                          <EditRow
+                          <EditRow hiddenColumns={hiddenColumns}
                             key={signal.id}
                             values={editValues}
                             {...editRowProps}
@@ -1367,7 +1318,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                         );
                       }
                       return (
-                        <DisplayRow
+                        <DisplayRow hiddenColumns={hiddenColumns}
                           key={signal.id}
                           signal={signal}
                           selected={row.getIsSelected()}
@@ -1422,7 +1373,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                       const signal = row.original;
                       if (editingId === signal.id && editValues) {
                         return (
-                          <EditRow
+                          <EditRow hiddenColumns={hiddenColumns}
                             key={signal.id}
                             values={editValues}
                             {...editRowProps}
@@ -1436,7 +1387,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                         );
                       }
                       return (
-                        <DisplayRow
+                        <DisplayRow hiddenColumns={hiddenColumns}
                           key={signal.id}
                           signal={signal}
                           selected={row.getIsSelected()}
@@ -1459,7 +1410,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                   const signal = row.original;
                   if (editingId === signal.id && editValues) {
                     return (
-                      <EditRow
+                      <EditRow hiddenColumns={hiddenColumns}
                         key={signal.id}
                         values={editValues}
                         {...editRowProps}
@@ -1473,7 +1424,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                     );
                   }
                   return (
-                    <DisplayRow
+                    <DisplayRow hiddenColumns={hiddenColumns}
                       key={signal.id}
                       signal={signal}
                       selected={row.getIsSelected()}
@@ -1540,6 +1491,18 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
           onImported={() => {
             utils.signal.list.invalidate({ projectId });
             setShowImport(false);
+          }}
+        />
+      )}
+
+      {showImportMpv && (
+        <ImportMpvDialog
+          projectId={projectId}
+          open
+          onClose={() => setShowImportMpv(false)}
+          onImported={() => {
+            utils.signal.list.invalidate({ projectId });
+            setShowImportMpv(false);
           }}
         />
       )}
