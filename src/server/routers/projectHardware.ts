@@ -473,16 +473,22 @@ export const projectHardwareRouter = createTRPCRouter({
       notes: z.string().optional().nullable(),
     }))
     .mutation(async ({ input }) => {
-      // Load component signals
+      // Load component with its own signals + effective signals (includes inherited from parent chain)
       const component = await db.hardwareComponent.findUniqueOrThrow({
         where: { id: input.componentId },
-        include: {
-          signals: {
-            where: { active: true },
-            orderBy: { channelOffset: "asc" },
-            include: { plcDataTypeCatalog: { select: { code: true } } },
-          },
-        },
+        select: { id: true, minCanIdOffset: true },
+      });
+
+      // Get effective signals (own + inherited from parent chain)
+      const { getEffectiveSignals } = await import("@/server/lib/component-signals");
+      const effectiveSignals = await getEffectiveSignals(input.componentId);
+
+      // Load full signal data for each effective signal (need plcDataTypeCatalog etc.)
+      const signalIds = effectiveSignals.map((s) => s.id);
+      const fullSignals = await db.componentSignal.findMany({
+        where: { id: { in: signalIds }, active: true },
+        orderBy: { channelOffset: "asc" },
+        include: { plcDataTypeCatalog: { select: { code: true } } },
       });
 
       // Get network protocol to use as signal origin
@@ -527,8 +533,8 @@ export const projectHardwareRouter = createTRPCRouter({
           },
         });
 
-        // Create instanceSignal + Signal + BusSignal for each component signal
-        for (const cs of component.signals) {
+        // Create instanceSignal + Signal + BusSignal for each effective signal (own + inherited)
+        for (const cs of fullSignals) {
           const isDiscrete = cs.ioType === "DI" || cs.ioType === "DO";
           const csOrigin = (cs.origin as string | null) ?? signalOrigin;
 
