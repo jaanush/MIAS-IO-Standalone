@@ -380,10 +380,11 @@ Deploy will apply the fix to production.
 
 ### What MIAS-IO now provides in the hardware export:
 
-- Local bus carriers (name ending in `-LOCAL`) are **filtered out** — not sent
+- **ALL carriers included** — local bus carriers have `isLocalBus: true`, remote have `false`
+- Local carriers include their card list (for Kbus module sync)
 - Remote carriers include `codesysDeviceId: "0059 0000 0005 0000"` (Modbus TCP Slave)
-- All 750-352 coupler-based carriers are populated with this device ID
-- The plugin can now create the full Ethernet → Master → Slave device chain
+- PLC catalog includes `codesysDeviceId` (e.g. `1000 1006 1207 0000` for 750-8210)
+- The plugin can create the full Ethernet → Master → Slave device chain
 
 When the plugin receives a SYNC_HARDWARE task, it needs `codesysDeviceId` on
 each carrier to add it to the CODESYS device tree. Currently carriers are sent
