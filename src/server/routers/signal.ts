@@ -52,36 +52,6 @@ const signalInclude = {
   },
 } as const;
 
-// Lighter include for table list view — drops alarm details and deep nesting
-const signalListInclude = {
-  discreteSignal: { include: { alarms: true, plcDataType: { select: { code: true } } } },
-  analogSignal: { include: {
-    engineeringUnit: { include: { plcDataTypeCatalog: true } },
-    inputType: true, plcDataTypeCatalog: true, alarms: true,
-  } },
-  busSignal: {
-    include: {
-      plcNetwork: { select: { id: true, protocol: true, description: true, plc: { select: { name: true } } } },
-    },
-  },
-  ioCard: {
-    select: {
-      id: true, slotPosition: true, cardType: true,
-      catalog: { select: { articleNumber: true, cardType: true } },
-      carrier: { select: { id: true, name: true, plc: { select: { id: true, name: true } } } },
-    },
-  },
-  system: { select: { id: true, name: true } },
-  gvl: { select: { id: true, name: true } },
-  instanceSignal: {
-    select: {
-      id: true, templateDirty: true,
-      componentSignal: { select: { canId: true } },
-      instance: { select: { id: true, name: true, canIdOffset: true, componentId: true } },
-    },
-  },
-} as const;
-
 const signalCreateInput = z.object({
   projectId: z.number().int(),
   signalType: z.enum(SIGNAL_TYPES),
@@ -156,7 +126,7 @@ export const signalRouter = createTRPCRouter({
     .query(({ input }) =>
       db.signal.findMany({
         where: { projectId: input.projectId },
-        include: signalListInclude,
+        include: signalInclude,
         orderBy: [{ tag: "asc" }, { id: "asc" }],
       })
     ),
