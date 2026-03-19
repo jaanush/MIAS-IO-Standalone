@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/select";
 import { SignalGrid } from "../[id]/_components/SignalGrid";
 import { ImportDbcDialog } from "../[id]/_components/ImportDbcDialog";
-import { Upload, Network } from "lucide-react";
+import { Upload, Network, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ImportModbusDialog } from "./ImportModbusDialog";
 import { COMPONENT_STATUS, BUS_PROTOCOLS } from "@/lib/enums";
 
@@ -268,46 +269,11 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
         </section>
       )}
 
-      {/* Inherited signals (read-only) */}
+      {/* Inherited signals (read-only, collapsible) */}
       {data.parentId && effectiveSignals.length > 0 && (() => {
         const inherited = effectiveSignals.filter((s: any) => s.inherited);
         if (inherited.length === 0) return null;
-        return (
-          <section className="px-8 py-4 space-y-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Inherited Signals
-              <span className="ml-2 font-normal text-xs">({inherited.length} from {data.parent?.name})</span>
-            </h2>
-            <div className="overflow-x-auto rounded-md border max-h-[300px] overflow-y-auto">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-background">
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-2 py-1.5 font-medium w-12">Ch</th>
-                    <th className="px-2 py-1.5 font-medium w-12">IO</th>
-                    <th className="px-2 py-1.5 font-medium">Tag Suffix</th>
-                    <th className="px-2 py-1.5 font-medium">Description</th>
-                    <th className="px-2 py-1.5 font-medium w-24">Source</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inherited.map((sig: any) => (
-                    <tr key={sig.id} className="border-b last:border-0 text-muted-foreground">
-                      <td className="px-2 py-1 tabular-nums">{sig.channelOffset}</td>
-                      <td className="px-2 py-1">{sig.ioType}</td>
-                      <td className="px-2 py-1 font-mono">{sig.tagSuffix ?? "—"}</td>
-                      <td className="px-2 py-1 truncate max-w-[300px]">{sig.description ?? "—"}</td>
-                      <td className="px-2 py-1">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-600 border-blue-200">
-                          inherited
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        );
+        return <InheritedSignalsSection inherited={inherited} parentName={data.parent?.name ?? "parent"} />;
       })()}
 
       <section className="px-8 py-6 space-y-3 flex-1">
@@ -362,5 +328,53 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
         />
       )}
     </div>
+  );
+}
+
+function InheritedSignalsSection({ inherited, parentName }: { inherited: any[]; parentName: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="px-8 py-4 space-y-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
+        Inherited Signals
+        <span className="font-normal text-xs">({inherited.length} from {parentName})</span>
+      </button>
+      {open && (
+        <div className="overflow-x-auto rounded-md border max-h-[300px] overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-background">
+              <tr className="border-b bg-muted/40 text-left">
+                <th className="px-2 py-1.5 font-medium w-12">Ch</th>
+                <th className="px-2 py-1.5 font-medium w-12">IO</th>
+                <th className="px-2 py-1.5 font-medium">Tag Suffix</th>
+                <th className="px-2 py-1.5 font-medium">Description</th>
+                <th className="px-2 py-1.5 font-medium w-24">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inherited.map((sig: any) => (
+                <tr key={sig.id} className="border-b last:border-0 text-muted-foreground">
+                  <td className="px-2 py-1 tabular-nums">{sig.channelOffset}</td>
+                  <td className="px-2 py-1">{sig.ioType}</td>
+                  <td className="px-2 py-1 font-mono">{sig.tagSuffix ?? "—"}</td>
+                  <td className="px-2 py-1 truncate max-w-[300px]">{sig.description ?? "—"}</td>
+                  <td className="px-2 py-1">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-600 border-blue-200">
+                      inherited
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
