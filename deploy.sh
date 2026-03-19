@@ -25,10 +25,13 @@ set -euo pipefail
 # --- Argument-parsning ---
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_WORK_DIR="$SCRIPT_DIR"   # Standardvarde: samma katalog som scriptet
+DEPLOY_VERSION=""             # If set, deploy a specific git tag (e.g. v1.2.0)
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --app-dir) APP_WORK_DIR="$(cd "$2" && pwd)"; shift 2 ;;
+        --version) DEPLOY_VERSION="$2"; shift 2 ;;
+        v[0-9]*) DEPLOY_VERSION="$1"; shift ;;  # bare version arg: deploy.sh v1.2.0
         *) shift ;;
     esac
 done
@@ -270,7 +273,7 @@ wait_for_deploy() {
 
 echo ""
 echo "=========================================="
-echo "  Deploying: $APP_NAME"
+echo "  Deploying: $APP_NAME${DEPLOY_VERSION:+ @ $DEPLOY_VERSION}"
 echo "=========================================="
 
 # =============================================
@@ -349,10 +352,23 @@ if [ -f "prisma/schema.prisma" ]; then
     fi
 fi
 
-git add -A
-git commit -m "deploy: $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-git push --force origin "${CURRENT_BRANCH}:main" 2>/dev/null || git push --force -u origin "${CURRENT_BRANCH}:main"
+# --- Version-based deploy or HEAD deploy ---
+if [ -n "$DEPLOY_VERSION" ]; then
+    # Verify the tag exists
+    if ! git rev-parse "$DEPLOY_VERSION" >/dev/null 2>&1; then
+        fail "Tag '$DEPLOY_VERSION' not found. Create it with: git tag $DEPLOY_VERSION && git push origin $DEPLOY_VERSION"
+    fi
+    DEPLOY_REF="$DEPLOY_VERSION"
+    log "Deploying version: $DEPLOY_VERSION ($(git rev-parse --short "$DEPLOY_VERSION"))"
+    git push --force origin "${DEPLOY_REF}:main" 2>/dev/null || git push --force -u origin "${DEPLOY_REF}:main"
+else
+    git add -A
+    git commit -m "deploy: $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    DEPLOY_REF="$CURRENT_BRANCH"
+    log "Deploying HEAD of $CURRENT_BRANCH"
+    git push --force origin "${CURRENT_BRANCH}:main" 2>/dev/null || git push --force -u origin "${CURRENT_BRANCH}:main"
+fi
 log "Pushat till Azure DevOps"
 
 GIT_CLONE_URL="https://pat:${AZURE_PAT}@dev.azure.com/${AZURE_ORG}/${AZURE_PROJECT}/_git/${AZURE_REPO}"
