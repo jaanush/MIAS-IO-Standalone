@@ -59,18 +59,17 @@ export async function getEffectiveSignals(componentId: number): Promise<Resolved
   // Build name lookup
   const nameMap = new Map(chain.map((c) => [c.id, c.name]));
 
-  // Merge: start from root (last in chain), child overrides parent
-  // chain[0] = the queried component (most specific)
-  // chain[last] = the root ancestor (most general)
-  const merged = new Map<number, ResolvedSignal>();
+  // Concatenate: parent signals first (inherited), then own signals.
+  // No override — children inherit ALL parent signals and add their own.
+  // Process from root to leaf: root signals first, then intermediate, then own.
+  const result: ResolvedSignal[] = [];
 
-  // Process from root to leaf so children override parents
   for (let i = chain.length - 1; i >= 0; i--) {
     const comp = chain[i];
     const signals = allSignals.filter((s) => s.componentId === comp.id);
 
     for (const sig of signals) {
-      merged.set(sig.channelOffset, {
+      result.push({
         ...sig,
         sourceComponentId: comp.id,
         sourceComponentName: nameMap.get(comp.id) ?? "",
@@ -79,7 +78,7 @@ export async function getEffectiveSignals(componentId: number): Promise<Resolved
     }
   }
 
-  return Array.from(merged.values()).sort((a, b) => a.channelOffset - b.channelOffset);
+  return result;
 }
 
 /**
