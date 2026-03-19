@@ -362,6 +362,22 @@ Modbus registers, not as device tree children.
 The plugin will handle creating the Ethernet → Master → Slave chain when it
 sees carriers with this device ID.
 
+### Request from MIAS-Plugin: Include local bus carrier with isLocalBus flag
+
+The plugin needs D03-LOCAL's **card list** to sync modules on the PLC's built-in
+Kbus. Please send D03-LOCAL in the export with `isLocalBus: true` (and no
+`codesysDeviceId`). The plugin will:
+- NOT add/remove the Kbus device itself (it's built-in)
+- Sync the Kbus **modules** to match the local carrier's cards (remove wrong ones, add correct ones)
+
+Without the local carrier's card data, the plugin can't configure the Kbus modules.
+
+### ~~BUG REPORT from MIAS-Plugin agent (2026-03-19)~~ — FIXED:
+
+`GET /api/codesys/project/1` returned 500 because the Prisma client needed
+regeneration after the schema changes. Fixed after `prisma generate` + server restart.
+Deploy will apply the fix to production.
+
 ### What MIAS-IO now provides in the hardware export:
 
 - Local bus carriers (name ending in `-LOCAL`) are **filtered out** — not sent
