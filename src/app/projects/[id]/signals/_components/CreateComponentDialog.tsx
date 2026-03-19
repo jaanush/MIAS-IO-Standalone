@@ -27,6 +27,7 @@ export function CreateComponentDialog({ open, projectId, signalIds, onCreated, o
   const [model, setModel] = useState("");
   const [version, setVersion] = useState("");
   const [description, setDescription] = useState("");
+  const [scope, setScope] = useState<"global" | "project">("global");
 
   const create = trpc.components.createFromSignals.useMutation({
     onSuccess: (data) => {
@@ -44,6 +45,7 @@ export function CreateComponentDialog({ open, projectId, signalIds, onCreated, o
     if (!name.trim()) return;
     create.mutate({
       projectId,
+      scope,
       name: name.trim(),
       manufacturer: manufacturer.trim() || null,
       model: model.trim() || null,
@@ -70,6 +72,27 @@ export function CreateComponentDialog({ open, projectId, signalIds, onCreated, o
               required
               autoFocus
             />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Scope</Label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setScope("global")}
+                className={`flex-1 rounded-md border px-3 py-1.5 text-sm transition-colors ${scope === "global" ? "border-primary bg-primary/10 text-primary font-medium" : "border-input text-muted-foreground hover:border-foreground"}`}
+              >
+                Global
+                <span className="block text-[10px] font-normal opacity-70">Shared across all projects</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope("project")}
+                className={`flex-1 rounded-md border px-3 py-1.5 text-sm transition-colors ${scope === "project" ? "border-primary bg-primary/10 text-primary font-medium" : "border-input text-muted-foreground hover:border-foreground"}`}
+              >
+                Project
+                <span className="block text-[10px] font-normal opacity-70">Only this project</span>
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">

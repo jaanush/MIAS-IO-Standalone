@@ -230,28 +230,21 @@ function buildPayload(v: EditValues) {
 const LS_COL_WIDTHS = "mias-signal-col-widths";
 const LS_COL_HIDDEN = "mias-signal-col-hidden";
 
-function loadWidths(): Record<ColKey, number> {
-  try {
-    const stored = localStorage.getItem(LS_COL_WIDTHS);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      const defaults = Object.fromEntries(COL_DEFS.map((d) => [d.key, d.defaultWidth]));
-      return { ...defaults, ...parsed } as Record<ColKey, number>;
-    }
-  } catch {}
-  return Object.fromEntries(COL_DEFS.map((d) => [d.key, d.defaultWidth])) as Record<ColKey, number>;
-}
-
-function loadHidden(): Set<ColKey> {
-  try {
-    const stored = localStorage.getItem(LS_COL_HIDDEN);
-    if (stored) return new Set(JSON.parse(stored));
-  } catch {}
-  return new Set();
-}
+const defaultWidths = () => Object.fromEntries(COL_DEFS.map((d) => [d.key, d.defaultWidth])) as Record<ColKey, number>;
 
 function useColumnWidths() {
-  const [widths, setWidths] = useState<Record<ColKey, number>>(loadWidths);
+  const [widths, setWidths] = useState<Record<ColKey, number>>(defaultWidths);
+
+  // Load persisted widths after hydration
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(LS_COL_WIDTHS);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setWidths((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch {}
+  }, []);
 
   const onResizeStart = useCallback((key: ColKey, e: React.MouseEvent) => {
     e.preventDefault();
@@ -795,7 +788,15 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const [showImportMpv, setShowImportMpv] = useState(false);
   const [showAddFromComponent, setShowAddFromComponent] = useState(false);
   const [showExportLegacy, setShowExportLegacy] = useState(false);
-  const [hiddenColumns, setHiddenColumns] = useState<Set<ColKey>>(loadHidden);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<ColKey>>(new Set());
+
+  // Load persisted hidden columns after hydration
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(LS_COL_HIDDEN);
+      if (stored) setHiddenColumns(new Set(JSON.parse(stored)));
+    } catch {}
+  }, []);
   const [showCreateComponent, setShowCreateComponent] = useState(false);
   const [grouped, setGrouped] = useState(true);
   const [groupCollapseKey, setGroupCollapseKey] = useState(0);

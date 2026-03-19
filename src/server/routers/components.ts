@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
+import { extractModbusRegisters, type ExtractedRegister } from "../lib/modbus-ai-extract";
 import { SIGNAL_ORIGINS, IO_TYPES, RAW_DATA_TYPES, BYTE_ORDERS, MODBUS_REGISTER_TYPES, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, DISCRETE_ALARM_CONDITIONS, ANALOG_ALARM_CONDITIONS, ALARM_SEVERITIES, COMPONENT_STATUS, BUS_PROTOCOLS } from "@/lib/enums";
 
 /** Recompute minCanIdOffset = max(canId) - min(canId) + 1 across active signals */
@@ -109,6 +110,19 @@ export const componentsRouter = createTRPCRouter({
     })
   ),
 
+  projectComponentList: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .query(({ input }) =>
+      db.hardwareComponent.findMany({
+        where: { projectId: input.projectId },
+        orderBy: { name: "asc" },
+        include: {
+          _count: { select: { signals: true, instances: true } },
+          instances: { select: { id: true, name: true } },
+        },
+      })
+    ),
+
   componentById: protectedProcedure
     .input(z.object({ id: z.number().int() }))
     .query(({ input }) =>
@@ -157,6 +171,82 @@ export const componentsRouter = createTRPCRouter({
   componentDelete: protectedProcedure
     .input(z.object({ id: z.number().int() }))
     .mutation(({ input }) => db.hardwareComponent.delete({ where: { id: input.id } })),
+
+  // ── AI Modbus extraction ────────────────────────────────────────────
+  modbusExtract: protectedProcedure
+    .input(z.object({
+      fileBase64: z.string(),
+      fileName: z.string(),
+      mimeType: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      return extractModbusRegisters(input.fileBase64, input.fileName, input.mimeType);
+    }),
+
+  modbusImport: protectedProcedure
+    .input(z.object({
+      componentId: z.number().int(),
+      registers: z.array(z.object({
+        address: z.number().int(),
+        registerType: z.enum(["HOLDING_REGISTER", "INPUT_REGISTER", "COIL", "DISCRETE_INPUT"]),
+        dataType: z.enum(["INT16", "UINT16", "INT32", "UINT32", "FLOAT32", "BOOL", "WORD", "DWORD"]),
+        name: z.string(),
+        description: z.string(),
+        unit: z.string().nullable(),
+        scaleFactor: z.number().nullable(),
+        offset: z.number().nullable(),
+        readWrite: z.enum(["R", "W", "RW"]),
+        bitPosition: z.number().int().nullable(),
+      })),
+    }))
+    .mutation(async ({ input }) => {
+      const { componentId, registers } = input;
+
+      // Map extracted registers to ComponentSignals
+      let created = 0;
+      for (let i = 0; i < registers.length; i++) {
+        const reg = registers[i];
+
+        // Determine IO type from register type + read/write
+        const isInput = reg.registerType === "INPUT_REGISTER" || reg.registerType === "DISCRETE_INPUT" || reg.readWrite === "R";
+        const isDiscrete = reg.dataType === "BOOL" || reg.registerType === "COIL" || reg.registerType === "DISCRETE_INPUT";
+        const ioType = isDiscrete
+          ? (isInput ? "DI" : "DO")
+          : (isInput ? "AI" : "AO");
+
+        // Map data types
+        const rawDataTypeMap: Record<string, string> = {
+          INT16: "INT16", UINT16: "UINT16", INT32: "INT32", UINT32: "UINT32",
+          FLOAT32: "FLOAT32", BOOL: "UINT16", WORD: "UINT16", DWORD: "UINT32",
+        };
+
+        const modbusRegTypeMap: Record<string, string> = {
+          HOLDING_REGISTER: "HOLDING_REGISTER",
+          INPUT_REGISTER: "INPUT_REGISTER",
+          COIL: "COIL",
+          DISCRETE_INPUT: "DISCRETE_INPUT",
+        };
+
+        await db.componentSignal.create({
+          data: {
+            componentId,
+            channelOffset: i,
+            ioType: ioType as any,
+            tagSuffix: reg.name,
+            description: reg.description,
+            modbusRegisterType: modbusRegTypeMap[reg.registerType] as any,
+            modbusRegisterOffset: reg.address,
+            rawDataType: rawDataTypeMap[reg.dataType] as any,
+            bitOffset: reg.bitPosition,
+            bitLength: reg.dataType === "BOOL" ? 1 : null,
+            active: true,
+          },
+        });
+        created++;
+      }
+
+      return { created };
+    }),
 
   // ── Template signals ──────────────────────────────────────────────
   signalUpsert: protectedProcedure
@@ -308,6 +398,7 @@ export const componentsRouter = createTRPCRouter({
   createFromSignals: protectedProcedure
     .input(z.object({
       projectId: z.number().int(),
+      scope: z.enum(["global", "project"]).default("global"),
       name: z.string().min(1),
       manufacturer: z.string().optional().nullable(),
       model: z.string().optional().nullable(),
@@ -316,7 +407,7 @@ export const componentsRouter = createTRPCRouter({
       signalIds: z.array(z.number().int()).min(1),
     }))
     .mutation(async ({ input }) => {
-      const { projectId, signalIds, ...componentData } = input;
+      const { projectId, scope, signalIds, ...componentData } = input;
 
       // Fetch the project signals
       const projectSignals = await db.signal.findMany({
@@ -334,7 +425,7 @@ export const componentsRouter = createTRPCRouter({
       return db.$transaction(async (tx) => {
         // Create component
         const component = await tx.hardwareComponent.create({
-          data: { ...componentData, projectId: null },
+          data: { ...componentData, projectId: scope === "project" ? projectId : null },
         });
 
         // Create component signals (one per project signal, ordered by id)

@@ -70,6 +70,118 @@ Migration: `prisma/migration_hvac_register_metadata.sql`
 
 ---
 
+## 17. CODESYS Session API — remoting infrastructure
+
+**Status:** New. Required for CODESYS ↔ MIAS-IO real-time communication.
+
+The CODESYS plugin needs to register itself as online when it starts, so the
+web UI can show the user that their CODESYS IDE is connected and can receive
+remote commands (sync GVLs, build, etc.).
+
+### Endpoints needed
+
+#### `POST /api/codesys/sessions/register`
+
+Called once at plugin startup. Creates a session.
+
+**Request body:**
+```json
+{
+  "email": "jaanus@metstech.se",
+  "hostname": "OVARVET-PC",
+  "pluginVersion": "2.1.0"
+}
+```
+
+**Response: `200 OK`**
+```json
+{
+  "sessionId": "uuid-string",
+  "userId": "user-uuid-or-null",
+  "pollInterval": 10
+}
+```
+
+- `userId` is null if no MIAS-IO user matches the email. The plugin still
+  polls — the user can be matched later.
+- `pollInterval` is the recommended poll interval in seconds (server-controlled).
+
+#### `POST /api/codesys/sessions/{sessionId}/heartbeat`
+
+Called on every poll cycle to keep the session alive and fetch pending tasks.
+
+**Request body:**
+```json
+{
+  "projectOpen": true,
+  "projectPath": "C:\\Projects\\MyProject.project",
+  "miasProjectId": 1
+}
+```
+
+**Response: `200 OK`**
+```json
+{
+  "status": "ok",
+  "tasks": [
+    {
+      "id": "task-uuid",
+      "type": "SYNC_GVLS",
+      "projectId": 1,
+      "params": {}
+    }
+  ]
+}
+```
+
+- Returns `tasks: []` when nothing is pending.
+- If the session hasn't sent a heartbeat within 2× pollInterval, MIAS-IO
+  marks it as disconnected in the UI.
+
+#### `POST /api/codesys/sessions/{sessionId}/task-result`
+
+Called after the plugin finishes executing a task.
+
+**Request body:**
+```json
+{
+  "taskId": "task-uuid",
+  "status": "SUCCESS",
+  "log": ["line1", "line2"],
+  "error": null,
+  "data": {}
+}
+```
+
+**Response: `200 OK`**
+```json
+{ "status": "ok" }
+```
+
+### Supported task types
+
+| Type | Description | Params |
+|------|-------------|--------|
+| `SYNC_GVLS` | Regenerate GVLs + PRGs from MIAS-IO data | `projectId` |
+| `SYNC_HARDWARE` | Sync hardware device tree | `projectId`, `strategy` |
+| `BUILD` | Compile the CODESYS project | (none) |
+
+### UI requirements
+
+- Show a "CODESYS Connected" indicator next to the user's avatar/name when
+  they have an active session.
+- Provide a "Sync to CODESYS" button on the project page that queues a
+  `SYNC_GVLS` task for that user's session.
+- Show task status (pending/running/success/failure) with log output.
+
+### Auth
+
+Uses the same `X-API-Key` header as all other `/api/codesys/*` endpoints.
+The `email` field in the register request is used to match the CODESYS user
+to a MIAS-IO user account — it is NOT used for authentication.
+
+---
+
 ## 16. Component Group + Component Global Signals — CAN/fieldbus signal hierarchy
 
 **Status:** Needs planning. Major schema addition.

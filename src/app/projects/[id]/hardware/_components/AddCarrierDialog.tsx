@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type Network = { id: number; protocol: string; role: string; nodeAddress: number | null; description?: string | null };
+type Network = { id: number; protocol: string; role: string; nodeAddress: number | null; description?: string | null; plcName?: string };
 
 type Props = {
   projectId: number;
@@ -140,7 +140,7 @@ export function AddCarrierDialog({
                 {busCouplerMode && <option value="">— select network —</option>}
                 {networks.map((n) => (
                   <option key={n.id} value={n.id}>
-                    {n.protocol} / {n.role}
+                    {n.plcName ? `${n.plcName} — ` : ""}{n.protocol} / {n.role}
                     {n.nodeAddress != null ? ` (Node ${n.nodeAddress})` : ""}
                     {n.description ? ` — ${n.description}` : ""}
                   </option>

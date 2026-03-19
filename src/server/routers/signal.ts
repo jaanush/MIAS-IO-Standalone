@@ -530,6 +530,19 @@ export const signalRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       const { projectId, signals: rows } = input;
       let created = 0;
+      let updated = 0;
+
+      // Pre-fetch existing signals by instrumentTag for upsert behavior
+      const existingByInstrTag = new Map<string, number>();
+      const existingByTag = new Map<string, number>();
+      const existing = await db.signal.findMany({
+        where: { projectId },
+        select: { id: true, instrumentTag: true, tag: true },
+      });
+      for (const s of existing) {
+        if (s.instrumentTag) existingByInstrTag.set(s.instrumentTag, s.id);
+        if (s.tag) existingByTag.set(s.tag, s.id);
+      }
 
       // Process in chunks of 50 to avoid query size limits
       const CHUNK = 50;
@@ -553,45 +566,71 @@ export const signalRouter = createTRPCRouter({
               sensorFailRaw, sensorFailMargin, sensorFailBehavior, sensorFailDelayMs,
             } = row;
 
-            await tx.signal.create({
-              data: {
-                projectId, signalType, origin,
-                tag: tag ?? null, description: description ?? null, notes: notes ?? null,
-                ioCardId: ioCardId ?? null, channelPosition: channelPosition ?? null,
-                direction: direction ?? null, systemId: systemId ?? null,
-                componentTag: componentTag ?? null, drawingRef: drawingRef ?? null,
-                cabinetLocation: cabinetLocation ?? null, gvlId: gvlId ?? null,
-                alarmGroup: alarmGroup ?? null, alarmBlockMask: alarmBlockMask ?? null,
-                commBlockMask: commBlockMask ?? null, fatBlock: fatBlock ?? false,
-                suppressionSt: suppressionSt ?? null, specialAlarmFb: specialAlarmFb ?? null,
-                specialAlarmInput: specialAlarmInput ?? null, anaToDigAlarm: anaToDigAlarm ?? false,
-                isRetain: isRetain ?? false, isPersistent: isPersistent ?? false,
-                loggingEnabled: loggingEnabled ?? false, fbNameOverride: fbNameOverride ?? null,
-                useShortName: useShortName ?? false,
-                instrumentTag: instrumentTag ?? null, signalClassification: signalClassification ?? null,
-                subsystem: subsystem ?? null, element: element ?? null,
-                signalFunction: signalFunction ?? null, supplierName: supplierName ?? null,
-                supplierSensorType: supplierSensorType ?? null, normalValue: normalValue ?? null,
-                ...(signalType === "DISCRETE"
-                  ? { discreteSignal: { create: { trigger: trigger ?? "NO", filterTimeMs: filterTimeMs ?? null, switchingType: switchingType ?? null, signalVoltage: signalVoltage ?? null } } }
-                  : { analogSignal: { create: {
-                      inputTypeId: inputTypeId ?? null, wireConfig: wireConfig ?? null,
-                      scaleMin: scaleMin ?? null, scaleMax: scaleMax ?? null,
-                      rawMin: rawMin ?? null, rawMax: rawMax ?? null, rawZero: rawZero ?? null,
-                      clampLow: clampLow ?? null, clampHigh: clampHigh ?? null, deadband: deadband ?? null,
-                      engineeringUnitId: engineeringUnitId ?? null, plcDataTypeId: plcDataTypeId ?? null,
-                      useTankLevel: useTankLevel ?? false, scalingFbOverride: scalingFbOverride ?? null,
-                      deadbandRawMin: deadbandRawMin ?? null, deadbandRawZero: deadbandRawZero ?? null, deadbandRawMax: deadbandRawMax ?? null,
-                      sensorFailRaw: sensorFailRaw ?? null, sensorFailMargin: sensorFailMargin ?? null,
-                      sensorFailBehavior: sensorFailBehavior ?? null, sensorFailDelayMs: sensorFailDelayMs ?? null,
-                    } } }),
-              },
-            });
-            created++;
+            const signalData = {
+              projectId, signalType, origin,
+              tag: tag ?? null, description: description ?? null, notes: notes ?? null,
+              ioCardId: ioCardId ?? null, channelPosition: channelPosition ?? null,
+              direction: direction ?? null, systemId: systemId ?? null,
+              componentTag: componentTag ?? null, drawingRef: drawingRef ?? null,
+              cabinetLocation: cabinetLocation ?? null, gvlId: gvlId ?? null,
+              alarmGroup: alarmGroup ?? null, alarmBlockMask: alarmBlockMask ?? null,
+              commBlockMask: commBlockMask ?? null, fatBlock: fatBlock ?? false,
+              suppressionSt: suppressionSt ?? null, specialAlarmFb: specialAlarmFb ?? null,
+              specialAlarmInput: specialAlarmInput ?? null, anaToDigAlarm: anaToDigAlarm ?? false,
+              isRetain: isRetain ?? false, isPersistent: isPersistent ?? false,
+              loggingEnabled: loggingEnabled ?? false, fbNameOverride: fbNameOverride ?? null,
+              useShortName: useShortName ?? false,
+              instrumentTag: instrumentTag ?? null, signalClassification: signalClassification ?? null,
+              subsystem: subsystem ?? null, element: element ?? null,
+              signalFunction: signalFunction ?? null, supplierName: supplierName ?? null,
+              supplierSensorType: supplierSensorType ?? null, normalValue: normalValue ?? null,
+              ...(signalType === "DISCRETE"
+                ? { discreteSignal: { create: { trigger: trigger ?? "NO", filterTimeMs: filterTimeMs ?? null, switchingType: switchingType ?? null, signalVoltage: signalVoltage ?? null } } }
+                : { analogSignal: { create: {
+                    inputTypeId: inputTypeId ?? null, wireConfig: wireConfig ?? null,
+                    scaleMin: scaleMin ?? null, scaleMax: scaleMax ?? null,
+                    rawMin: rawMin ?? null, rawMax: rawMax ?? null, rawZero: rawZero ?? null,
+                    clampLow: clampLow ?? null, clampHigh: clampHigh ?? null, deadband: deadband ?? null,
+                    engineeringUnitId: engineeringUnitId ?? null, plcDataTypeId: plcDataTypeId ?? null,
+                    useTankLevel: useTankLevel ?? false, scalingFbOverride: scalingFbOverride ?? null,
+                    deadbandRawMin: deadbandRawMin ?? null, deadbandRawZero: deadbandRawZero ?? null, deadbandRawMax: deadbandRawMax ?? null,
+                    sensorFailRaw: sensorFailRaw ?? null, sensorFailMargin: sensorFailMargin ?? null,
+                    sensorFailBehavior: sensorFailBehavior ?? null, sensorFailDelayMs: sensorFailDelayMs ?? null,
+                  } } }),
+            };
+            // Check if signal already exists (match by instrumentTag or tag)
+            const instrTag = signalData.instrumentTag as string | null;
+            const sigTag = signalData.tag as string | null;
+            const existingId = (instrTag ? existingByInstrTag.get(instrTag) : null)
+              ?? (sigTag ? existingByTag.get(sigTag) : null);
+
+            if (existingId) {
+              // Update existing signal — strip child table creates, just update scalar fields
+              const { discreteSignal: _d, analogSignal: _a, ...updateData } = signalData as any;
+              await tx.signal.update({ where: { id: existingId }, data: updateData });
+              updated++;
+            } else {
+              // Pre-check: if ioCardId + channelPosition would conflict, drop the card ref
+              if (signalData.ioCardId != null && signalData.channelPosition != null) {
+                const conflict = await tx.signal.findFirst({
+                  where: { ioCardId: signalData.ioCardId, channelPosition: signalData.channelPosition },
+                  select: { id: true },
+                });
+                if (conflict) {
+                  signalData.ioCardId = null;
+                  signalData.channelPosition = null;
+                }
+              }
+              await tx.signal.create({ data: signalData });
+              // Track the new signal for deduplication within the same batch
+              if (instrTag) existingByInstrTag.set(instrTag, 0);
+              if (sigTag) existingByTag.set(sigTag, 0);
+              created++;
+            }
           }
         });
       }
-      return { count: created };
+      return { created, updated };
     }),
 
   engineeringUnits: protectedProcedure.query(() =>

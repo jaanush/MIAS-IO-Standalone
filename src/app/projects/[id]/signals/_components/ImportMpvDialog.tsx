@@ -122,27 +122,43 @@ function resolveInputTypeCode(raw: string): string | null {
 }
 
 /**
- * Parse the Position column: "N3:D02:BI01" → { plc: "N3", carrier: "D02", cardId: "BI01" }
+ * Parse Position column: "N3:D02:BI01" → { cabinet: "N3", distIO: "D02", slotId: "BI01" }
+ * Format: <cabinet>:<distributed_io>:<module_slot>
  */
-function parsePosition(pos: string): { plc: string; carrier: string; cardId: string } | null {
+function parsePosition(pos: string): { cabinet: string; distIO: string; slotId: string } | null {
   const parts = pos.split(":");
   if (parts.length < 3) return null;
-  return { plc: parts[0].trim(), carrier: parts[1].trim(), cardId: parts[2].trim() };
-}
-
-/**
- * Extract a slot number from a card identifier like "BI01" → 1, "BM03" → 3
- */
-function cardIdToSlot(cardId: string): number {
-  const m = cardId.match(/(\d+)$/);
-  return m ? Number(m[1]) : 0;
+  return { cabinet: parts[0].trim(), distIO: parts[1].trim(), slotId: parts[2].trim() };
 }
 
 function parseSheet(rows: any[][]): ParseResult {
   // Headers at row 6, data starts at row 8 (row 7 is blank)
-  const plcMap = new Map<string, { cabinet: string | null; carriers: Map<string, Map<number, string>> }>();
+  // Hardware: all distributed IOs are carriers under one PLC on one network
+  const carrierMap = new Map<string, Map<string, string>>(); // distIO → slotId → cardType
+  const slotNumberMap = new Map<string, Map<string, number>>(); // distIO → slotId → sequential slot number
   const signals: ParsedRow[] = [];
 
+  // First pass: collect all slots per distributed IO
+  for (let i = 8; i < rows.length; i++) {
+    const position = cellStr(rows, i, 24);
+    const cardType = cellStr(rows, i, 23);
+    if (!position || !cardType) continue;
+    const parsed = parsePosition(position);
+    if (!parsed) continue;
+
+    if (!carrierMap.has(parsed.distIO)) carrierMap.set(parsed.distIO, new Map());
+    carrierMap.get(parsed.distIO)!.set(parsed.slotId, cardType);
+  }
+
+  // Assign sequential slot numbers per carrier (sorted by slotId)
+  for (const [distIO, slots] of carrierMap) {
+    const sorted = [...slots.keys()].sort();
+    const numMap = new Map<string, number>();
+    sorted.forEach((slotId, idx) => numMap.set(slotId, idx + 1));
+    slotNumberMap.set(distIO, numMap);
+  }
+
+  // Second pass: build signals
   for (let i = 8; i < rows.length; i++) {
     const ioType = cellStr(rows, i, 9).toUpperCase();
     const isDiscrete = ioType === "DI" || ioType === "DO";
@@ -157,28 +173,13 @@ function parseSheet(rows: any[][]): ParseResult {
     const channel = cellNum(rows, i, 26);
     const cabinet = cellStr(rows, i, 22) || null;
 
-    // Build hardware tree from Position column
+    // Build card reference: "distIO:slotNumber"
     let cardRef: string | null = null;
     if (position) {
       const parsed = parsePosition(position);
       if (parsed && cardType) {
-        const plcName = parsed.plc;
-        if (!plcMap.has(plcName)) {
-          plcMap.set(plcName, { cabinet, carriers: new Map() });
-        }
-        const plcEntry = plcMap.get(plcName)!;
-        if (!plcEntry.cabinet && cabinet) plcEntry.cabinet = cabinet;
-
-        const carrierKey = parsed.carrier;
-        if (!plcEntry.carriers.has(carrierKey)) {
-          plcEntry.carriers.set(carrierKey, new Map());
-        }
-        const slotMap = plcEntry.carriers.get(carrierKey)!;
-        const slotNum = cardIdToSlot(parsed.cardId);
-        if (slotNum > 0 && !slotMap.has(slotNum)) {
-          slotMap.set(slotNum, cardType);
-        }
-        cardRef = `${plcName}:${carrierKey}:${slotNum}`;
+        const slotNum = slotNumberMap.get(parsed.distIO)?.get(parsed.slotId);
+        if (slotNum) cardRef = `${parsed.distIO}:${slotNum}`;
       }
     }
 
@@ -214,21 +215,21 @@ function parseSheet(rows: any[][]): ParseResult {
     });
   }
 
-  // Build hardware array
-  const hardware: ParsedPlc[] = [];
-  for (const [plcName, plcData] of plcMap.entries()) {
-    const carriers: ParsedCarrier[] = [];
-    for (const [carrierKey, slotMap] of plcData.carriers.entries()) {
-      const slots: ParsedSlot[] = [];
-      for (const [slotPosition, articleNumber] of slotMap.entries()) {
-        slots.push({ slotPosition, articleNumber });
-      }
-      slots.sort((a, b) => a.slotPosition - b.slotPosition);
-      carriers.push({ key: carrierKey, name: `${plcName}-${carrierKey}`, slots });
+  // Build hardware: 1 PLC with all distributed IOs as carriers
+  const carriers: ParsedCarrier[] = [];
+  for (const [distIO, slots] of [...carrierMap].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const numMap = slotNumberMap.get(distIO)!;
+    const parsedSlots: ParsedSlot[] = [];
+    for (const [slotId, cardType] of slots) {
+      parsedSlots.push({ slotPosition: numMap.get(slotId)!, articleNumber: cardType });
     }
-    carriers.sort((a, b) => a.key.localeCompare(b.key));
-    hardware.push({ name: plcName, cabinet: plcData.cabinet, carriers });
+    parsedSlots.sort((a, b) => a.slotPosition - b.slotPosition);
+    carriers.push({ key: distIO, name: distIO, slots: parsedSlots });
   }
+
+  const hardware: ParsedPlc[] = carriers.length > 0
+    ? [{ name: "PLC-1", cabinet: null, carriers }]
+    : [];
 
   return { hardware, signals, busDevices: [] };
 }
@@ -273,6 +274,7 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
 
   const { data: systems = [] } = trpc.signal.systemList.useQuery(undefined, { enabled: open });
   const { data: gvls = [] } = trpc.signal.gvlList.useQuery(undefined, { enabled: open });
+  const { data: plcDataTypes = [] } = trpc.signal.plcDataTypeList.useQuery(undefined, { enabled: open });
   const { data: engineeringUnits = [] } = trpc.signal.engineeringUnits.useQuery(undefined, { enabled: open });
   const { data: inputTypes = [] } = trpc.signal.analogInputTypes.useQuery(undefined, { enabled: open });
   const { data: modules = [] } = trpc.hardware.moduleList.useQuery(undefined, { enabled: open });
@@ -287,6 +289,7 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
   const createNetwork = trpc.projectHardware.networkCreate.useMutation();
   const assignCard = trpc.projectHardware.cardAssign.useMutation();
   const bulkCreate = trpc.signal.bulkCreate.useMutation();
+  const gvlUpsert = trpc.signal.gvlUpsert.useMutation();
   const componentCreate = trpc.components.componentCreate.useMutation();
   const instanceCreate = trpc.projectHardware.instanceCreate.useMutation();
 
@@ -361,7 +364,7 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
     const systemMap = new Map<string, number>(systems.map((s) => [s.name, s.id]));
     const euMap = new Map<string, number>(engineeringUnits.map((eu) => [eu.symbol, eu.id]));
     const inputTypeMap = new Map<string, number>(inputTypes.map((t) => [t.code, t.id]));
-    const cardRefToId = new Map<string, number>(); // "PLC:Carrier:Slot" → ioCard.id
+    const cardRefToId = new Map<string, number>(); // "distIO:slotNumber" → ioCard.id
     let firstPlcId: number | null = null;
 
     try {
@@ -418,7 +421,7 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
               slotPosition: slot.slotPosition,
               catalogId,
             });
-            cardRefToId.set(`${parsedPlc.name}:${carrier.key}:${slot.slotPosition}`, card.id);
+            cardRefToId.set(`${carrier.key}:${slot.slotPosition}`, card.id);
           }
         }
       }
@@ -439,6 +442,17 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
         }
       }
 
+      // Resolve default GVL (upsert GVL_Physical)
+      let defaultGvlId = gvls.find((g) => g.name === "GVL_Physical")?.id ?? null;
+      if (!defaultGvlId) {
+        const result = await gvlUpsert.mutateAsync({ name: "GVL_Physical", description: null });
+        defaultGvlId = result.id;
+      }
+
+      // Resolve default PLC data types
+      const boolTypeId = plcDataTypes.find((t) => t.code === "BOOL")?.id ?? null;
+      const realTypeId = plcDataTypes.find((t) => t.code === "REAL")?.id ?? null;
+
       const signalBatch = parseResult.signals.map((row) => ({
         signalType: row.signalType,
         origin: "IEC" as const,
@@ -450,6 +464,7 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
         channelPosition: row.channelPosition,
         cabinetLocation: row.cabinet,
         drawingRef: row.mimic,
+        gvlId: defaultGvlId,
         notes: row.notes,
         instrumentTag: row.instrumentTag,
         signalClassification: row.signalClassification,
@@ -462,6 +477,7 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
         trigger: row.trigger,
         inputTypeId: row.inputTypeCode ? (inputTypeMap.get(row.inputTypeCode) ?? null) : null,
         engineeringUnitId: row.engineeringUnitSymbol ? (euMap.get(row.engineeringUnitSymbol) ?? null) : null,
+        plcDataTypeId: row.signalType === "DISCRETE" ? boolTypeId : realTypeId,
         scaleMin: row.rangelow,
         scaleMax: row.rangeHigh,
       }));
@@ -471,19 +487,25 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
 
       // ── Phase 3: Bus devices (Serial IO) ─────────────────────────────
       if (parseResult.busDevices.length > 0 && firstPlcId) {
+        // Create one network per protocol, reuse for all devices on that protocol
+        const networkByProtocol = new Map<string, number>();
+
         for (const bus of parseResult.busDevices) {
           setImportStatus(`Creating bus device: ${bus.systemName}...`);
 
-          // Create network on the first PLC
-          const network = await createNetwork.mutateAsync({
-            plcId: firstPlcId,
-            protocol: bus.protocol,
-            role: "MASTER",
-            ioCardId: null,
-            description: `${bus.systemName} serial connection`,
-          });
+          let networkId = networkByProtocol.get(bus.protocol);
+          if (!networkId) {
+            const network = await createNetwork.mutateAsync({
+              plcId: firstPlcId,
+              protocol: bus.protocol,
+              role: "MASTER",
+              ioCardId: null,
+              description: `${bus.protocol} bus`,
+            });
+            networkId = network.id;
+            networkByProtocol.set(bus.protocol, networkId);
+          }
 
-          // Create a project-scoped skeleton HardwareComponent for this device type
           const component = await componentCreate.mutateAsync({
             projectId,
             name: bus.systemName,
@@ -492,11 +514,10 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
             description: bus.comments ?? `${bus.protocol} device — imported from MPV Serial IO`,
           });
 
-          // Create a ComponentInstance on the network (no signals yet)
           await instanceCreate.mutateAsync({
             projectId,
             componentId: component.id,
-            plcNetworkId: network.id,
+            plcNetworkId: networkId,
             name: bus.systemName,
             notes: bus.comments,
           });

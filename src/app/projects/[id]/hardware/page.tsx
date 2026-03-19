@@ -67,9 +67,8 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
       : null;
 
   const addCarrierPlc = addCarrierForPlc != null ? plcs.find((p) => p.id === addCarrierForPlc) : null;
-
-  // All networks across all PLCs (for the add instance dialog)
-  const allNetworks = plcs.flatMap((p) => p.networks);
+  // All networks across all PLCs — for carrier/instance assignment
+  const allNetworks = plcs.flatMap((p) => p.networks.map((n) => ({ ...n, plcName: p.name })));
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -154,15 +153,7 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
           <CarrierDetail
             carrier={selectedCarrier}
             projectId={projectId}
-            networks={
-              plcs
-                .find((p) =>
-                  [...p.carriers, ...p.networks.flatMap((n) => n.carriers)].some(
-                    (c) => c.id === selectedCarrier.id
-                  )
-                )
-                ?.networks ?? []
-            }
+            networks={allNetworks}
             onRefresh={refresh}
           />
         )}
@@ -198,7 +189,7 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
         <AddCarrierDialog
           projectId={projectId}
           plcId={addCarrierPlc.id}
-          networks={addCarrierPlc.networks}
+          networks={allNetworks}
           open
           busCouplerMode
           onClose={() => setAddCarrierForPlc(null)}

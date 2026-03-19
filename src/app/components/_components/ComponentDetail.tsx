@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/select";
 import { SignalGrid } from "../[id]/_components/SignalGrid";
 import { ImportDbcDialog } from "../[id]/_components/ImportDbcDialog";
-import { Upload } from "lucide-react";
+import { Upload, Network } from "lucide-react";
+import { ImportModbusDialog } from "./ImportModbusDialog";
 import { COMPONENT_STATUS, BUS_PROTOCOLS } from "@/lib/enums";
 
 const schema = z.object({
@@ -43,6 +44,7 @@ interface Props {
 export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const [showImportDbc, setShowImportDbc] = useState(false);
+  const [showImportModbus, setShowImportModbus] = useState(false);
   const utils = trpc.useUtils();
 
   const { data, isLoading, refetch } = trpc.components.componentById.useQuery({ id });
@@ -226,9 +228,14 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
               {data.signals.length} signal{data.signals.length !== 1 ? "s" : ""} defined
             </p>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setShowImportDbc(true)}>
-            <Upload className="h-4 w-4 mr-1" /> Import DBC
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowImportModbus(true)}>
+              <Network className="h-4 w-4 mr-1" /> Import Modbus
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowImportDbc(true)}>
+              <Upload className="h-4 w-4 mr-1" /> Import DBC
+            </Button>
+          </div>
         </div>
         <SignalGrid
           componentId={id}
@@ -236,6 +243,19 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
           onRefresh={() => refetch()}
         />
       </section>
+
+      {showImportModbus && data && (
+        <ImportModbusDialog
+          componentId={id}
+          componentName={data.name}
+          open
+          onClose={() => setShowImportModbus(false)}
+          onImported={() => {
+            refetch();
+            setShowImportModbus(false);
+          }}
+        />
+      )}
 
       {showImportDbc && (
         <ImportDbcDialog
