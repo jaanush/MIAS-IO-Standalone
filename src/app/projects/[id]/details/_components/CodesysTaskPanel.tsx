@@ -45,6 +45,9 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
   const cancel = trpc.codesys.taskCancel.useMutation({
     onSuccess: () => utils.codesys.taskList.invalidate({ projectId }),
   });
+  const purge = trpc.codesys.taskPurgeCompleted.useMutation({
+    onSuccess: () => utils.codesys.taskList.invalidate({ projectId }),
+  });
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [viewResult, setViewResult] = useState<Task | null>(null);
@@ -157,7 +160,7 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
 
       {/* Completed tasks (collapsible) */}
       {completedTasks.length > 0 && (
-        <div>
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setShowCompleted((s) => !s)}
@@ -165,6 +168,14 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
           >
             {showCompleted ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             Completed ({completedTasks.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => purge.mutate({ projectId })}
+            disabled={purge.isPending}
+            className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+          >
+            {purge.isPending ? "Purging..." : "Clear history"}
           </button>
         </div>
       )}

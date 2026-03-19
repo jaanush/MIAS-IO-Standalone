@@ -53,6 +53,18 @@ export const codesysRouter = createTRPCRouter({
       return db.codesysTask.delete({ where: { id: input.id } });
     }),
 
+  taskPurgeCompleted: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .mutation(async ({ input }) => {
+      const result = await db.codesysTask.deleteMany({
+        where: {
+          projectId: input.projectId,
+          status: { in: ["SUCCESS", "FAILURE"] },
+        },
+      });
+      return { count: result.count };
+    }),
+
   settingsGet: protectedProcedure
     .input(z.object({ projectId: z.number().int() }))
     .query(async ({ input }) => {

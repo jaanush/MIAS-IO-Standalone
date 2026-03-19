@@ -299,6 +299,37 @@ files in `lib/` and `scripts/`.
 
 ---
 
+## 19. Hardware sync: carrier device IDs and local bus filtering
+
+**Status:** New. Required for SYNC_HARDWARE to add remote I/O carriers.
+
+When the plugin receives a SYNC_HARDWARE task, it needs `codesysDeviceId` on
+each carrier to add it to the CODESYS device tree. Currently carriers are sent
+without device IDs, so the plugin can only rename the PLC but can't add carriers.
+
+### Changes needed
+
+1. **Don't include the local bus carrier** (e.g. "D03-LOCAL") in the hardware
+   export. The PLC's built-in Kbus is managed automatically by CODESYS when
+   the PLC device is added — the plugin should not create or remove it.
+
+2. **Include `codesysDeviceId` on remote I/O carriers** (e.g. "D03-A" through
+   "D03-D"). These are Modbus TCP slaves (750-352 couplers). The CODESYS device
+   tree chain is:
+   ```
+   PLC [type=4096]
+     Ethernet [type=110, id="0000 0002"]
+       Modbus TCP Master [type=88, id="0000 0003"]
+         Slave [type=89, id="0000 0005"]  ← one per remote coupler
+   ```
+   The carrier's `codesysDeviceId` should be the Modbus TCP Slave ID:
+   `"0059 0000 0005 0000"` (type=89=0x59, id="0000 0005", additional=0).
+
+   The plugin will create the Ethernet → Modbus TCP Master → Slave chain
+   under the PLC when it sees remote carriers with this device ID.
+
+---
+
 ## 16. Component Group + Component Global Signals — CAN/fieldbus signal hierarchy
 
 **Status:** Plan drafted 2026-03-19. Awaiting review before implementation.
