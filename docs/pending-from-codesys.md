@@ -184,11 +184,63 @@ to a MIAS-IO user account — it is NOT used for authentication.
 
 ## 16. Component Group + Component Global Signals — CAN/fieldbus signal hierarchy
 
-**Status:** Needs planning. Major schema addition.
+**Status:** Plan drafted 2026-03-19. Awaiting review before implementation.
 
 This adds a three-level signal hierarchy (group → component → instance) for CAN bus
 converter families like Editron. Required for proper GVL_Settings generation and
 component-shared configuration parameters.
 
-**ACTION: Plan the schema changes and UI for this three-level signal hierarchy.
-Show the plan to the user before implementing.**
+### Proposed Schema
+
+```
+ComponentGroup (NEW)
+  id, name, description, projectId?
+  → groups related HardwareComponents (e.g. "Editron Converter Family")
+  → one group can contain multiple component types
+
+HardwareComponent (existing)
+  + groupId? → ComponentGroup (nullable FK)
+  → component types within a group share configuration
+
+ComponentGroupSignal (NEW)
+  id, groupId → ComponentGroup
+  name, description, dataType, defaultValue
+  → signals shared across ALL components in the group
+  → e.g. "StartStopMode", "OperatingMode" — written once, applied to all instances
+  → generates GVL_Settings entries
+
+ComponentInstance (existing, unchanged)
+  → instances of components within a group inherit group signals
+```
+
+### Use Case: Editron Converters
+
+```
+ComponentGroup: "Editron Power System"
+  ├── HardwareComponent: "Editron DCDC"  (4 instances: 866-U01:1, U01:2, U02:1, U02:2)
+  ├── HardwareComponent: "Editron MC"    (3 instances: 625-U01, 625-U02, 861-U01)
+  └── HardwareComponent: "Editron uG AFE" (2 instances: 875-U01, 875-U02)
+
+ComponentGroupSignals (shared across all 9 instances):
+  - StartStopMode: eStartStopMode (enum)
+  - AlarmsCtrlBuzzer: strAlarmsCtrlBuzzer_SharedVars (struct)
+```
+
+### Code Generation Impact
+
+- `GVL_Settings.Settings.StartStopModes` → from ComponentGroupSignal
+- `GVL_Settings.Settings.AlarmsCtrlBuzzer` → from ComponentGroupSignal
+- Each instance still generates its own device FB + signals as before
+
+### UI
+
+- New section in component editor: "Group" dropdown (assign to group or create new)
+- Group editor page: list group signals, manage which components belong
+- Instance view: shows inherited group signals (read-only, managed at group level)
+
+### Implementation Order
+
+1. Schema: add ComponentGroup + ComponentGroupSignal models
+2. UI: group management on component detail page
+3. Code generation: extend GVL_Settings generation to include group signals
+4. Import: auto-detect groups from parsed fbsproj data
