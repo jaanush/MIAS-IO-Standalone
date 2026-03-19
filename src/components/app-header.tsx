@@ -44,8 +44,8 @@ export function AppHeader({ user }: { user: HeaderUser }) {
 
   return (
     <header className="flex h-14 items-center border-b bg-muted/40 px-4 shrink-0 shadow-xs">
-      {/* Left — logo */}
-      <div className="flex w-48 items-center">
+      {/* Left — logo + version */}
+      <div className="flex w-48 items-center gap-2">
         <Link href="/">
           <Image
             src="/logo.svg"
@@ -56,6 +56,9 @@ export function AppHeader({ user }: { user: HeaderUser }) {
             className="dark:invert"
           />
         </Link>
+        <span className="text-[10px] text-muted-foreground/50 tabular-nums">
+          v{process.env.NEXT_PUBLIC_APP_VERSION}
+        </span>
       </div>
 
       {/* Center — nav */}
