@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { SignalGrid } from "../[id]/_components/SignalGrid";
 import { ImportDbcDialog } from "../[id]/_components/ImportDbcDialog";
+import { Badge } from "@/components/ui/badge";
 import { Upload, Network, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ImportModbusDialog } from "./ImportModbusDialog";
