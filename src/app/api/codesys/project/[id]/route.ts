@@ -55,6 +55,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             },
           },
           carriers: {
+            where: { isLocalBus: false },
             select: {
               id: true,
               name: true,
@@ -63,6 +64,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
               nodeAddress: true,
               modbusInputBase: true,
               modbusOutputBase: true,
+              isLocalBus: true,
+              codesysDeviceId: true,
               catalog: {
                 select: { articleNumber: true, vendorName: true },
               },
@@ -466,6 +469,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         nodeAddress: c.nodeAddress,
         modbusInputBase: c.modbusInputBase,
         modbusOutputBase: c.modbusOutputBase,
+        codesysDeviceId: c.codesysDeviceId,
         catalog: c.catalog ? { articleNumber: c.catalog.articleNumber, manufacturer: c.catalog.vendorName } : null,
         cards: c.cards.map((card) => ({
           id: card.id,

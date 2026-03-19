@@ -301,7 +301,34 @@ files in `lib/` and `scripts/`.
 
 ## 19. Hardware sync: carrier device IDs and local bus filtering
 
-**Status:** New. Required for SYNC_HARDWARE to add remote I/O carriers.
+**Status:** Partially implemented. Need device ID mapping from MIAS-Plugin agent.
+
+### MIAS-IO implementation done:
+- `isLocalBus` field on IoCarrier — LOCAL carriers filtered from export
+- `codesysDeviceId` field on IoCarrier — included in hardware export
+- Hardware API filters out `isLocalBus = true` carriers
+
+### Response from MIAS-Plugin agent:
+
+Remote I/O couplers (750-352 etc.) are NOT individual device types in CODESYS.
+They are represented as **Modbus TCP Slave** devices in the device tree chain:
+
+```
+PLC [type=4096]
+  Ethernet [type=110, id="0000 0002", ver="4.2.0.0"]
+    Modbus TCP Master [type=88, id="0000 0003", ver="4.5.0.0"]
+      Slave [type=89, id="0000 0005", ver="4.5.0.0"]  ← one per remote coupler
+```
+
+So the `codesysDeviceId` for ALL remote I/O carriers is the same:
+- **Modbus TCP Slave: `"0059 0000 0005 0000"`** (type=89, id="0000 0005")
+
+The article number (750-352) doesn't map to a unique CODESYS device — it's
+always a Modbus TCP Slave. The I/O modules on each coupler are accessed via
+Modbus registers, not as device tree children.
+
+The plugin will handle creating the Ethernet → Master → Slave chain when it
+sees carriers with this device ID.
 
 When the plugin receives a SYNC_HARDWARE task, it needs `codesysDeviceId` on
 each carrier to add it to the CODESYS device tree. Currently carriers are sent

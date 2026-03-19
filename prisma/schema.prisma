@@ -694,6 +694,8 @@ model IoCarrier {
   firmwareVersion  String?   @db.VarChar(20) @map("firmware_version")
   modbusInputBase  Int?      @map("modbus_input_base")   // start word address of this carrier in BCInputData[]
   modbusOutputBase Int?      @map("modbus_output_base")  // start word address of this carrier in BCOutputData[]
+  isLocalBus       Boolean   @default(false) @map("is_local_bus")    // true = PLC's built-in Kbus, excluded from CODESYS sync
+  codesysDeviceId  String?   @db.VarChar(50) @map("codesys_device_id") // CODESYS device ID for remote carriers (e.g. "0059 0000 0005 0000")
   notes            String?
   deletedAt        DateTime? @map("deleted_at")
   createdBy        String?   @db.Uuid @map("created_by")
