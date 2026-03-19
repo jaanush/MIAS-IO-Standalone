@@ -63,7 +63,11 @@ const signalListInclude = {
     inputTypeId: true, engineeringUnitId: true, plcDataTypeId: true,
     alarms: true, _count: { select: { alarms: true } },
   } },
-  busSignal: { select: { signalId: true, canId: true } },
+  busSignal: {
+    include: {
+      plcNetwork: { select: { id: true, protocol: true, description: true, plc: { select: { name: true } } } },
+    },
+  },
   ioCard: {
     select: {
       id: true, slotPosition: true, cardType: true,
