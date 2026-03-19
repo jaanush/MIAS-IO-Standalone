@@ -34,7 +34,7 @@ async function main() {
     include: {
       component: {
         include: {
-          wiringTemplates: {
+          wiringRecipes: {
             include: { params: { orderBy: { sortOrder: 'asc' } } },
             orderBy: { sortOrder: 'asc' },
           },
@@ -59,7 +59,7 @@ async function main() {
   let totalCalls = 0;
 
   for (const inst of instances) {
-    const templates = inst.component.wiringTemplates;
+    const templates = inst.component.wiringRecipes;
     if (templates.length === 0) continue;
 
     for (const tmpl of templates) {
