@@ -5,6 +5,30 @@ Items here require implementation in MIAS-IO. Once implemented, update
 
 ---
 
+## 20. Import WAGO device catalog into MIAS-IO hardware catalog
+
+**Status:** New. Required for hardware sync module insertion.
+
+Import `docs/wago_full_catalog.json` (573 WAGO 750-series devices) into the
+MIAS-IO hardware catalog database. For each entry:
+
+- `articleNumber` → primary key / match field
+- `manufacturer` → `"WAGO"`
+- `description` → from `name` field
+- `codesysModuleId` → from `deviceId` field (SP21 device repository string ID)
+- `deviceType` → `4096` for PLCs, `32776` for I/O modules
+
+For PLCs (deviceType=4096), set `codesysDeviceId` = `"<hex(deviceType)> <deviceId> 0000"`.
+Example: 750-8210 → type=4096=0x1000, id="1006 1207" → `"1000 1006 1207 0000"`
+
+The hardware export should then include `codesysModuleId` on every card's catalog,
+so the plugin can insert modules into CODESYS without needing local catalog fallback.
+
+Also available: `docs/codesys_device_catalog.json` — 1430 devices from ALL vendors
+(WAGO, Panasonic, Bosch Rexroth, etc.) if you want to support non-WAGO hardware later.
+
+---
+
 ## ~~3. POST hardware write-back endpoint~~ — RESOLVED 2026-03-13
 
 Implemented at `POST /api/codesys/project/{id}/hardware`. Read-compare only (no DB writes).
@@ -347,6 +371,32 @@ uses these to insert modules into the CODESYS device tree. Format:
 
 The hardware export should include `codesysModuleId` in each card's catalog
 object so the plugin can insert modules directly without catalog fallback.
+
+### ACTION: Import WAGO device catalog into MIAS-IO
+
+Import `docs/wago_full_catalog.json` (573 WAGO 750-series devices) into the
+MIAS-IO hardware catalog. For each entry, create or update a catalog record with:
+- `articleNumber` → primary key
+- `manufacturer` → "WAGO" (all entries)
+- `description` → from `name` field
+- `codesysModuleId` → from `deviceId` field (this is the SP21 device repo string ID)
+- `deviceType` → 4096 for PLCs, 32776 for I/O modules
+
+For PLCs (deviceType=4096), also set `codesysDeviceId` using the format:
+`"TTTT <deviceId> 0000"` where TTTT = hex(deviceType). Example:
+750-8210 → deviceType=4096=0x1000, deviceId="1006 1207" → `"1000 1006 1207 0000"`
+
+This ensures the hardware export includes `codesysModuleId` on every card,
+so the plugin can insert modules without catalog fallback.
+
+**Full catalogs exported:**
+- `docs/wago_catalog.json` — 60+ modules with cardType, I/O bits, channel counts (curated)
+- `docs/wago_full_catalog.json` — 573 WAGO 750-series entries (18 PLCs + 555 I/O modules)
+- `docs/codesys_device_catalog.json` — **1430 devices from all vendors** scanned from
+  CODESYS SP21 device repository (734 WAGO, 141 Panasonic, 97 Control Techniques,
+  92 Panasonic, 52 KEBA, 48 Bosch Rexroth, etc.)
+  Each entry: `articleNumber`, `name`, `vendor`, `deviceType`, `deviceId`, `deviceVersion`.
+  Import this as seed data for the hardware catalog.
 
 ### Response from MIAS-Plugin agent:
 
