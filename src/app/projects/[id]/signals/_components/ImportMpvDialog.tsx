@@ -271,6 +271,7 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
   const createCarrier = trpc.projectHardware.carrierCreate.useMutation();
   const createNetwork = trpc.projectHardware.networkCreate.useMutation();
   const assignCard = trpc.projectHardware.cardAssign.useMutation();
+  const bulkCreate = trpc.signal.bulkCreate.useMutation();
   const componentCreate = trpc.components.componentCreate.useMutation();
   const instanceCreate = trpc.projectHardware.instanceCreate.useMutation();
 
@@ -407,71 +408,50 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
         }
       }
 
-      // ── Phase 2: Signals ───────────────────────────────────────────────
-      const total = parseResult.signals.length;
-      for (let i = 0; i < total; i++) {
-        const row = parseResult.signals[i];
-        setImportStatus(`Importing signal ${i + 1} of ${total}...`);
+      // ── Phase 2: Signals (bulk) ────────────────────────────────────────
+      setImportStatus(`Preparing ${parseResult.signals.length} signals...`);
 
-        // Upsert system from name
-        let systemId: number | null = null;
-        if (row.system) {
-          if (systemMap.has(row.system)) {
-            systemId = systemMap.get(row.system)!;
-          } else {
-            const result = await systemUpsert.mutateAsync({
-              code: row.system.substring(0, 10).replace(/\s+/g, "_").toUpperCase(),
-              name: row.system,
-              description: null,
-            });
-            systemMap.set(row.system, result.id);
-            systemId = result.id;
-          }
-        }
-
-        const engineeringUnitId = row.engineeringUnitSymbol
-          ? (euMap.get(row.engineeringUnitSymbol) ?? null) : null;
-        const inputTypeId = row.inputTypeCode
-          ? (inputTypeMap.get(row.inputTypeCode) ?? null) : null;
-        const ioCardId = row.cardRef ? (cardRefToId.get(row.cardRef) ?? null) : null;
-
-        const signalData = {
-          projectId,
-          signalType: row.signalType,
-          origin: "IEC" as const,
-          description: row.description,
-          direction: row.direction,
-          systemId,
-          ioCardId,
-          channelPosition: row.channelPosition,
-          cabinetLocation: row.cabinet,
-          drawingRef: row.mimic,
-          notes: row.notes,
-          instrumentTag: row.instrumentTag,
-          signalClassification: row.signalClassification,
-          subsystem: row.subsystem,
-          element: row.element,
-          signalFunction: row.signalFunction,
-          supplierName: row.supplierName,
-          supplierSensorType: row.supplierSensorType,
-          normalValue: row.normalValue,
-          trigger: row.trigger,
-          inputTypeId,
-          engineeringUnitId,
-          scaleMin: row.rangelow,
-          scaleMax: row.rangeHigh,
-        };
-        try {
-          await createSignal.mutateAsync(signalData);
-        } catch (err) {
-          // If unique constraint on (ioCardId, channelPosition), retry without card assignment
-          if (String(err).includes("Unique constraint")) {
-            await createSignal.mutateAsync({ ...signalData, ioCardId: null, channelPosition: null });
-          } else {
-            throw err;
-          }
+      // Pre-upsert all unique systems
+      const uniqueSystems = [...new Set(parseResult.signals.map((r) => r.system).filter(Boolean))] as string[];
+      for (const sys of uniqueSystems) {
+        if (!systemMap.has(sys)) {
+          const result = await systemUpsert.mutateAsync({
+            code: sys.substring(0, 10).replace(/\s+/g, "_").toUpperCase(),
+            name: sys,
+            description: null,
+          });
+          systemMap.set(sys, result.id);
         }
       }
+
+      const signalBatch = parseResult.signals.map((row) => ({
+        signalType: row.signalType,
+        origin: "IEC" as const,
+        description: row.description,
+        direction: row.direction,
+        systemId: row.system ? (systemMap.get(row.system) ?? null) : null,
+        ioCardId: row.cardRef ? (cardRefToId.get(row.cardRef) ?? null) : null,
+        channelPosition: row.channelPosition,
+        cabinetLocation: row.cabinet,
+        drawingRef: row.mimic,
+        notes: row.notes,
+        instrumentTag: row.instrumentTag,
+        signalClassification: row.signalClassification,
+        subsystem: row.subsystem,
+        element: row.element,
+        signalFunction: row.signalFunction,
+        supplierName: row.supplierName,
+        supplierSensorType: row.supplierSensorType,
+        normalValue: row.normalValue,
+        trigger: row.trigger,
+        inputTypeId: row.inputTypeCode ? (inputTypeMap.get(row.inputTypeCode) ?? null) : null,
+        engineeringUnitId: row.engineeringUnitSymbol ? (euMap.get(row.engineeringUnitSymbol) ?? null) : null,
+        scaleMin: row.rangelow,
+        scaleMax: row.rangeHigh,
+      }));
+
+      setImportStatus(`Creating ${signalBatch.length} signals...`);
+      await bulkCreate.mutateAsync({ projectId, signals: signalBatch });
 
       // ── Phase 3: Bus devices (Serial IO) ─────────────────────────────
       if (parseResult.busDevices.length > 0 && firstPlcId) {

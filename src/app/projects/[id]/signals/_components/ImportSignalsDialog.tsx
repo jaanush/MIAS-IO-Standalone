@@ -244,6 +244,7 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
 
   const utils = trpc.useUtils();
   const createSignal = trpc.signal.create.useMutation();
+  const bulkCreate = trpc.signal.bulkCreate.useMutation();
   const systemUpsert = trpc.signal.systemUpsert.useMutation();
   const gvlUpsert = trpc.signal.gvlUpsert.useMutation();
   const createPlc = trpc.projectHardware.plcCreate.useMutation();
@@ -397,64 +398,47 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
         }
       }
 
-      // ── Phase 2: Signals ───────────────────────────────────────────────────
-      const total = parseResult.signals.length;
-      for (let i = 0; i < total; i++) {
-        const row = parseResult.signals[i];
-        setImportStatus(`Importing signal ${i + 1} of ${total}…`);
+      // ── Phase 2: Signals (bulk) ────────────────────────────────────────────
+      setImportStatus(`Preparing ${parseResult.signals.length} signals…`);
 
-        let systemId: number | null = null;
-        if (row.systemCode) {
-          if (systemMap.has(row.systemCode)) {
-            systemId = systemMap.get(row.systemCode)!;
-          } else {
-            const result = await systemUpsert.mutateAsync({
-              code: row.systemCode,
-              name: row.systemName ?? row.systemCode,
-              description: null,
-            });
-            systemMap.set(row.systemCode, result.id);
-            systemId = result.id;
-          }
+      // Pre-upsert all unique systems and GVLs
+      const uniqueSysCodes = [...new Set(parseResult.signals.map((r) => r.systemCode).filter(Boolean))] as string[];
+      for (const code of uniqueSysCodes) {
+        if (!systemMap.has(code)) {
+          const row = parseResult.signals.find((r) => r.systemCode === code)!;
+          const result = await systemUpsert.mutateAsync({ code, name: row.systemName ?? code, description: null });
+          systemMap.set(code, result.id);
         }
-
-        let gvlId: number | null = null;
-        if (row.gvlName) {
-          if (gvlMap.has(row.gvlName)) {
-            gvlId = gvlMap.get(row.gvlName)!;
-          } else {
-            const result = await gvlUpsert.mutateAsync({ name: row.gvlName, description: null });
-            gvlMap.set(row.gvlName, result.id);
-            gvlId = result.id;
-          }
+      }
+      const uniqueGvls = [...new Set(parseResult.signals.map((r) => r.gvlName).filter(Boolean))] as string[];
+      for (const name of uniqueGvls) {
+        if (!gvlMap.has(name)) {
+          const result = await gvlUpsert.mutateAsync({ name, description: null });
+          gvlMap.set(name, result.id);
         }
+      }
 
-        const engineeringUnitId =
-          row.engineeringUnitSymbol ? (euMap.get(row.engineeringUnitSymbol) ?? null) : null;
-        const inputTypeId =
-          row.inputTypeCode ? (inputTypeMap.get(row.inputTypeCode) ?? null) : null;
-        const ioCardId = row.cardRef ? (cardRefMap.get(row.cardRef) ?? null) : null;
+      const signalBatch = parseResult.signals.map((row) => {
         const cardInfo = row.cardRef ? (cardSignalTypeMap.get(row.cardRef) ?? null) : null;
-        const signalType = cardInfo?.signalType ?? row.signalType;
-        const direction = cardInfo?.direction ?? row.direction;
-
-        await createSignal.mutateAsync({
-          projectId,
-          signalType,
-          origin: "IEC",
+        return {
+          signalType: cardInfo?.signalType ?? row.signalType,
+          origin: "IEC" as const,
           description: row.description,
           componentTag: row.componentTag,
-          direction,
-          systemId,
-          gvlId,
+          direction: cardInfo?.direction ?? row.direction,
+          systemId: row.systemCode ? (systemMap.get(row.systemCode) ?? null) : null,
+          gvlId: row.gvlName ? (gvlMap.get(row.gvlName) ?? null) : null,
           notes: row.notes,
-          ioCardId,
+          ioCardId: row.cardRef ? (cardRefMap.get(row.cardRef) ?? null) : null,
           channelPosition: row.channelPosition,
           trigger: row.trigger,
-          inputTypeId,
-          engineeringUnitId,
-        });
-      }
+          inputTypeId: row.inputTypeCode ? (inputTypeMap.get(row.inputTypeCode) ?? null) : null,
+          engineeringUnitId: row.engineeringUnitSymbol ? (euMap.get(row.engineeringUnitSymbol) ?? null) : null,
+        };
+      });
+
+      setImportStatus(`Creating ${signalBatch.length} signals…`);
+      await bulkCreate.mutateAsync({ projectId, signals: signalBatch });
 
       await utils.signal.list.invalidate({ projectId });
       await utils.projectHardware.getHardware.invalidate({ projectId });

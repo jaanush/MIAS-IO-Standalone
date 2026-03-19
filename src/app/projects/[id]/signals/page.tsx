@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { use, useState, useMemo, useCallback, useRef, useEffect, memo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   useReactTable,
   getCoreRowModel,
@@ -226,17 +227,42 @@ function buildPayload(v: EditValues) {
 
 // ── Column resizing ───────────────────────────────────────────────────────────
 
+const LS_COL_WIDTHS = "mias-signal-col-widths";
+const LS_COL_HIDDEN = "mias-signal-col-hidden";
+
+function loadWidths(): Record<ColKey, number> {
+  try {
+    const stored = localStorage.getItem(LS_COL_WIDTHS);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      const defaults = Object.fromEntries(COL_DEFS.map((d) => [d.key, d.defaultWidth]));
+      return { ...defaults, ...parsed } as Record<ColKey, number>;
+    }
+  } catch {}
+  return Object.fromEntries(COL_DEFS.map((d) => [d.key, d.defaultWidth])) as Record<ColKey, number>;
+}
+
+function loadHidden(): Set<ColKey> {
+  try {
+    const stored = localStorage.getItem(LS_COL_HIDDEN);
+    if (stored) return new Set(JSON.parse(stored));
+  } catch {}
+  return new Set();
+}
+
 function useColumnWidths() {
-  const [widths, setWidths] = useState<Record<ColKey, number>>(
-    () => Object.fromEntries(COL_DEFS.map((d) => [d.key, d.defaultWidth])) as Record<ColKey, number>
-  );
+  const [widths, setWidths] = useState<Record<ColKey, number>>(loadWidths);
 
   const onResizeStart = useCallback((key: ColKey, e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = widths[key];
     function onMove(me: MouseEvent) {
-      setWidths((prev) => ({ ...prev, [key]: Math.max(32, startWidth + me.clientX - startX) }));
+      setWidths((prev) => {
+        const next = { ...prev, [key]: Math.max(32, startWidth + me.clientX - startX) };
+        localStorage.setItem(LS_COL_WIDTHS, JSON.stringify(next));
+        return next;
+      });
     }
     function onUp() {
       window.removeEventListener("mousemove", onMove);
@@ -266,7 +292,7 @@ function Td({ children, className }: { children?: React.ReactNode; className?: s
 
 // ── Display row ───────────────────────────────────────────────────────────────
 
-function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDelete, onBusConfig, onAlarms, onRevert, isRevertPending, hiddenColumns }: {
+const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDelete, onBusConfig, onAlarms, onRevert, isRevertPending, hiddenColumns }: {
   signal: SignalRow;
   selected: boolean;
   onToggleSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -339,7 +365,7 @@ function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDe
       </Td>}
       {!h.has("alarms") && <Td className="text-center">
         {(() => {
-          const count = isDisc ? (signal.discreteSignal?.alarms?.length ?? 0) : (signal.analogSignal?.alarms?.length ?? 0);
+          const count = isDisc ? (signal.discreteSignal?._count?.alarms ?? 0) : (signal.analogSignal?._count?.alarms ?? 0);
           return (
             <button type="button" title={count > 0 ? `${count} alarm${count === 1 ? "" : "s"}` : "No alarms"}
               className="flex items-center justify-center gap-0.5 rounded p-0.5 transition-colors hover:bg-accent"
@@ -389,7 +415,7 @@ function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDe
       </Td>}
     </tr>
   );
-}
+});
 
 // ── Edit row ──────────────────────────────────────────────────────────────────
 
@@ -631,8 +657,8 @@ const SIGNAL_COLUMNS = [
   columnHelper.accessor(
     (r) =>
       r.signalType === "DISCRETE"
-        ? (r.discreteSignal?.alarms?.length ?? 0)
-        : (r.analogSignal?.alarms?.length ?? 0),
+        ? (r.discreteSignal?._count?.alarms ?? 0)
+        : (r.analogSignal?._count?.alarms ?? 0),
     { id: "alarms", enableColumnFilter: false }
   ),
   columnHelper.accessor((r) => r.discreteSignal?.trigger ?? "", { id: "trigger", filterFn: "equalsString" }),
@@ -769,12 +795,13 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const [showImportMpv, setShowImportMpv] = useState(false);
   const [showAddFromComponent, setShowAddFromComponent] = useState(false);
   const [showExportLegacy, setShowExportLegacy] = useState(false);
-  const [hiddenColumns, setHiddenColumns] = useState<Set<ColKey>>(new Set());
+  const [hiddenColumns, setHiddenColumns] = useState<Set<ColKey>>(loadHidden);
   const [showCreateComponent, setShowCreateComponent] = useState(false);
   const [grouped, setGrouped] = useState(true);
+  const [groupCollapseKey, setGroupCollapseKey] = useState(0);
 
   const { widths, onResizeStart } = useColumnWidths();
-  const gridRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const table = useReactTable({
     data: signals,
@@ -887,7 +914,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
     if (!editingId && !isAddingNew) return;
     function handleMouseDown(e: MouseEvent) {
       const target = e.target as Element;
-      const inGrid = gridRef.current?.contains(target) ?? false;
+      const inGrid = scrollRef.current?.contains(target) ?? false;
       const inDialog = !!target.closest('[role="dialog"]');
       if (inGrid || inDialog) return;
       if (editingId && editValues) {
@@ -923,7 +950,9 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const updateSilent = trpc.signal.update.useMutation({
     onSuccess: () => { utils.signal.list.invalidate({ projectId }); },
   });
-  const bulkUpdate = trpc.signal.update.useMutation();
+  const bulkUpdate = trpc.signal.bulkUpdate.useMutation({
+    onSuccess: () => utils.signal.list.invalidate({ projectId }),
+  });
   const create = trpc.signal.create.useMutation({
     onSuccess: () => {
       utils.signal.list.invalidate({ projectId });
@@ -934,7 +963,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const del = trpc.signal.delete.useMutation({
     onSuccess: () => utils.signal.list.invalidate({ projectId }),
   });
-  const bulkDel = trpc.signal.delete.useMutation({
+  const bulkDel = trpc.signal.bulkDelete.useMutation({
     onSuccess: () => {
       utils.signal.list.invalidate({ projectId });
       setRowSelection({});
@@ -967,13 +996,25 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   async function bulkApplyDiff(editedId: number, diff: Partial<EditValues>, selectionSnapshot: RowSelectionState) {
     const otherIds = Object.keys(selectionSnapshot).map(Number).filter((id) => id !== editedId);
     if (otherIds.length === 0 || Object.keys(diff).length === 0) return;
-    for (const sid of otherIds) {
-      const s = signals.find((r) => r.id === sid);
-      if (!s) continue;
-      const updated = applyDiff(defaultEditValues(s), diff);
-      await bulkUpdate.mutateAsync({ id: sid, signalType: updated.signalType, ...buildPayload(updated) });
+
+    // Map EditValues diff keys to bulkUpdate data keys
+    const data: Record<string, unknown> = {};
+    if (diff.direction !== undefined) data.direction = diff.direction || null;
+    if (diff.systemId !== undefined) data.systemId = diff.systemId;
+    if (diff.componentTag !== undefined) data.componentTag = diff.componentTag || null;
+    if (diff.drawingRef !== undefined) data.drawingRef = diff.drawingRef || null;
+    if (diff.cabinetLocation !== undefined) data.cabinetLocation = diff.cabinetLocation || null;
+    if (diff.gvlId !== undefined) data.gvlId = diff.gvlId;
+    if (diff.origin !== undefined) data.origin = diff.origin;
+    if (diff.trigger !== undefined) data.trigger = diff.trigger;
+    if (diff.inputTypeId !== undefined) data.inputTypeId = diff.inputTypeId;
+    if (diff.wireConfig !== undefined) data.wireConfig = diff.wireConfig || null;
+    if (diff.engineeringUnitId !== undefined) data.engineeringUnitId = diff.engineeringUnitId;
+    if (diff.plcDataTypeId !== undefined) data.plcDataTypeId = diff.plcDataTypeId;
+
+    if (Object.keys(data).length > 0) {
+      await bulkUpdate.mutateAsync({ ids: otherIds, data });
     }
-    utils.signal.list.invalidate({ projectId });
   }
 
   function startNew() {
@@ -1009,10 +1050,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
 
   async function deleteSelected() {
     if (!confirm(`Delete ${selectedCount} signal${selectedCount === 1 ? "" : "s"}? This cannot be undone.`)) return;
-    // Delete sequentially to avoid constraint issues
-    for (const id of selectedIds) {
-      await bulkDel.mutateAsync({ id });
-    }
+    await bulkDel.mutateAsync({ ids: selectedIds });
   }
 
   function clearFilters() {
@@ -1022,6 +1060,15 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
 
   const visibleCols = useMemo(() => COL_DEFS.filter((d) => !hiddenColumns.has(d.key)), [hiddenColumns]);
   const totalWidth = visibleCols.reduce((sum, d) => sum + widths[d.key], 0);
+
+  const flatRows = useMemo(() => !grouped ? table.getRowModel().rows : [], [grouped, table.getRowModel().rows]);
+  const ROW_HEIGHT = 33; // px — matches py-1 + border on each row
+  const rowVirtualizer = useVirtualizer({
+    count: flatRows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 15,
+  });
   const boolTypeId = plcDataTypes.find((t) => t.code === "BOOL")?.id ?? null;
 
   const editRowProps = {
@@ -1108,6 +1155,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                           const next = new Set(prev);
                           if (next.has(d.key)) next.delete(d.key);
                           else next.add(d.key);
+                          localStorage.setItem(LS_COL_HIDDEN, JSON.stringify([...next]));
                           return next;
                         });
                       }}
@@ -1125,7 +1173,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
           <Button
             size="sm"
             variant={grouped ? "secondary" : "ghost"}
-            onClick={() => setGrouped((g) => !g)}
+            onClick={() => { setGrouped((g) => !g); setGroupCollapseKey((k) => k + 1); }}
             title={grouped ? "Switch to flat view" : "Switch to grouped view"}
           >
             <Layers className="h-4 w-4 mr-1" />
@@ -1171,7 +1219,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-auto min-w-0" ref={gridRef}>
+      <div className="flex-1 overflow-auto min-w-0" ref={scrollRef}>
         <table className="border-collapse text-sm" style={{ width: totalWidth, tableLayout: "fixed" }}>
           <colgroup>
             {visibleCols.map((d) => <col key={d.key} style={{ width: widths[d.key] }} />)}
@@ -1282,7 +1330,8 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
               signalGroups.map((group) =>
                 group.type === "instance" ? (
                   <ComponentGroup
-                    key={group.instanceId}
+                    key={`${group.instanceId}-${groupCollapseKey}`}
+                    defaultCollapsed
                     instanceId={group.instanceId}
                     instanceName={group.instanceName}
                     componentId={group.componentId}
@@ -1351,7 +1400,8 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                   />
                 ) : (
                   <ComponentGroup
-                    key="ungrouped"
+                    key={`ungrouped-${groupCollapseKey}`}
+                    defaultCollapsed
                     instanceId={null}
                     instanceName="Misc signals"
                     componentId={null}
@@ -1419,9 +1469,14 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                 )
               )
             ) : (
-              // Flat view
+              // Flat view — virtualized
               <tbody>
-                {table.getRowModel().rows.map((row) => {
+                {rowVirtualizer.getTotalSize() > 0 && (
+                  <tr style={{ height: rowVirtualizer.getVirtualItems()[0]?.start ?? 0 }}><td /></tr>
+                )}
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = flatRows[virtualRow.index];
+                  if (!row) return null;
                   const signal = row.original;
                   if (editingId === signal.id && editValues) {
                     return (
@@ -1454,6 +1509,9 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                     />
                   );
                 })}
+                {rowVirtualizer.getTotalSize() > 0 && (
+                  <tr style={{ height: rowVirtualizer.getTotalSize() - (rowVirtualizer.getVirtualItems().at(-1)?.end ?? 0) }}><td /></tr>
+                )}
               </tbody>
             )
           )}

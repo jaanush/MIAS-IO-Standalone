@@ -52,6 +52,36 @@ const signalInclude = {
   },
 } as const;
 
+// Lighter include for table list view — drops alarm details and deep nesting
+const signalListInclude = {
+  discreteSignal: { select: { trigger: true, filterTimeMs: true, plcDataType: { select: { code: true } }, _count: { select: { alarms: true } } } },
+  analogSignal: { select: {
+    scaleMin: true, scaleMax: true, wireConfig: true,
+    engineeringUnit: { select: { symbol: true, plcDataTypeCatalog: { select: { code: true } } } },
+    inputType: { select: { id: true, name: true } },
+    plcDataTypeCatalog: { select: { code: true } },
+    inputTypeId: true, engineeringUnitId: true, plcDataTypeId: true,
+    _count: { select: { alarms: true } },
+  } },
+  busSignal: { select: { signalId: true, canId: true } },
+  ioCard: {
+    select: {
+      id: true, slotPosition: true, cardType: true,
+      catalog: { select: { articleNumber: true, cardType: true } },
+      carrier: { select: { id: true, name: true, plc: { select: { id: true, name: true } } } },
+    },
+  },
+  system: { select: { id: true, name: true } },
+  gvl: { select: { id: true, name: true } },
+  instanceSignal: {
+    select: {
+      id: true, templateDirty: true,
+      componentSignal: { select: { canId: true } },
+      instance: { select: { id: true, name: true, canIdOffset: true, componentId: true } },
+    },
+  },
+} as const;
+
 const signalCreateInput = z.object({
   projectId: z.number().int(),
   signalType: z.enum(SIGNAL_TYPES),
@@ -126,7 +156,7 @@ export const signalRouter = createTRPCRouter({
     .query(({ input }) =>
       db.signal.findMany({
         where: { projectId: input.projectId },
-        include: signalInclude,
+        include: signalListInclude,
         orderBy: [{ tag: "asc" }, { id: "asc" }],
       })
     ),
@@ -436,6 +466,163 @@ export const signalRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.number().int() }))
     .mutation(({ input }) => db.signal.delete({ where: { id: input.id } })),
+
+  // ── Bulk operations ─────────────────────────────────────────────────────────
+
+  bulkDelete: protectedProcedure
+    .input(z.object({ ids: z.array(z.number().int()).min(1) }))
+    .mutation(async ({ input }) => {
+      // Delete child tables first (Prisma doesn't cascade deleteMany through relations)
+      await db.discreteAlarm.deleteMany({ where: { signal: { signalId: { in: input.ids } } } });
+      await db.analogAlarm.deleteMany({ where: { signal: { signalId: { in: input.ids } } } });
+      await db.discreteSignal.deleteMany({ where: { signalId: { in: input.ids } } });
+      await db.analogSignal.deleteMany({ where: { signalId: { in: input.ids } } });
+      await db.busSignal.deleteMany({ where: { signalId: { in: input.ids } } });
+      const result = await db.signal.deleteMany({ where: { id: { in: input.ids } } });
+      return { count: result.count };
+    }),
+
+  bulkUpdate: protectedProcedure
+    .input(z.object({
+      ids: z.array(z.number().int()).min(1),
+      // Only fields that make sense to apply uniformly across selected signals
+      data: z.object({
+        direction: z.enum(SIGNAL_DIRECTIONS).optional().nullable(),
+        systemId: z.number().int().optional().nullable(),
+        componentTag: z.string().optional().nullable(),
+        drawingRef: z.string().optional().nullable(),
+        cabinetLocation: z.string().optional().nullable(),
+        gvlId: z.number().int().optional().nullable(),
+        origin: z.enum(SIGNAL_ORIGINS).optional(),
+        alarmGroup: z.string().max(1).optional().nullable(),
+        // Discrete
+        trigger: z.enum(TRIGGER_TYPES).optional(),
+        // Analog
+        inputTypeId: z.number().int().optional().nullable(),
+        wireConfig: z.enum(WIRE_CONFIGS).optional().nullable(),
+        engineeringUnitId: z.number().int().optional().nullable(),
+        plcDataTypeId: z.number().int().optional().nullable(),
+      }).partial(),
+    }))
+    .mutation(async ({ input }) => {
+      const { ids, data } = input;
+
+      // Build signal-level update (only include provided fields)
+      const signalData: Record<string, unknown> = {};
+      if (data.direction !== undefined) signalData.direction = data.direction;
+      if (data.systemId !== undefined) signalData.systemId = data.systemId;
+      if (data.componentTag !== undefined) signalData.componentTag = data.componentTag;
+      if (data.drawingRef !== undefined) signalData.drawingRef = data.drawingRef;
+      if (data.cabinetLocation !== undefined) signalData.cabinetLocation = data.cabinetLocation;
+      if (data.gvlId !== undefined) signalData.gvlId = data.gvlId;
+      if (data.origin !== undefined) signalData.origin = data.origin;
+      if (data.alarmGroup !== undefined) signalData.alarmGroup = data.alarmGroup;
+
+      if (Object.keys(signalData).length > 0) {
+        await db.signal.updateMany({ where: { id: { in: ids } }, data: signalData });
+      }
+
+      // Discrete child update
+      if (data.trigger !== undefined) {
+        await db.discreteSignal.updateMany({
+          where: { signalId: { in: ids } },
+          data: { trigger: data.trigger },
+        });
+      }
+
+      // Analog child updates
+      const analogData: Record<string, unknown> = {};
+      if (data.inputTypeId !== undefined) analogData.inputTypeId = data.inputTypeId;
+      if (data.wireConfig !== undefined) analogData.wireConfig = data.wireConfig;
+      if (data.engineeringUnitId !== undefined) analogData.engineeringUnitId = data.engineeringUnitId;
+      if (data.plcDataTypeId !== undefined) analogData.plcDataTypeId = data.plcDataTypeId;
+      if (Object.keys(analogData).length > 0) {
+        await db.analogSignal.updateMany({
+          where: { signalId: { in: ids } },
+          data: analogData,
+        });
+      }
+
+      // Mark instance signals as dirty
+      await db.instanceSignal.updateMany({
+        where: { signals: { some: { id: { in: ids } } } },
+        data: { templateDirty: true },
+      });
+
+      return { count: ids.length };
+    }),
+
+  bulkCreate: protectedProcedure
+    .input(z.object({
+      projectId: z.number().int(),
+      signals: z.array(signalCreateInput.omit({ projectId: true })).min(1),
+    }))
+    .mutation(async ({ input }) => {
+      const { projectId, signals: rows } = input;
+      let created = 0;
+
+      // Process in chunks of 50 to avoid query size limits
+      const CHUNK = 50;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        await db.$transaction(async (tx) => {
+          for (const row of chunk) {
+            const {
+              signalType, origin, tag, description, notes, ioCardId, channelPosition,
+              direction, systemId, componentTag, drawingRef, cabinetLocation, gvlId,
+              alarmGroup, alarmBlockMask, commBlockMask, fatBlock, suppressionSt,
+              specialAlarmFb, specialAlarmInput, anaToDigAlarm,
+              isRetain, isPersistent, loggingEnabled, fbNameOverride, useShortName,
+              instrumentTag, signalClassification, subsystem, element,
+              signalFunction, supplierName, supplierSensorType, normalValue,
+              trigger, filterTimeMs, switchingType, signalVoltage,
+              inputTypeId, wireConfig, scaleMin, scaleMax, rawMin, rawMax, rawZero,
+              clampLow, clampHigh, deadband, engineeringUnitId, plcDataTypeId,
+              useTankLevel, scalingFbOverride,
+              deadbandRawMin, deadbandRawZero, deadbandRawMax,
+              sensorFailRaw, sensorFailMargin, sensorFailBehavior, sensorFailDelayMs,
+            } = row;
+
+            await tx.signal.create({
+              data: {
+                projectId, signalType, origin,
+                tag: tag ?? null, description: description ?? null, notes: notes ?? null,
+                ioCardId: ioCardId ?? null, channelPosition: channelPosition ?? null,
+                direction: direction ?? null, systemId: systemId ?? null,
+                componentTag: componentTag ?? null, drawingRef: drawingRef ?? null,
+                cabinetLocation: cabinetLocation ?? null, gvlId: gvlId ?? null,
+                alarmGroup: alarmGroup ?? null, alarmBlockMask: alarmBlockMask ?? null,
+                commBlockMask: commBlockMask ?? null, fatBlock: fatBlock ?? false,
+                suppressionSt: suppressionSt ?? null, specialAlarmFb: specialAlarmFb ?? null,
+                specialAlarmInput: specialAlarmInput ?? null, anaToDigAlarm: anaToDigAlarm ?? false,
+                isRetain: isRetain ?? false, isPersistent: isPersistent ?? false,
+                loggingEnabled: loggingEnabled ?? false, fbNameOverride: fbNameOverride ?? null,
+                useShortName: useShortName ?? false,
+                instrumentTag: instrumentTag ?? null, signalClassification: signalClassification ?? null,
+                subsystem: subsystem ?? null, element: element ?? null,
+                signalFunction: signalFunction ?? null, supplierName: supplierName ?? null,
+                supplierSensorType: supplierSensorType ?? null, normalValue: normalValue ?? null,
+                ...(signalType === "DISCRETE"
+                  ? { discreteSignal: { create: { trigger: trigger ?? "NO", filterTimeMs: filterTimeMs ?? null, switchingType: switchingType ?? null, signalVoltage: signalVoltage ?? null } } }
+                  : { analogSignal: { create: {
+                      inputTypeId: inputTypeId ?? null, wireConfig: wireConfig ?? null,
+                      scaleMin: scaleMin ?? null, scaleMax: scaleMax ?? null,
+                      rawMin: rawMin ?? null, rawMax: rawMax ?? null, rawZero: rawZero ?? null,
+                      clampLow: clampLow ?? null, clampHigh: clampHigh ?? null, deadband: deadband ?? null,
+                      engineeringUnitId: engineeringUnitId ?? null, plcDataTypeId: plcDataTypeId ?? null,
+                      useTankLevel: useTankLevel ?? false, scalingFbOverride: scalingFbOverride ?? null,
+                      deadbandRawMin: deadbandRawMin ?? null, deadbandRawZero: deadbandRawZero ?? null, deadbandRawMax: deadbandRawMax ?? null,
+                      sensorFailRaw: sensorFailRaw ?? null, sensorFailMargin: sensorFailMargin ?? null,
+                      sensorFailBehavior: sensorFailBehavior ?? null, sensorFailDelayMs: sensorFailDelayMs ?? null,
+                    } } }),
+              },
+            });
+            created++;
+          }
+        });
+      }
+      return { count: created };
+    }),
 
   engineeringUnits: protectedProcedure.query(() =>
     db.engineeringUnit.findMany({ orderBy: { symbol: "asc" }, include: { plcDataTypeCatalog: true } })

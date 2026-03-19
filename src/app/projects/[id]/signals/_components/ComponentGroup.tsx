@@ -37,6 +37,7 @@ type ComponentGroupProps = {
   isRevertPending: boolean;
   isDisconnectPending: boolean;
   isNetworkUpdatePending: boolean;
+  defaultCollapsed?: boolean;
 };
 
 export function ComponentGroup({
@@ -69,8 +70,9 @@ export function ComponentGroup({
   isRevertPending,
   isDisconnectPending,
   isNetworkUpdatePending,
+  defaultCollapsed = false,
 }: ComponentGroupProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(instanceName);
   const [editingOffset, setEditingOffset] = useState(false);
