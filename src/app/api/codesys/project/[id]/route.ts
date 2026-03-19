@@ -76,7 +76,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
                   maxInputChannels: true,
                   maxOutputChannels: true,
                   catalog: {
-                    select: { articleNumber: true, vendorName: true },
+                    select: { articleNumber: true, vendorName: true, codesysModuleId: true },
                   },
                 },
                 orderBy: { slotPosition: "asc" },
@@ -476,7 +476,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           cardType: card.cardType,
           maxInputChannels: card.maxInputChannels,
           maxOutputChannels: card.maxOutputChannels,
-          catalog: card.catalog ? { articleNumber: card.catalog.articleNumber, manufacturer: card.catalog.vendorName } : null,
+          catalog: card.catalog ? { articleNumber: card.catalog.articleNumber, manufacturer: card.catalog.vendorName, codesysModuleId: card.catalog.codesysModuleId } : null,
         })),
       })),
     })),

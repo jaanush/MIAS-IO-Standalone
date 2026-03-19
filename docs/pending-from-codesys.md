@@ -324,21 +324,29 @@ Use this to populate `codesysDeviceId` on PLCs and carriers.
 | 750-352 | Ethernet fieldbus coupler | `0059 0000 0005 0000` |
 | 750-362 | Modbus TCP/UDP coupler | `0059 0000 0005 0000` |
 
-**I/O Modules:**
-| Article | Type | Description | I/O bits |
-|---------|------|-------------|----------|
-| 750-1405 | MIXED | 2DI+2DO 24VDC | 2in/2out |
-| 750-1504 | DO | 4DO 24VDC | 0in/4out |
-| 750-451 | AI | 2AI 4-20mA | 32in/0out |
-| 750-483 | AI | 2AI 4-20mA diag | 32in/0out |
-| 750-496 | AI | 8AI 0/4-20mA | 128in/0out |
-| 750-508 | RELAY | 2DO relay | 0in/2out |
-| 750-553 | AO | 2AO 0-20mA | 0in/32out |
-| 750-626 | SUPPLY | 5V backplane ext | 0/0 |
-| 750-652 | SERIAL | RS-232/485 | 48/48 |
-| 750-658 | CAN | CAN gateway | 0/0 (FB) |
-| 750-1605 | SUPPLY | 24VDC supply | 0/0 |
-| 750-1607 | SUPPLY | 24VDC jumper | 0/0 |
+**I/O Modules (scanned from CODESYS device repository SP21):**
+
+Store these as `codesysModuleId` on the IoCard catalog entries. The plugin
+uses these to insert modules into the CODESYS device tree. Format:
+`type=32776` (fixed for all Kbus modules), `id=<string below>`.
+
+| Article | Type | codesysModuleId (device repo .id) | I/O bits |
+|---------|------|-----------------------------------|----------|
+| 750-626 | SUPPLY | `0750062600000000` | 0/0 |
+| 750-658 | CAN | `07500658000000004848` | 0/0 (FB) |
+| 750-652 | SERIAL | `07500652000000004848` | 48/48 |
+| 750-1405 | MIXED | `9001_0750140500000000` | 2in/2out |
+| 750-1504 | DO | `9002_0750150400000000` | 0in/4out |
+| 750-451 | AI | `07500451000000001600` | 32in/0out |
+| 750-483 | AI | `07500483000000000400` | 32in/0out |
+| 750-496 | AI | `07500496000000001600` | 128in/0out |
+| 750-508 | RELAY | `8203_0750050800000000` | 0in/2out |
+| 750-553 | AO | `07500553000000000008` | 0in/32out |
+| 750-1605 | SUPPLY | `0750160500000000` | 0/0 |
+| 750-1607 | SUPPLY | `0750160700000000` | 0/0 |
+
+The hardware export should include `codesysModuleId` in each card's catalog
+object so the plugin can insert modules directly without catalog fallback.
 
 ### Response from MIAS-Plugin agent:
 

@@ -560,6 +560,9 @@ model ModuleCatalog {
   // Documentation
   manualUrl          String?          @map("manual_url")
 
+  // CODESYS integration
+  codesysModuleId    String?          @db.VarChar(50) @map("codesys_module_id")
+
   createdAt                 DateTime   @default(now()) @map("created_at")
   updatedAt                 DateTime   @updatedAt @map("updated_at")
 
