@@ -176,6 +176,38 @@ Called after the plugin finishes executing a task.
 | `SYNC_HARDWARE` | Sync hardware device tree | `projectId`, `strategy` |
 | `BUILD` | Compile the CODESYS project | (none) |
 
+### SYNC_HARDWARE result data
+
+The `SYNC_HARDWARE` task returns detailed result data in the task-result `data`
+field. MIAS-IO should store this to update I/O addresses and device links.
+
+```json
+{
+  "changes": { "applied": 3, "skipped": 0, "warnings": 1 },
+  "devices": [
+    { "name": "Controller", "device_id": "1006 1209 ...", "ip": "192.168.1.10", "depth": 0 },
+    { "name": "Kbus", "device_id": "...", "ip": null, "depth": 1 },
+    { "name": "750-1405", "device_id": "...", "ip": null, "depth": 2 }
+  ],
+  "ioMapping": [
+    {
+      "name": "750-1405",
+      "device_id": "...",
+      "parent": "Kbus",
+      "ip": null,
+      "channels": [
+        { "id": "%IW0", "value": "0" },
+        { "id": "%IW1", "value": "0" }
+      ]
+    }
+  ]
+}
+```
+
+The project can contain **multiple PLCs** — all are synced in one task. The
+`devices` list is a flattened depth-first tree of the entire hardware config.
+`ioMapping` provides the I/O channel addresses CODESYS assigned to each module.
+
 ### UI requirements
 
 - Show a "CODESYS Connected" indicator next to the user's avatar/name when

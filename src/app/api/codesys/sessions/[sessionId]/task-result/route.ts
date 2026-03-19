@@ -33,6 +33,7 @@ export async function POST(
       completedAt: new Date(),
       resultLog: Array.isArray(log) ? log : [],
       resultError: error ?? null,
+      resultData: data ?? null,
     },
   });
 

@@ -1213,6 +1213,7 @@ model CodesysTask {
   completedAt DateTime?         @map("completed_at")
   resultLog   String[]          @map("result_log")
   resultError String?           @map("result_error")
+  resultData  Json?             @map("result_data")    // structured result (e.g. SYNC_HARDWARE devices/ioMapping)
   createdBy   String?           @db.Uuid @map("created_by")
   createdAt   DateTime          @default(now()) @map("created_at")
   updatedAt   DateTime          @updatedAt @map("updated_at")
