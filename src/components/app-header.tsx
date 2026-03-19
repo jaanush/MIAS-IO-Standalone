@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { FeedbackButton } from "@/components/feedback-dialog";
 import { ChevronDown, User } from "lucide-react";
 
 export type HeaderUser = {
@@ -93,11 +94,12 @@ export function AppHeader({ user }: { user: HeaderUser }) {
       </nav>
 
       {/* Right — user menu */}
-      <div className="flex w-48 items-center justify-end gap-1">
+      <div className="flex items-center justify-end gap-0.5">
+        <FeedbackButton />
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2">
+            <Button variant="ghost" size="sm" className="ml-1 gap-1.5">
               <User className="h-4 w-4" />
               <span className="max-w-[120px] truncate text-sm">{user.email}</span>
               <ChevronDown className="h-3 w-3 text-muted-foreground" />
