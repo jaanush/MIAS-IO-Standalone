@@ -308,6 +308,38 @@ files in `lib/` and `scripts/`.
 - `codesysDeviceId` field on IoCarrier — included in hardware export
 - Hardware API filters out `isLocalBus = true` carriers
 
+### WAGO Device Catalog from MIAS-Plugin
+
+Use this to populate `codesysDeviceId` on PLCs and carriers.
+
+**PLCs:**
+| Article | Description | codesysDeviceId |
+|---------|-------------|-----------------|
+| 750-8210 | PFC200 G2 4ETH | `1000 1006 1207 0000` |
+| 750-8212 | PFC200 2ETH RS | *(needs scan — xmlDeviceId: 1006 1209)* |
+
+**Carriers (all map to Modbus TCP Slave):**
+| Article | Description | codesysDeviceId |
+|---------|-------------|-----------------|
+| 750-352 | Ethernet fieldbus coupler | `0059 0000 0005 0000` |
+| 750-362 | Modbus TCP/UDP coupler | `0059 0000 0005 0000` |
+
+**I/O Modules:**
+| Article | Type | Description | I/O bits |
+|---------|------|-------------|----------|
+| 750-1405 | MIXED | 2DI+2DO 24VDC | 2in/2out |
+| 750-1504 | DO | 4DO 24VDC | 0in/4out |
+| 750-451 | AI | 2AI 4-20mA | 32in/0out |
+| 750-483 | AI | 2AI 4-20mA diag | 32in/0out |
+| 750-496 | AI | 8AI 0/4-20mA | 128in/0out |
+| 750-508 | RELAY | 2DO relay | 0in/2out |
+| 750-553 | AO | 2AO 0-20mA | 0in/32out |
+| 750-626 | SUPPLY | 5V backplane ext | 0/0 |
+| 750-652 | SERIAL | RS-232/485 | 48/48 |
+| 750-658 | CAN | CAN gateway | 0/0 (FB) |
+| 750-1605 | SUPPLY | 24VDC supply | 0/0 |
+| 750-1607 | SUPPLY | 24VDC jumper | 0/0 |
+
 ### Response from MIAS-Plugin agent:
 
 Remote I/O couplers (750-352 etc.) are NOT individual device types in CODESYS.

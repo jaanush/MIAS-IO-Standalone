@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           ipAddress: true,
           notes: true,
           catalog: {
-            select: { articleNumber: true, vendorName: true, description: true },
+            select: { articleNumber: true, vendorName: true, description: true, codesysDeviceId: true },
           },
           networks: {
             select: {
@@ -441,7 +441,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       ipAddress: plc.ipAddress,
       notes: plc.notes,
       catalog: plc.catalog
-        ? { articleNumber: plc.catalog.articleNumber, manufacturer: plc.catalog.vendorName, description: plc.catalog.description }
+        ? { articleNumber: plc.catalog.articleNumber, manufacturer: plc.catalog.vendorName, description: plc.catalog.description, codesysDeviceId: plc.catalog.codesysDeviceId }
         : null,
       networks: plc.networks.map((n) => ({
         id: n.id,
