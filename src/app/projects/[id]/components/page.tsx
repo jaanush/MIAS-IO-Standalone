@@ -151,7 +151,7 @@ function CreateComponentDialog({ projectId, onClose, onCreated }: {
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button
-              onClick={() => create.mutate({ projectId, name, busProtocol: busProtocol || null, description: description || null })}
+              onClick={() => create.mutate({ projectId, name, busProtocol: (busProtocol || null) as any, description: description || null })}
               disabled={!name.trim() || create.isPending}
             >
               {create.isPending ? "Creating..." : "Create"}
