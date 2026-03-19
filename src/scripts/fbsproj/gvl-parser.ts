@@ -118,7 +118,7 @@ function parseDeclaration(decl: string, gvlName: string): ParsedDecl {
 
   // Extract the name:type pair. Format: name: TYPE;
   const nameTypeMatch = cleaned.match(
-    /(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+)/s
+    /(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([\s\S]+)/
   );
   if (!nameTypeMatch) return null;
 

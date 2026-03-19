@@ -57,7 +57,7 @@ function parseParams(
 
     // Match: ParamName:=Expression or ParamName=>Expression
     const assignMatch = trimmed.match(
-      /^([A-Za-z_][A-Za-z0-9_]*)\s*(:=|=>)\s*(.+)$/s
+      /^([A-Za-z_][A-Za-z0-9_]*)\s*(:=|=>)\s*([\s\S]+)$/
     );
     if (!assignMatch) continue;
 
