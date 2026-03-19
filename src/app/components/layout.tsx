@@ -35,16 +35,32 @@ export default function ComponentsLayout({ children }: { children: React.ReactNo
     );
   }, [components, filter]);
 
+  // Build tree: roots (no parent) with children nested
+  const { roots, childrenMap } = useMemo(() => {
+    const cMap = new Map<number, typeof filtered>();
+    const rts: typeof filtered = [];
+    for (const c of filtered) {
+      if ((c as any).parent?.id) {
+        const pid = (c as any).parent.id;
+        if (!cMap.has(pid)) cMap.set(pid, []);
+        cMap.get(pid)!.push(c);
+      } else {
+        rts.push(c);
+      }
+    }
+    return { roots: rts, childrenMap: cMap };
+  }, [filtered]);
+
   const grouped = useMemo(() => {
     const map = new Map<string, typeof filtered>();
-    for (const c of filtered) {
+    for (const c of roots) {
       const key = c.manufacturer || "Uncategorized";
       const arr = map.get(key);
       if (arr) arr.push(c);
       else map.set(key, [c]);
     }
     return map;
-  }, [filtered]);
+  }, [roots]);
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -76,19 +92,42 @@ export default function ComponentsLayout({ children }: { children: React.ReactNo
                 <AccordionContent className="pb-1">
                   <div className="space-y-0.5">
                     {items.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => router.push(`/components/${c.id}`)}
-                        className={cn(
-                          "w-full flex flex-col px-3 py-1.5 rounded text-left hover:bg-accent transition-colors",
-                          activeId === c.id && !isCreating && "bg-accent font-medium"
+                      <div key={c.id}>
+                        <button
+                          onClick={() => router.push(`/components/${c.id}`)}
+                          className={cn(
+                            "w-full flex flex-col px-3 py-1.5 rounded text-left hover:bg-accent transition-colors",
+                            activeId === c.id && !isCreating && "bg-accent font-medium"
+                          )}
+                        >
+                          <span className="text-sm truncate">
+                            {c.name}
+                            {(c as any)._count?.children > 0 && (
+                              <span className="ml-1 text-[10px] text-muted-foreground/60">({(c as any)._count.children})</span>
+                            )}
+                          </span>
+                          {c.model && (
+                            <span className="text-xs text-muted-foreground truncate">{c.model}</span>
+                          )}
+                        </button>
+                        {/* Render children indented */}
+                        {childrenMap.has(c.id) && (
+                          <div className="ml-3 border-l border-border/40 pl-2 space-y-0.5 mt-0.5">
+                            {childrenMap.get(c.id)!.map((child) => (
+                              <button
+                                key={child.id}
+                                onClick={() => router.push(`/components/${child.id}`)}
+                                className={cn(
+                                  "w-full flex flex-col px-2 py-1 rounded text-left hover:bg-accent transition-colors",
+                                  activeId === child.id && !isCreating && "bg-accent font-medium"
+                                )}
+                              >
+                                <span className="text-sm truncate">{child.name}</span>
+                              </button>
+                            ))}
+                          </div>
                         )}
-                      >
-                        <span className="text-sm truncate">{c.name}</span>
-                        {c.model && (
-                          <span className="text-xs text-muted-foreground truncate">{c.model}</span>
-                        )}
-                      </button>
+                      </div>
                     ))}
                   </div>
                 </AccordionContent>

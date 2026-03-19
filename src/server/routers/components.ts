@@ -125,8 +125,9 @@ export const componentsRouter = createTRPCRouter({
         where: { projectId: input.projectId },
         orderBy: { name: "asc" },
         include: {
-          _count: { select: { signals: true, instances: true } },
+          _count: { select: { signals: true, instances: true, children: true } },
           instances: { select: { id: true, name: true } },
+          parent: { select: { id: true, name: true } },
         },
       })
     ),

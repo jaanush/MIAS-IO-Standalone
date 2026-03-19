@@ -34,6 +34,17 @@ export default function ProjectComponentsPage({ params }: { params: Promise<{ id
   const [selected, setSelected] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
+  // Build tree: roots and children
+  const roots = components.filter((c) => !(c as any).parent?.id);
+  const childrenMap = new Map<number, typeof components>();
+  for (const c of components) {
+    const pid = (c as any).parent?.id;
+    if (pid) {
+      if (!childrenMap.has(pid)) childrenMap.set(pid, []);
+      childrenMap.get(pid)!.push(c);
+    }
+  }
+
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Left — component list */}
@@ -49,23 +60,51 @@ export default function ProjectComponentsPage({ params }: { params: Promise<{ id
         </div>
         <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
           {isLoading && <p className="text-xs text-muted-foreground p-3">Loading...</p>}
-          {components.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSelected(c.id)}
-              className={cn(
-                "w-full text-left px-3 py-2 rounded-md transition-colors",
-                selected === c.id ? "bg-accent font-medium" : "hover:bg-accent/50"
+          {roots.map((c) => (
+            <div key={c.id}>
+              <button
+                onClick={() => setSelected(c.id)}
+                className={cn(
+                  "w-full text-left px-3 py-2 rounded-md transition-colors",
+                  selected === c.id ? "bg-accent font-medium" : "hover:bg-accent/50"
+                )}
+              >
+                <div className="text-sm truncate">
+                  {c.name}
+                  {(c._count as any).children > 0 && (
+                    <span className="ml-1 text-[10px] text-muted-foreground/60">({(c._count as any).children})</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {c.busProtocol && <Badge variant="outline" className="text-[10px] px-1 py-0">{c.busProtocol}</Badge>}
+                  <span className="text-[11px] text-muted-foreground">
+                    {c._count.instances} instance{c._count.instances !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              </button>
+              {childrenMap.has(c.id) && (
+                <div className="ml-3 border-l border-border/40 pl-2 space-y-0.5 mt-0.5">
+                  {childrenMap.get(c.id)!.map((child) => (
+                    <button
+                      key={child.id}
+                      onClick={() => setSelected(child.id)}
+                      className={cn(
+                        "w-full text-left px-2 py-1.5 rounded-md transition-colors",
+                        selected === child.id ? "bg-accent font-medium" : "hover:bg-accent/50"
+                      )}
+                    >
+                      <div className="text-sm truncate">{child.name}</div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {child.busProtocol && <Badge variant="outline" className="text-[10px] px-1 py-0">{child.busProtocol}</Badge>}
+                        <span className="text-[11px] text-muted-foreground">
+                          {child._count.instances} instance{child._count.instances !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
-            >
-              <div className="text-sm truncate">{c.name}</div>
-              <div className="flex items-center gap-2 mt-0.5">
-                {c.busProtocol && <Badge variant="outline" className="text-[10px] px-1 py-0">{c.busProtocol}</Badge>}
-                <span className="text-[11px] text-muted-foreground">
-                  {c._count.instances} instance{c._count.instances !== 1 ? "s" : ""}
-                </span>
-              </div>
-            </button>
+            </div>
           ))}
           {!isLoading && components.length === 0 && (
             <p className="text-xs text-muted-foreground p-3">No project-scoped components. Import from MPV Serial IO or create one.</p>
