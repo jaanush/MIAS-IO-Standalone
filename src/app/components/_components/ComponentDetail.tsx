@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -45,6 +46,7 @@ interface Props {
 }
 
 export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
+  const router = useRouter();
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const [showImportDbc, setShowImportDbc] = useState(false);
   const [showImportModbus, setShowImportModbus] = useState(false);
@@ -256,12 +258,17 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
           </h2>
           <div className="rounded border divide-y text-sm">
             {data.children.map((child: any) => (
-              <div key={child.id} className="px-3 py-2 flex items-center justify-between">
-                <span className="font-medium">{child.name}</span>
+              <button
+                key={child.id}
+                type="button"
+                onClick={() => router.push(`/components/${child.id}`)}
+                className="w-full px-3 py-2 flex items-center justify-between hover:bg-accent/30 transition-colors text-left"
+              >
+                <span className="font-medium text-blue-600 hover:underline">{child.name}</span>
                 <span className="text-xs text-muted-foreground">
                   {child._count?.signals ?? 0} signals, {child._count?.instances ?? 0} instances
                 </span>
-              </div>
+              </button>
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
@@ -274,7 +281,7 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
       {data.parentId && effectiveSignals.length > 0 && (() => {
         const inherited = effectiveSignals.filter((s: any) => s.inherited);
         if (inherited.length === 0) return null;
-        return <InheritedSignalsSection inherited={inherited} parentName={data.parent?.name ?? "parent"} />;
+        return <InheritedSignalsSection inherited={inherited} parentId={data.parentId!} parentName={data.parent?.name ?? "parent"} />;
       })()}
 
       <section className="px-8 py-6 space-y-3 flex-1">
@@ -332,20 +339,30 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
   );
 }
 
-function InheritedSignalsSection({ inherited, parentName }: { inherited: any[]; parentName: string }) {
+function InheritedSignalsSection({ inherited, parentId, parentName }: { inherited: any[]; parentId: number; parentName: string }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
 
   return (
     <section className="px-8 py-4 space-y-2">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
-        Inherited Signals
-        <span className="font-normal text-xs">({inherited.length} from {parentName})</span>
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
+          Inherited Signals
+          <span className="font-normal text-xs">({inherited.length} from {parentName})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push(`/components/${parentId}`)}
+          className="text-xs text-blue-600 hover:underline"
+        >
+          Open parent
+        </button>
+      </div>
       {open && (
         <div className="overflow-x-auto rounded-md border max-h-[300px] overflow-y-auto">
           <table className="w-full text-xs">
