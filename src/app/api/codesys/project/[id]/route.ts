@@ -468,6 +468,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         nodeAddress: c.nodeAddress,
         modbusInputBase: c.modbusInputBase,
         modbusOutputBase: c.modbusOutputBase,
+        isLocalBus: c.isLocalBus,
         codesysDeviceId: c.codesysDeviceId,
         catalog: c.catalog ? { articleNumber: c.catalog.articleNumber, manufacturer: c.catalog.vendorName } : null,
         cards: c.cards.map((card) => ({
