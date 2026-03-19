@@ -33,17 +33,20 @@ export async function POST(
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  // Claim all queued tasks for this user's session
-  const tasks = await db.$queryRaw<
-    { id: string; project_id: number; type: string; params: unknown }[]
-  >`
-    UPDATE codesys_task
-    SET status = 'CLAIMED'::"codesys_task_status",
-        claimed_at = now(),
-        updated_at = now()
-    WHERE status = 'QUEUED'::"codesys_task_status"
-    RETURNING id, project_id, type, params
-  `;
+  // Claim queued tasks belonging to this session's user only
+  const tasks = session.userId
+    ? await db.$queryRaw<
+        { id: string; project_id: number; type: string; params: unknown }[]
+      >`
+        UPDATE codesys_task
+        SET status = 'CLAIMED'::"codesys_task_status",
+            claimed_at = now(),
+            updated_at = now()
+        WHERE status = 'QUEUED'::"codesys_task_status"
+          AND created_by = ${session.userId}::uuid
+        RETURNING id, project_id, type, params
+      `
+    : [];
 
   // Check for plugin update
   let updateAvailable = false;
