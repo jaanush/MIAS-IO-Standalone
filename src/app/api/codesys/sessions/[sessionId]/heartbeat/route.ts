@@ -48,6 +48,21 @@ export async function POST(
       `
     : [];
 
+  // Check for plugin update
+  let updateAvailable = false;
+  let latestVersion: string | null = null;
+  try {
+    const { readFileSync, existsSync } = await import("fs");
+    const { join } = await import("path");
+    const versionFile = join(process.cwd(), "..", "MIAS-Plugin", "VERSION");
+    if (existsSync(versionFile)) {
+      latestVersion = readFileSync(versionFile, "utf-8").trim();
+      if (latestVersion && session.pluginVersion && latestVersion !== session.pluginVersion) {
+        updateAvailable = true;
+      }
+    }
+  } catch {}
+
   return NextResponse.json({
     status: "ok",
     tasks: (tasks as any[]).map((t) => ({
@@ -56,5 +71,6 @@ export async function POST(
       type: t.type,
       params: t.params ?? {},
     })),
+    ...(latestVersion ? { latestVersion, updateAvailable } : {}),
   });
 }
