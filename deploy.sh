@@ -47,10 +47,10 @@ DB_MIGRATE_CMD="${DEPLOY_DB_MIGRATE_CMD:-}" # Kors i containern efter deploy (au
 # Miljo: demo / staging / prod
 DEPLOY_ENV="${DEPLOY_ENV:-demo}"
 
-# Azure DevOps (andra normalt inte dessa)
+# Azure DevOps — points directly at the main MIAS-IO repo
 AZURE_ORG="metstechnology"
-AZURE_PROJECT="MetstechNeptunus"
-AZURE_REPO="${DEPLOY_AZURE_REPO:-${AZURE_REPO:-$APP_NAME}}"
+AZURE_PROJECT="MIAS-IO"
+AZURE_REPO="${DEPLOY_AZURE_REPO:-${AZURE_REPO:-MIAS-IO}}"
 
 # Coolify (andra normalt inte dessa)
 COOLIFY_URL="http://coolify.neptun.ztna:8000"
