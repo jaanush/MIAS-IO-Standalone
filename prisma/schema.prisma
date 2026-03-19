@@ -591,6 +591,8 @@ model Project {
   componentInstances ComponentInstance[]
   codesysTasks      CodesysTask[]
   codesysSettings   CodesysSettings?
+  codesysImports    CodesysImport[]
+  wiringRecipes     WiringRecipe[]
 
   @@map("project")
 }
@@ -823,6 +825,7 @@ model Signal {
   busSignal      BusSignal?
   system         SignalSystem?       @relation(fields: [systemId], references: [id])
   gvl            GlobalVariableList? @relation(fields: [gvlId], references: [id])
+  codesysVariables CodesysVariable[]
 
   // Unique per card channel when assigned — NULLs are allowed to repeat in PostgreSQL
   @@unique([ioCardId, channelPosition])
@@ -983,6 +986,8 @@ model HardwareComponent {
   signals   ComponentSignal[]
   instances ComponentInstance[]
   pdoConfigs PdoConfig[]
+  codesysFbDefinitions CodesysFbDefinition[]
+  wiringRecipes        WiringRecipe[]
 
   @@map("hardware_component")
 }
@@ -1098,6 +1103,7 @@ model ComponentInstance {
   network    PlcNetwork?       @relation(fields: [plcNetworkId], references: [id])
   creator    User?             @relation("ComponentInstanceCreatedBy", fields: [createdBy], references: [id])
   signals    InstanceSignal[]
+  codesysFbInstances CodesysFbInstance[]
 
   @@map("component_instance")
 }
@@ -1199,4 +1205,192 @@ model CodesysTask {
   creator User?   @relation("CodesysTaskCreatedBy", fields: [createdBy], references: [id])
 
   @@map("codesys_task")
+}
+
+// =============================================================
+// FB WIRING RECIPES — standalone code generation rules
+// =============================================================
+//
+// A WiringRecipe defines one FB call pattern. It is NOT tied to a single
+// HardwareComponent — it can reference signals and instances from any
+// component in the project. This makes it suitable for HMI widgets,
+// control logic, and cross-component wiring.
+//
+// Scoping:
+//   projectId = NULL → reusable recipe (global template)
+//   projectId = SET  → project-specific recipe
+//
+// Instantiation:
+//   componentId = SET → recipe is instantiated once per ComponentInstance
+//                       of that type (e.g. one HMI widget per converter)
+//   componentId = NULL → recipe is instantiated once (singleton)
+//
+// Params reference data via sourceType:
+//   SIGNAL / SIGNAL_RAW / SIGNAL_SENSOR_FAULT
+//     → resolve a signal by tag pattern (signalTag) or by channelOffset
+//       on the driving ComponentInstance
+//   INSTANCE_FB  → the driving ComponentInstance's own FB ref
+//   LITERAL      → fixed value
+//   EXPRESSION   → mustache template with {{...}} variables
+
+enum WiringSourceType {
+  SIGNAL              // signal tag (main value)
+  SIGNAL_RAW          // signal tag + _RAW
+  SIGNAL_SENSOR_FAULT // signal tag + _SensorFaultAlarm
+  INSTANCE_FB         // driving ComponentInstance's FB ref (GVL.tag)
+  LITERAL             // fixed value in literalValue column
+  EXPRESSION          // mustache template in expression column
+
+  @@map("wiring_source_type")
+}
+
+model WiringRecipe {
+  id                  Int     @id @default(autoincrement())
+  projectId           Int?    @map("project_id")
+  componentId         Int?    @map("component_id")              // if set, instantiate per ComponentInstance
+  fbName              String  @db.VarChar(255) @map("fb_name")  // FB type to call
+  targetGvl           String  @db.VarChar(100) @map("target_gvl")
+  instanceNamePattern String  @db.VarChar(500) @map("instance_name_pattern")
+  description         String?
+  sortOrder           Int     @default(0) @map("sort_order")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  project   Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  component HardwareComponent? @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  params    WiringRecipeParam[]
+
+  @@map("wiring_recipe")
+}
+
+model WiringRecipeParam {
+  id             Int              @id @default(autoincrement())
+  recipeId       Int              @map("recipe_id")
+  parameterName  String           @db.VarChar(255) @map("parameter_name")
+  direction      String           @db.VarChar(10)                            // INPUT or OUTPUT
+  sourceType     WiringSourceType @map("source_type")
+  // For SIGNAL sources: resolve by channelOffset (component-scoped) or signalTag (standalone)
+  channelOffset  Int?             @db.SmallInt @map("channel_offset")
+  signalTag      String?          @db.VarChar(255) @map("signal_tag")        // tag pattern, e.g. "{{instance.tag}}_BearingTemp_DE"
+  // For LITERAL
+  literalValue   String?          @db.VarChar(500) @map("literal_value")
+  // For EXPRESSION
+  expression     String?          @db.VarChar(500)
+  sortOrder      Int              @default(0) @map("sort_order")
+
+  recipe WiringRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, parameterName])
+  @@map("wiring_recipe_param")
+}
+
+// =============================================================
+// CODESYS IMPORT — parsed .fbsproj project data
+// =============================================================
+
+model CodesysImport {
+  id          Int      @id @default(autoincrement())
+  projectId   Int      @map("project_id")
+  sourcePath  String   @db.VarChar(500) @map("source_path")
+  importedAt  DateTime @default(now()) @map("imported_at")
+  gvlCount    Int      @default(0) @map("gvl_count")
+  fbCount     Int      @default(0) @map("fb_count")
+  instanceCount Int    @default(0) @map("instance_count")
+  variableCount Int    @default(0) @map("variable_count")
+  connectionCount Int  @default(0) @map("connection_count")
+  matchedCount    Int  @default(0) @map("matched_count")
+  notes       String?
+
+  project     Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fbDefinitions CodesysFbDefinition[]
+  fbInstances   CodesysFbInstance[]
+  variables     CodesysVariable[]
+  connections   CodesysFbConnection[]
+
+  @@map("codesys_import")
+}
+
+model CodesysFbDefinition {
+  id          Int      @id @default(autoincrement())
+  importId    Int      @map("import_id")
+  componentId Int?     @map("component_id")
+  name        String   @db.VarChar(255)
+  extendsName String?  @db.VarChar(255) @map("extends_name")
+  sourceFile  String   @db.VarChar(500) @map("source_file")
+
+  import      CodesysImport        @relation(fields: [importId], references: [id], onDelete: Cascade)
+  component   HardwareComponent?   @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  parameters  CodesysFbParameter[]
+  instances   CodesysFbInstance[]
+
+  @@unique([importId, name])
+  @@map("codesys_fb_definition")
+}
+
+model CodesysFbParameter {
+  id             Int    @id @default(autoincrement())
+  fbDefinitionId Int    @map("fb_definition_id")
+  name           String @db.VarChar(255)
+  direction      String @db.VarChar(20)   // VAR_INPUT, VAR_OUTPUT, VAR_IN_OUT, VAR
+  dataType       String @db.VarChar(100)  @map("data_type")
+
+  fbDefinition CodesysFbDefinition @relation(fields: [fbDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([fbDefinitionId, name])
+  @@map("codesys_fb_parameter")
+}
+
+model CodesysFbInstance {
+  id             Int     @id @default(autoincrement())
+  importId       Int     @map("import_id")
+  fbDefinitionId Int?    @map("fb_definition_id")
+  componentInstanceId Int? @map("component_instance_id")
+  name           String  @db.VarChar(500)
+  fbTypeName     String  @db.VarChar(255) @map("fb_type_name")
+  gvlName        String  @db.VarChar(255) @map("gvl_name")
+  comment        String? @db.VarChar(500)
+
+  import            CodesysImport      @relation(fields: [importId], references: [id], onDelete: Cascade)
+  fbDefinition      CodesysFbDefinition? @relation(fields: [fbDefinitionId], references: [id], onDelete: SetNull)
+  componentInstance ComponentInstance?  @relation(fields: [componentInstanceId], references: [id], onDelete: SetNull)
+  connectionsAsInstance CodesysFbConnection[]
+
+  @@unique([importId, gvlName, name])
+  @@map("codesys_fb_instance")
+}
+
+model CodesysVariable {
+  id          Int     @id @default(autoincrement())
+  importId    Int     @map("import_id")
+  signalId    Int?    @map("signal_id")
+  name        String  @db.VarChar(500)
+  dataType    String  @db.VarChar(100) @map("data_type")
+  gvlName     String  @db.VarChar(255) @map("gvl_name")
+  hwAddress   String? @db.VarChar(50)  @map("hw_address")   // e.g. "D03_B7.1"
+  ioDirection String? @db.VarChar(10)  @map("io_direction")  // DI, DO, AI, AO
+  comment     String? @db.VarChar(500)
+
+  import  CodesysImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  signal  Signal?       @relation(fields: [signalId], references: [id], onDelete: SetNull)
+  connectionsAsVariable CodesysFbConnection[]
+
+  @@unique([importId, gvlName, name])
+  @@map("codesys_variable")
+}
+
+model CodesysFbConnection {
+  id             Int    @id @default(autoincrement())
+  importId       Int    @map("import_id")
+  fbInstanceId   Int    @map("fb_instance_id")
+  variableId     Int?   @map("variable_id")
+  parameterName  String @db.VarChar(255) @map("parameter_name")
+  direction      String @db.VarChar(10)  // INPUT or OUTPUT
+  rawExpression  String @db.VarChar(500) @map("raw_expression")  // original ST expression
+  sourceFile     String @db.VarChar(500) @map("source_file")
+
+  import     CodesysImport     @relation(fields: [importId], references: [id], onDelete: Cascade)
+  fbInstance CodesysFbInstance  @relation(fields: [fbInstanceId], references: [id], onDelete: Cascade)
+  variable   CodesysVariable?  @relation(fields: [variableId], references: [id], onDelete: SetNull)
+
+  @@map("codesys_fb_connection")
 }
