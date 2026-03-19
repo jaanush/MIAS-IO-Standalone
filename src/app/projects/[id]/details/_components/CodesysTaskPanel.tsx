@@ -48,6 +48,10 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [viewResult, setViewResult] = useState<Task | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  const activeTasks = tasks.filter((t) => t.status === "QUEUED" || t.status === "CLAIMED");
+  const completedTasks = tasks.filter((t) => t.status === "SUCCESS" || t.status === "FAILURE");
 
   function toggleExpand(id: string) {
     setExpanded((prev) => {
@@ -108,12 +112,65 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
         </div>
       </div>
 
-      {tasks.length === 0 && !isLoading && (
-        <p className="text-sm text-muted-foreground">No tasks yet. Click &quot;Sync GVLs&quot; to queue a sync.</p>
+      {activeTasks.length === 0 && completedTasks.length === 0 && !isLoading && (
+        <p className="text-sm text-muted-foreground">No tasks yet.</p>
       )}
 
+      {/* Active tasks */}
       <div className="space-y-1">
-        {tasks.map((task) => {
+        {activeTasks.map((task) => {
+          const isExpanded = expanded.has(task.id);
+          const hasLog = task.resultLog.length > 0 || task.resultError;
+          return (
+            <div key={task.id} className="rounded-md border text-sm">
+              <div className="flex items-center gap-2 px-3 py-2">
+                <button
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  disabled={!hasLog}
+                  onClick={() => toggleExpand(task.id)}
+                >
+                  {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                </button>
+                <span className="font-mono text-xs">{task.type}</span>
+                <span className={`ml-auto rounded px-1.5 py-0.5 text-xs font-medium ${STATUS_BADGE[task.status]}`}>
+                  {task.status}
+                </span>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {new Date(task.createdAt).toLocaleTimeString()}
+                </span>
+                {task.status === "QUEUED" && (
+                  <button className="text-muted-foreground hover:text-destructive" onClick={() => cancel.mutate({ id: task.id })} title="Cancel">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              {isExpanded && (
+                <div className="border-t px-3 py-2 bg-muted/40 space-y-1">
+                  {task.resultLog.length > 0 && <pre className="text-xs font-mono whitespace-pre-wrap text-muted-foreground">{task.resultLog.join("\n")}</pre>}
+                  {task.resultError && <p className="text-xs text-destructive font-mono">{task.resultError}</p>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Completed tasks (collapsible) */}
+      {completedTasks.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowCompleted((s) => !s)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            {showCompleted ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            Completed ({completedTasks.length})
+          </button>
+        </div>
+      )}
+
+      {showCompleted && <div className="space-y-1">
+        {completedTasks.map((task) => {
           const isExpanded = expanded.has(task.id);
           const hasLog = task.resultLog.length > 0 || task.resultError;
           return (
@@ -170,7 +227,7 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {viewResult && (
         <TaskResultDialog task={viewResult} onClose={() => setViewResult(null)} />
