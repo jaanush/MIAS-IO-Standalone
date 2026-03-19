@@ -77,6 +77,21 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
           </Button>
           <Button
             size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            disabled={enqueue.isPending}
+            onClick={() =>
+              enqueue.mutate({
+                projectId,
+                type: "SYNC_HARDWARE",
+                params: {},
+              })
+            }
+          >
+            Sync Hardware
+          </Button>
+          <Button
+            size="sm"
             className="h-7 text-xs"
             disabled={enqueue.isPending}
             onClick={() =>
@@ -87,7 +102,22 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
               })
             }
           >
-            {enqueue.isPending ? "Queuing…" : "Sync GVLs"}
+            Sync GVLs
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            disabled={enqueue.isPending}
+            onClick={() =>
+              enqueue.mutate({
+                projectId,
+                type: "BUILD",
+                params: {},
+              })
+            }
+          >
+            Build
           </Button>
         </div>
       </div>
