@@ -36,6 +36,7 @@ export const codesysRouter = createTRPCRouter({
           params: true,
           resultLog: true,
           resultError: true,
+          resultData: true,
           claimedAt: true,
           completedAt: true,
           createdAt: true,

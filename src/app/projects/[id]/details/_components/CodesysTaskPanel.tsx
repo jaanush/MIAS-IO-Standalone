@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { trpc } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, RefreshCw, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ChevronDown, ChevronRight, RefreshCw, X, Eye } from "lucide-react";
 
 type Task = {
   id: string;
@@ -12,6 +19,7 @@ type Task = {
   params: unknown;
   resultLog: string[];
   resultError: string | null;
+  resultData: unknown;
   claimedAt: Date | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -39,6 +47,7 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
   });
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [viewResult, setViewResult] = useState<Task | null>(null);
 
   function toggleExpand(id: string) {
     setExpanded((prev) => {
@@ -110,6 +119,15 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
                 <span className="text-xs text-muted-foreground shrink-0">
                   {new Date(task.createdAt).toLocaleTimeString()}
                 </span>
+                {task.resultData && (
+                  <button
+                    className="text-blue-600 hover:text-blue-800"
+                    onClick={() => setViewResult(task)}
+                    title="View results"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 {task.status === "QUEUED" && (
                   <button
                     className="text-muted-foreground hover:text-destructive"
@@ -137,6 +155,121 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
           );
         })}
       </div>
+
+      {viewResult && (
+        <TaskResultDialog task={viewResult} onClose={() => setViewResult(null)} />
+      )}
     </section>
+  );
+}
+
+function TaskResultDialog({ task, onClose }: { task: Task; onClose: () => void }) {
+  const data = task.resultData as any;
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {task.type} Results
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              {task.completedAt ? new Date(task.completedAt).toLocaleString() : ""}
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Summary */}
+          {data?.changes && (
+            <div className="flex gap-3">
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                Applied: {data.changes.applied}
+              </Badge>
+              {data.changes.skipped > 0 && (
+                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                  Skipped: {data.changes.skipped}
+                </Badge>
+              )}
+              {data.changes.warnings > 0 && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                  Warnings: {data.changes.warnings}
+                </Badge>
+              )}
+            </div>
+          )}
+
+          {/* Devices tree */}
+          {data?.devices && data.devices.length > 0 && (
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-muted-foreground">Device Tree</h3>
+              <div className="rounded border bg-muted/20 p-3 text-xs font-mono space-y-0.5 max-h-[200px] overflow-y-auto">
+                {data.devices.map((dev: any, i: number) => (
+                  <div key={i} style={{ paddingLeft: (dev.depth ?? 0) * 16 }}>
+                    <span className="text-foreground">{dev.name}</span>
+                    {dev.ip && <span className="text-muted-foreground ml-2">{dev.ip}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* IO Mapping */}
+          {data?.ioMapping && data.ioMapping.length > 0 && (
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-muted-foreground">I/O Mapping</h3>
+              <div className="overflow-x-auto rounded border max-h-[300px] overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-background">
+                    <tr className="border-b bg-muted/40">
+                      <th className="px-2 py-1.5 text-left font-medium">Module</th>
+                      <th className="px-2 py-1.5 text-left font-medium">Parent</th>
+                      <th className="px-2 py-1.5 text-left font-medium">Channels</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.ioMapping.map((mod: any, i: number) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="px-2 py-1 font-mono">{mod.name}</td>
+                        <td className="px-2 py-1 text-muted-foreground">{mod.parent ?? "—"}</td>
+                        <td className="px-2 py-1 font-mono text-muted-foreground">
+                          {mod.channels?.map((ch: any) => ch.id).join(", ") ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Log */}
+          {task.resultLog.length > 0 && (
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-muted-foreground">Log</h3>
+              <pre className="rounded border bg-muted/20 p-3 text-xs font-mono whitespace-pre-wrap text-muted-foreground max-h-[200px] overflow-y-auto">
+                {task.resultLog.join("\n")}
+              </pre>
+            </div>
+          )}
+
+          {task.resultError && (
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-destructive">Error</h3>
+              <p className="text-xs font-mono text-destructive">{task.resultError}</p>
+            </div>
+          )}
+
+          {/* Raw data fallback */}
+          {data && !data.devices && !data.ioMapping && !data.changes && (
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-muted-foreground">Result Data</h3>
+              <pre className="rounded border bg-muted/20 p-3 text-xs font-mono whitespace-pre-wrap text-muted-foreground max-h-[300px] overflow-y-auto">
+                {JSON.stringify(data, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
