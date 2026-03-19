@@ -61,6 +61,27 @@ export const projectRouter = createTRPCRouter({
     .input(z.object({ id: z.number().int() }))
     .mutation(({ input }) => db.project.delete({ where: { id: input.id } })),
 
+  purgeData: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .mutation(async ({ input }) => {
+      const { projectId } = input;
+      // Delete in dependency order: signals → component instances → components → PLCs (cascades carriers/cards/networks)
+      const signals = await db.signal.deleteMany({ where: { projectId } });
+      const instances = await db.componentInstance.deleteMany({ where: { projectId } });
+      const components = await db.hardwareComponent.deleteMany({ where: { projectId } });
+      const imports = await db.codesysImport.deleteMany({ where: { projectId } });
+      const recipes = await db.wiringRecipe.deleteMany({ where: { projectId } });
+      const plcs = await db.plc.deleteMany({ where: { projectId } });
+      return {
+        signals: signals.count,
+        instances: instances.count,
+        components: components.count,
+        imports: imports.count,
+        recipes: recipes.count,
+        plcs: plcs.count,
+      };
+    }),
+
   // ── Member management ────────────────────────────────────────────────────
 
   addMember: protectedProcedure

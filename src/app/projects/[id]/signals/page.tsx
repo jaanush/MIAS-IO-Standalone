@@ -21,7 +21,7 @@ import type { AppRouter } from "@/server/routers/_app";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Check, X, Trash2, Settings2, Upload, Layers, ChevronUp, ChevronDown, ChevronRight, ChevronsUpDown, Network, Bell, RotateCcw, FileSpreadsheet, FileCode, Columns3 } from "lucide-react";
+import { Plus, Check, X, Trash2, Settings2, Upload, Download, Layers, ChevronUp, ChevronDown, ChevronRight, ChevronsUpDown, Network, Bell, RotateCcw, FileSpreadsheet, FileCode, Columns3 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,7 @@ import { ProjectBusConfigDialog } from "./_components/ProjectBusConfigDialog";
 import { ProjectAlarmsDialog } from "./_components/ProjectAlarmsDialog";
 import { ComponentGroup } from "./_components/ComponentGroup";
 import { CreateComponentDialog } from "./_components/CreateComponentDialog";
+import { ExportLegacyDialog } from "./_components/ExportDialog";
 
 type SignalRow = inferRouterOutputs<AppRouter>["signal"]["list"][number];
 type CardInfo = inferRouterOutputs<AppRouter>["signal"]["cardsForProject"][number];
@@ -767,6 +768,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const [showImport, setShowImport] = useState(false);
   const [showImportMpv, setShowImportMpv] = useState(false);
   const [showAddFromComponent, setShowAddFromComponent] = useState(false);
+  const [showExportLegacy, setShowExportLegacy] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<Set<ColKey>>(new Set());
   const [showCreateComponent, setShowCreateComponent] = useState(false);
   const [grouped, setGrouped] = useState(true);
@@ -1146,8 +1148,21 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                <Download className="h-4 w-4 mr-1" /> Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowExportLegacy(true)}>
+                <FileCode className="h-4 w-4 mr-2" />
+                MIAS-Legacy
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" variant="outline" onClick={() => setShowAddFromComponent(true)}>
-            <Layers className="h-4 w-4 mr-1" /> From Component
+            <Layers className="h-4 w-4 mr-1" /> Add Component
           </Button>
           <Button size="sm" onClick={startNew} disabled={isAddingNew}>
             <Plus className="h-4 w-4 mr-1" /> Add Signal
@@ -1504,6 +1519,14 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
             utils.signal.list.invalidate({ projectId });
             setShowImportMpv(false);
           }}
+        />
+      )}
+
+      {showExportLegacy && (
+        <ExportLegacyDialog
+          projectId={projectId}
+          open
+          onClose={() => setShowExportLegacy(false)}
         />
       )}
 

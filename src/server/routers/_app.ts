@@ -7,6 +7,7 @@ import { projectHardwareRouter } from "./projectHardware";
 import { signalRouter } from "./signal";
 import { codesysRouter } from "./codesys";
 import { feedbackRouter } from "./feedback";
+import { exportRouter } from "./export";
 
 export const appRouter = createTRPCRouter({
   user: userRouter,
@@ -17,6 +18,7 @@ export const appRouter = createTRPCRouter({
   signal: signalRouter,
   codesys: codesysRouter,
   feedback: feedbackRouter,
+  export: exportRouter,
 });
 
 export type AppRouter = typeof appRouter;

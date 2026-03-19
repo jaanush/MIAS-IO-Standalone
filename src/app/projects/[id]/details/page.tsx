@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect } from "react";
+import { use, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,9 +15,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { PROJECT_STATUS } from "@/lib/enums";
 import { CodesysTaskPanel } from "./_components/CodesysTaskPanel";
 import { CodesysSettingsForm } from "./_components/CodesysSettingsForm";
+import { Trash2 } from "lucide-react";
 
 const schema = z.object({
   name: z.string().min(1, "Required"),
@@ -188,6 +196,110 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
       <CodesysSettingsForm projectId={projectId} />
 
       <CodesysTaskPanel projectId={projectId} />
+
+      <PurgeSection projectId={projectId} projectName={project?.name} />
     </div>
+  );
+}
+
+function PurgeSection({ projectId, projectName }: { projectId: number; projectName?: string }) {
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [result, setResult] = useState<Record<string, number> | null>(null);
+  const utils = trpc.useUtils();
+
+  const purge = trpc.project.purgeData.useMutation({
+    onSuccess: (data) => {
+      setResult(data);
+      utils.signal.list.invalidate({ projectId });
+      utils.projectHardware.getHardware.invalidate({ projectId });
+    },
+  });
+
+  function handleClose() {
+    if (purge.isPending) return;
+    setOpen(false);
+    setConfirmText("");
+    setResult(null);
+  }
+
+  const expected = "PURGE";
+
+  return (
+    <section className="space-y-3 rounded-md border border-destructive/30 bg-destructive/5 p-6">
+      <h2 className="text-lg font-semibold text-destructive">Danger Zone</h2>
+      <p className="text-sm text-muted-foreground">
+        Permanently delete all signals, hardware, components, and import data for this project.
+        The project itself and its settings will be kept.
+      </p>
+      <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
+        <Trash2 className="h-4 w-4 mr-1.5" />
+        Purge All Data
+      </Button>
+
+      <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Purge All Project Data</DialogTitle>
+            <DialogDescription>
+              This will permanently delete all signals, PLCs, carriers, IO cards,
+              component instances, and import data for{" "}
+              <span className="font-semibold text-foreground">{projectName ?? `project #${projectId}`}</span>.
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          {result ? (
+            <div className="space-y-3 py-2">
+              <p className="text-sm font-medium text-green-600">Purge complete:</p>
+              <div className="rounded border bg-muted/30 p-3 text-xs space-y-1 font-mono">
+                <div>Signals: {result.signals}</div>
+                <div>PLCs (+ carriers, cards, networks): {result.plcs}</div>
+                <div>Component instances: {result.instances}</div>
+                <div>Components: {result.components}</div>
+                <div>CODESYS imports: {result.imports}</div>
+                <div>Wiring recipes: {result.recipes}</div>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={handleClose}>Close</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Type <span className="font-mono font-bold">{expected}</span> to confirm
+                </Label>
+                <Input
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder={expected}
+                  autoFocus
+                />
+              </div>
+
+              {purge.error && (
+                <p className="rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {purge.error.message}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={handleClose} disabled={purge.isPending}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={confirmText !== expected || purge.isPending}
+                  onClick={() => purge.mutate({ projectId })}
+                >
+                  {purge.isPending ? "Purging..." : "Purge All Data"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }
