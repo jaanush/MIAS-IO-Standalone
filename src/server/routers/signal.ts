@@ -54,14 +54,10 @@ const signalInclude = {
 
 // Lighter include for table list view — drops alarm details and deep nesting
 const signalListInclude = {
-  discreteSignal: { select: { trigger: true, filterTimeMs: true, plcDataType: { select: { code: true } }, alarms: true, _count: { select: { alarms: true } } } },
-  analogSignal: { select: {
-    scaleMin: true, scaleMax: true, wireConfig: true,
-    engineeringUnit: { select: { symbol: true, plcDataTypeCatalog: { select: { code: true } } } },
-    inputType: { select: { id: true, name: true } },
-    plcDataTypeCatalog: { select: { code: true } },
-    inputTypeId: true, engineeringUnitId: true, plcDataTypeId: true,
-    alarms: true, _count: { select: { alarms: true } },
+  discreteSignal: { include: { alarms: true, plcDataType: { select: { code: true } } } },
+  analogSignal: { include: {
+    engineeringUnit: { include: { plcDataTypeCatalog: true } },
+    inputType: true, plcDataTypeCatalog: true, alarms: true,
   } },
   busSignal: {
     include: {

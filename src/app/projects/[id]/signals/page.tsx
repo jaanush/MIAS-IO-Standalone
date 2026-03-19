@@ -365,7 +365,7 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
       </Td>}
       {!h.has("alarms") && <Td className="text-center">
         {(() => {
-          const count = isDisc ? (signal.discreteSignal?._count?.alarms ?? 0) : (signal.analogSignal?._count?.alarms ?? 0);
+          const count = isDisc ? (signal.discreteSignal?.alarms?.length ?? 0) : (signal.analogSignal?.alarms?.length ?? 0);
           return (
             <button type="button" title={count > 0 ? `${count} alarm${count === 1 ? "" : "s"}` : "No alarms"}
               className="flex items-center justify-center gap-0.5 rounded p-0.5 transition-colors hover:bg-accent"
@@ -657,8 +657,8 @@ const SIGNAL_COLUMNS = [
   columnHelper.accessor(
     (r) =>
       r.signalType === "DISCRETE"
-        ? (r.discreteSignal?._count?.alarms ?? 0)
-        : (r.analogSignal?._count?.alarms ?? 0),
+        ? (r.discreteSignal?.alarms?.length ?? 0)
+        : (r.analogSignal?.alarms?.length ?? 0),
     { id: "alarms", enableColumnFilter: false }
   ),
   columnHelper.accessor((r) => r.discreteSignal?.trigger ?? "", { id: "trigger", filterFn: "equalsString" }),
