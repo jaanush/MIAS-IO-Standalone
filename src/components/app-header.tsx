@@ -26,6 +26,7 @@ const navItems = [
   { label: "Projects", href: "/" },
   { label: "Hardware", href: "/hardware" },
   { label: "Components", href: "/components" },
+  { label: "Misc", href: "/misc" },
 ];
 
 export function AppHeader({ user }: { user: HeaderUser }) {

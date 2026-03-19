@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, FolderOpen, Table2 } from "lucide-react";
+import { Users, FolderOpen } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/projects", label: "Projects", icon: FolderOpen },
-  { href: "/admin/lookups", label: "Lookups", icon: Table2 },
 ];
 
 export default function AdminLayout({
