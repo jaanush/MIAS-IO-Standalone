@@ -99,7 +99,7 @@ export const codesysRouter = createTRPCRouter({
         where: {
           disconnectedAt: null,
           lastHeartbeatAt: { gte: cutoff },
-          ...(input?.projectId ? { OR: [{ miasProjectId: input.projectId }, { miasProjectId: null }] } : {}),
+          // No project filter — sessions are global; user ensures matching projects
         },
         select: {
           id: true,
