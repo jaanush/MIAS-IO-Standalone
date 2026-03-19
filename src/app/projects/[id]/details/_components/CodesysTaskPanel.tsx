@@ -92,20 +92,6 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
           </Button>
           <Button
             size="sm"
-            className="h-7 text-xs"
-            disabled={enqueue.isPending}
-            onClick={() =>
-              enqueue.mutate({
-                projectId,
-                type: "SYNC_GVLS",
-                params: {},
-              })
-            }
-          >
-            Sync GVLs
-          </Button>
-          <Button
-            size="sm"
             variant="outline"
             className="h-7 text-xs"
             disabled={enqueue.isPending}
