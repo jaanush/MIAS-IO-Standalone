@@ -55,7 +55,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             },
           },
           carriers: {
-            where: { isLocalBus: false },
             select: {
               id: true,
               name: true,
