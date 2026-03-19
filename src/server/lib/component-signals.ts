@@ -37,10 +37,11 @@ export async function getEffectiveSignals(componentId: number): Promise<Resolved
   let currentId: number | null = componentId;
 
   while (currentId != null) {
-    const comp = await db.hardwareComponent.findUnique({
-      where: { id: currentId },
-      select: { id: true, name: true, parentId: true },
-    });
+    const comp: { id: number; name: string; parentId: number | null } | null =
+      await db.hardwareComponent.findUnique({
+        where: { id: currentId },
+        select: { id: true, name: true, parentId: true },
+      });
     if (!comp) break;
     chain.push({ id: comp.id, name: comp.name });
     currentId = comp.parentId;
@@ -89,10 +90,11 @@ export async function getAncestorChain(componentId: number): Promise<{ id: numbe
   let currentId: number | null = componentId;
 
   while (currentId != null) {
-    const comp = await db.hardwareComponent.findUnique({
-      where: { id: currentId },
-      select: { id: true, name: true, parentId: true },
-    });
+    const comp: { id: number; name: string; parentId: number | null } | null =
+      await db.hardwareComponent.findUnique({
+        where: { id: currentId },
+        select: { id: true, name: true, parentId: true },
+      });
     if (!comp) break;
     chain.push({ id: comp.id, name: comp.name });
     currentId = comp.parentId;
