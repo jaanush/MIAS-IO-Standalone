@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FeedbackButton } from "@/components/feedback-dialog";
+import { CodesysIndicator } from "@/components/codesys-indicator";
 import { ChevronDown, User } from "lucide-react";
 
 export type HeaderUser = {
@@ -96,6 +97,7 @@ export function AppHeader({ user }: { user: HeaderUser }) {
 
       {/* Right — user menu */}
       <div className="flex items-center justify-end gap-0.5">
+        <CodesysIndicator />
         <FeedbackButton />
         <ThemeToggle />
         <DropdownMenu>
