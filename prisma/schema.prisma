@@ -976,8 +976,11 @@ model AnalogAlarm {
 // =============================================================
 
 // project_id = NULL → global/shared component; SET → project-private
+// parentId = NULL → root component; SET → child that inherits parent signals
+// Signal resolution: walk up the parent chain, child signals override parent at same channelOffset
 model HardwareComponent {
   id           Int             @id @default(autoincrement())
+  parentId     Int?            @map("parent_id")
   projectId    Int?            @map("project_id")
   name         String          @db.VarChar(255)
   manufacturer String?         @db.VarChar(100)
@@ -992,6 +995,8 @@ model HardwareComponent {
   createdAt    DateTime        @default(now()) @map("created_at")
   updatedAt    DateTime        @updatedAt @map("updated_at")
 
+  parent    HardwareComponent?  @relation("ComponentHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children  HardwareComponent[] @relation("ComponentHierarchy")
   project   Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   creator   User?               @relation("HardwareComponentCreatedBy", fields: [createdBy], references: [id])
   signals   ComponentSignal[]

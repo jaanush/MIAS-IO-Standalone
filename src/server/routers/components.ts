@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import { extractModbusRegisters, type ExtractedRegister } from "../lib/modbus-ai-extract";
+import { getEffectiveSignals } from "../lib/component-signals";
 import { SIGNAL_ORIGINS, IO_TYPES, RAW_DATA_TYPES, BYTE_ORDERS, MODBUS_REGISTER_TYPES, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, DISCRETE_ALARM_CONDITIONS, ANALOG_ALARM_CONDITIONS, ALARM_SEVERITIES, COMPONENT_STATUS, BUS_PROTOCOLS } from "@/lib/enums";
 
 /** Recompute minCanIdOffset = max(canId) - min(canId) + 1 across active signals */
@@ -96,6 +97,8 @@ const componentInclude = {
       plcDataTypeCatalog: { select: { id: true, code: true } },
     },
   },
+  parent: { select: { id: true, name: true } },
+  children: { select: { id: true, name: true, status: true, _count: { select: { signals: true, instances: true } } }, orderBy: { name: "asc" as const } },
 };
 
 export const componentsRouter = createTRPCRouter({
@@ -105,10 +108,15 @@ export const componentsRouter = createTRPCRouter({
       where: { projectId: null },
       orderBy: { name: "asc" },
       include: {
-        _count: { select: { signals: true } },
+        _count: { select: { signals: true, children: true } },
+        parent: { select: { id: true, name: true } },
       },
     })
   ),
+
+  effectiveSignals: protectedProcedure
+    .input(z.object({ componentId: z.number().int() }))
+    .query(({ input }) => getEffectiveSignals(input.componentId)),
 
   projectComponentList: protectedProcedure
     .input(z.object({ projectId: z.number().int() }))
@@ -135,6 +143,7 @@ export const componentsRouter = createTRPCRouter({
   componentCreate: protectedProcedure
     .input(z.object({
       projectId: z.number().int().optional().nullable(),
+      parentId: z.number().int().optional().nullable(),
       name: z.string().min(1),
       manufacturer: z.string().optional().nullable(),
       model: z.string().optional().nullable(),
@@ -146,7 +155,7 @@ export const componentsRouter = createTRPCRouter({
     }))
     .mutation(({ input }) =>
       db.hardwareComponent.create({
-        data: { ...input, projectId: input.projectId ?? null },
+        data: { ...input, projectId: input.projectId ?? null, parentId: input.parentId ?? null },
         include: componentInclude,
       })
     ),
@@ -154,6 +163,7 @@ export const componentsRouter = createTRPCRouter({
   componentUpdate: protectedProcedure
     .input(z.object({
       id: z.number().int(),
+      parentId: z.number().int().optional().nullable(),
       name: z.string().min(1),
       manufacturer: z.string().optional().nullable(),
       model: z.string().optional().nullable(),

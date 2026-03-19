@@ -25,6 +25,7 @@ import { COMPONENT_STATUS, BUS_PROTOCOLS } from "@/lib/enums";
 
 const schema = z.object({
   name: z.string().min(1, "Required"),
+  parentId: z.number().int().optional().nullable(),
   manufacturer: z.string().optional().nullable(),
   model: z.string().optional().nullable(),
   version: z.string().optional().nullable(),
@@ -48,6 +49,7 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
   const utils = trpc.useUtils();
 
   const { data, isLoading, refetch } = trpc.components.componentById.useQuery({ id });
+  const { data: allComponents = [] } = trpc.components.componentList.useQuery();
 
   const update = trpc.components.componentUpdate.useMutation({
     onSuccess: () => {
@@ -73,6 +75,7 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
     if (data) {
       reset({
         name: data.name,
+        parentId: data.parentId ?? null,
         manufacturer: data.manufacturer,
         model: data.model,
         version: data.version,
@@ -119,10 +122,29 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
         <section className="space-y-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Identity</h2>
           <form onSubmit={handleSubmit(onSaveMeta)} className="space-y-4">
-            <div className="space-y-1">
-              <Label>Name</Label>
-              <Input {...register("name")} />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Name</Label>
+                <Input {...register("name")} />
+                {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label>Parent Component</Label>
+                <Select
+                  key={"parent-" + watch("parentId")}
+                  value={watch("parentId") ? String(watch("parentId")) : "__none__"}
+                  onValueChange={(v) => setValue("parentId", v === "__none__" ? null : Number(v), { shouldDirty: true })}
+                >
+                  <SelectTrigger><SelectValue placeholder="None (root)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None (root component)</SelectItem>
+                    {allComponents.filter((c) => c.id !== id).map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Inherits signals from parent</p>
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -220,12 +242,34 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
       <div className="border-t" />
 
       {/* Signal grid — full width */}
+      {/* Children */}
+      {data.children && data.children.length > 0 && (
+        <section className="px-8 py-4 space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Child Components ({data.children.length})
+          </h2>
+          <div className="rounded border divide-y text-sm">
+            {data.children.map((child: any) => (
+              <div key={child.id} className="px-3 py-2 flex items-center justify-between">
+                <span className="font-medium">{child.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {child._count?.signals ?? 0} signals, {child._count?.instances ?? 0} instances
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Child components inherit this component's signals. Signals at the same channel offset are overridden.
+          </p>
+        </section>
+      )}
+
       <section className="px-8 py-6 space-y-3 flex-1">
         <div className="flex items-center justify-between max-w-5xl">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Signals</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {data.signals.length} signal{data.signals.length !== 1 ? "s" : ""} defined
+              {data.signals.length} own signal{data.signals.length !== 1 ? "s" : ""}{data.parent ? ` (inherits from ${data.parent.name})` : ""}
             </p>
           </div>
           <div className="flex gap-2">
