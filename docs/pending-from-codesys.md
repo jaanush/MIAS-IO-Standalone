@@ -70,7 +70,7 @@ Migration: `prisma/migration_hvac_register_metadata.sql`
 
 ---
 
-## 17. CODESYS Session API — remoting infrastructure
+## ~~17. CODESYS Session API — remoting infrastructure~~ — IMPLEMENTED 2026-03-19
 
 **Status:** New. Required for CODESYS ↔ MIAS-IO real-time communication.
 

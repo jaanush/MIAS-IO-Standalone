@@ -312,6 +312,7 @@ model User {
   componentsCreated         HardwareComponent[] @relation("HardwareComponentCreatedBy")
   componentInstancesCreated ComponentInstance[] @relation("ComponentInstanceCreatedBy")
   codesysTasksCreated       CodesysTask[]       @relation("CodesysTaskCreatedBy")
+  codesysSessions           CodesysSession[]    @relation("CodesysSessionUser")
 
   @@map("users")
 }
@@ -593,6 +594,7 @@ model Project {
   codesysSettings   CodesysSettings?
   codesysImports    CodesysImport[]
   wiringRecipes     WiringRecipe[]
+  codesysSessions   CodesysSession[]
 
   @@map("project")
 }
@@ -1214,6 +1216,26 @@ model CodesysTask {
   creator User?   @relation("CodesysTaskCreatedBy", fields: [createdBy], references: [id])
 
   @@map("codesys_task")
+}
+
+model CodesysSession {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String?   @db.Uuid @map("user_id")
+  email           String    @db.VarChar(255)
+  hostname        String    @db.VarChar(255)
+  pluginVersion   String    @db.VarChar(50) @map("plugin_version")
+  miasProjectId   Int?      @map("mias_project_id")
+  projectPath     String?   @db.VarChar(500) @map("project_path")
+  projectOpen     Boolean   @default(false) @map("project_open")
+  pollInterval    Int       @default(10) @map("poll_interval")
+  lastHeartbeatAt DateTime  @default(now()) @map("last_heartbeat_at")
+  disconnectedAt  DateTime? @map("disconnected_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  user    User?    @relation("CodesysSessionUser", fields: [userId], references: [id])
+  project Project? @relation(fields: [miasProjectId], references: [id])
+
+  @@map("codesys_session")
 }
 
 // =============================================================

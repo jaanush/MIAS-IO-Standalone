@@ -88,4 +88,29 @@ export const codesysRouter = createTRPCRouter({
         },
       });
     }),
+
+  // ── Sessions ────────────────────────────────────────────────────────
+  activeSessions: protectedProcedure
+    .input(z.object({ projectId: z.number().int().optional() }).optional())
+    .query(async ({ input }) => {
+      // Sessions with heartbeat within last 30 seconds are considered active
+      const cutoff = new Date(Date.now() - 30_000);
+      return db.codesysSession.findMany({
+        where: {
+          disconnectedAt: null,
+          lastHeartbeatAt: { gte: cutoff },
+          ...(input?.projectId ? { miasProjectId: input.projectId } : {}),
+        },
+        select: {
+          id: true,
+          email: true,
+          hostname: true,
+          pluginVersion: true,
+          miasProjectId: true,
+          projectOpen: true,
+          lastHeartbeatAt: true,
+        },
+        orderBy: { lastHeartbeatAt: "desc" },
+      });
+    }),
 });
