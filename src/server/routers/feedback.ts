@@ -24,7 +24,7 @@ async function uploadAttachment(
       "Content-Type": "application/octet-stream",
       Authorization: authHeader(pat),
     },
-    body: data,
+    body: new Uint8Array(data),
   });
   if (!res.ok) {
     const err = await res.text();
