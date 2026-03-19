@@ -4,7 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { trpc } from "@/trpc/client";
-import { Layers, Cpu, Radio, Puzzle } from "lucide-react";
+import { Layers, Cpu, Radio, Puzzle, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -12,6 +12,7 @@ const navLinks = [
   { href: "hardware", label: "Hardware", icon: Cpu },
   { href: "signals", label: "Signals", icon: Radio },
   { href: "components", label: "Components", icon: Puzzle },
+  { href: "remote", label: "Remote", icon: Network },
 ];
 
 export default function ProjectLayout({

@@ -23,8 +23,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { PROJECT_STATUS } from "@/lib/enums";
-import { CodesysTaskPanel } from "./_components/CodesysTaskPanel";
-import { CodesysSettingsForm } from "./_components/CodesysSettingsForm";
 import { Trash2 } from "lucide-react";
 
 const schema = z.object({
@@ -192,10 +190,6 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
           </div>
         )}
       </section>
-
-      <CodesysSettingsForm projectId={projectId} />
-
-      <CodesysTaskPanel projectId={projectId} />
 
       <PurgeSection projectId={projectId} projectName={project?.name} />
     </div>
