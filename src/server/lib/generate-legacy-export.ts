@@ -328,6 +328,22 @@ export async function generateLegacyExport(projectId: number): Promise<Map<strin
 
   let bo = 0, bp = 0, bq = 0, br = 0, cl = 0;
 
+  // Auto-generate tags for signals that don't have one
+  for (const sig of signals) {
+    if (!sig.tag && sig.description) {
+      const autoTag = sig.description
+        .replace(/[^A-Za-z0-9\s]/g, "")
+        .trim()
+        .replace(/\s+/g, "_")
+        .substring(0, 150);
+      if (autoTag) {
+        sig.tag = /^\d/.test(autoTag) ? `x_${autoTag}` : autoTag;
+        // Persist the generated tag
+        await db.signal.update({ where: { id: sig.id }, data: { tag: sig.tag } });
+      }
+    }
+  }
+
   for (const sig of signals) {
     const tag = sig.tag;
     if (!tag) continue;

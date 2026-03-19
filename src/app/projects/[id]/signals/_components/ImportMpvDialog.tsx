@@ -96,6 +96,21 @@ function resolveTrigger(logic: string, sigType: string): "NO" | "NC" {
   return "NO";
 }
 
+/**
+ * Generate a PLC-safe tag from a signal description.
+ * Replaces spaces/special chars with underscores, strips leading digits.
+ */
+function generateTag(description: string): string {
+  let tag = description
+    .replace(/[^A-Za-z0-9\s]/g, "")  // remove special chars
+    .trim()
+    .replace(/\s+/g, "_");            // spaces → underscores
+  // ST identifiers can't start with a digit
+  if (/^\d/.test(tag)) tag = `x_${tag}`;
+  // Truncate to 150 chars (DB limit)
+  return tag.substring(0, 150);
+}
+
 function resolveInputTypeCode(raw: string): string | null {
   const s = raw.trim().toUpperCase().replace(/\u2013/g, "-");
   if (s === "PT100") return "PT100";
@@ -427,6 +442,7 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
       const signalBatch = parseResult.signals.map((row) => ({
         signalType: row.signalType,
         origin: "IEC" as const,
+        tag: generateTag(row.description),
         description: row.description,
         direction: row.direction,
         systemId: row.system ? (systemMap.get(row.system) ?? null) : null,
