@@ -5,20 +5,6 @@ Items here require implementation in MIAS-IO. Once implemented, update
 
 ---
 
-## BUG: Demo server missing CODESYS_API_KEY env var
-
-**Status:** New. Blocks CODESYS plugin from connecting to demo.
-
-`https://io.demo.neptun.ztna/api/codesys/projects` returns:
-```json
-{"error":"Server misconfiguration: CODESYS_API_KEY not set"}
-```
-
-Set the `CODESYS_API_KEY` environment variable on the demo deployment.
-Value should match what's in the plugin's `config.demo.ini` (currently `dev-key-change-me`).
-
----
-
 ## 18. Plugin auto-update endpoints
 
 **Status:** Endpoints implemented. Waiting for `VERSION` file in MIAS-Plugin repo root.
