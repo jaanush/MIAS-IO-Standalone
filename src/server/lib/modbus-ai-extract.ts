@@ -58,11 +58,136 @@ Respond with ONLY valid JSON matching this schema:
   "notes": "..."
 }`;
 
+/**
+ * Try to parse a structured Excel Modbus register list directly (no AI needed).
+ * Returns null if the file doesn't match the expected column structure.
+ */
+async function tryDirectExcelParse(fileBase64: string, fileName: string): Promise<ExtractionResult | null> {
+  if (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls")) return null;
+
+  const XLSX = await import("xlsx");
+  const buf = Buffer.from(fileBase64, "base64");
+  const wb = XLSX.read(buf, { type: "buffer" });
+
+  const registers: ExtractedRegister[] = [];
+  let deviceName: string | null = null;
+
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+    if (rows.length < 2) continue;
+
+    // Look for header row with "Modbus Address" or "Register" columns
+    let headerIdx = -1;
+    let colMap: Record<string, number> = {};
+    for (let i = 0; i < Math.min(5, rows.length); i++) {
+      const cells = rows[i].map((c: any) => String(c ?? "").toLowerCase().trim());
+      const addrCol = cells.findIndex((c: string) => c.includes("modbus address") || c.includes("register address") || c === "address");
+      const nameCol = cells.findIndex((c: string) => c.includes("signal name") || c.includes("name") || c.includes("tag"));
+      if (addrCol >= 0 && nameCol >= 0) {
+        headerIdx = i;
+        colMap = {
+          address: addrCol,
+          regType: cells.findIndex((c: string) => c.includes("register type") || c === "type"),
+          bit: cells.findIndex((c: string) => c === "bit" || c.includes("bit pos")),
+          name: nameCol,
+          description: cells.findIndex((c: string) => c.includes("description") || c.includes("signal description")),
+          dataType: cells.findIndex((c: string) => c.includes("data type")),
+          access: cells.findIndex((c: string) => c.includes("access") || c === "r/w"),
+          unit: cells.findIndex((c: string) => c === "unit" || c.includes("unit")),
+          scale: cells.findIndex((c: string) => c.includes("scale")),
+        };
+        break;
+      }
+    }
+
+    if (headerIdx < 0) continue;
+
+    // Extract device name from sheet name
+    if (!deviceName) deviceName = sheetName.replace(/_?(ReadOnly|ReadWrite|RO|RW)$/i, "").replace(/_/g, " ").trim();
+
+    const get = (row: any[], key: string) => {
+      const idx = colMap[key];
+      return idx >= 0 ? String(row[idx] ?? "").trim() : "";
+    };
+
+    for (let i = headerIdx + 1; i < rows.length; i++) {
+      const row = rows[i];
+      const addrStr = get(row, "address");
+      if (!addrStr || !/^\d+$/.test(addrStr)) continue;
+
+      const address = parseInt(addrStr, 10);
+      const rawName = get(row, "name");
+      if (!rawName) continue;
+
+      const name = rawName.replace(/[^A-Za-z0-9_]/g, "_").substring(0, 100);
+      const desc = get(row, "description") || rawName;
+      const rawType = get(row, "regType").toLowerCase();
+      const rawAccess = get(row, "access").toUpperCase();
+      const rawDataType = get(row, "dataType").toUpperCase();
+      const bitStr = get(row, "bit");
+      const unit = get(row, "unit") || null;
+      const scaleStr = get(row, "scale");
+
+      const registerType: ExtractedRegister["registerType"] =
+        rawType.includes("holding") ? "HOLDING_REGISTER" :
+        rawType.includes("input") ? "INPUT_REGISTER" :
+        address >= 40000 ? "HOLDING_REGISTER" :
+        address >= 30000 ? "INPUT_REGISTER" :
+        address >= 10000 ? "DISCRETE_INPUT" :
+        "COIL";
+
+      const readWrite: ExtractedRegister["readWrite"] =
+        rawAccess.includes("W") && rawAccess.includes("R") ? "RW" :
+        rawAccess.includes("W") ? "W" : "R";
+
+      const bitPosition = bitStr && bitStr !== "--" && bitStr !== "" ? parseInt(bitStr, 10) : null;
+
+      const dataType: ExtractedRegister["dataType"] =
+        rawDataType === "BOOL" || bitPosition != null ? "BOOL" :
+        rawDataType === "INT" || rawDataType === "INT16" ? "INT16" :
+        rawDataType === "UINT" || rawDataType === "UINT16" || rawDataType === "WORD" ? "UINT16" :
+        rawDataType === "DINT" || rawDataType === "INT32" ? "INT32" :
+        rawDataType === "UDINT" || rawDataType === "UINT32" || rawDataType === "DWORD" ? "UINT32" :
+        rawDataType === "REAL" || rawDataType === "FLOAT" || rawDataType === "FLOAT32" ? "FLOAT32" :
+        "INT16";
+
+      const scaleFactor = scaleStr && scaleStr !== "1" && scaleStr !== "" ? parseFloat(scaleStr) : null;
+
+      registers.push({
+        address,
+        registerType,
+        dataType,
+        name,
+        description: desc,
+        unit,
+        scaleFactor: isNaN(scaleFactor ?? 0) ? null : scaleFactor,
+        offset: null,
+        readWrite,
+        bitPosition: isNaN(bitPosition ?? 0) ? null : bitPosition,
+      });
+    }
+  }
+
+  if (registers.length === 0) return null;
+
+  return {
+    registers,
+    deviceName,
+    protocol: "MODBUS_RTU",
+    notes: `Direct parse from ${wb.SheetNames.length} sheets, ${registers.length} registers extracted`,
+  };
+}
+
 export async function extractModbusRegisters(
   fileBase64: string,
   fileName: string,
   mimeType: string,
 ): Promise<ExtractionResult> {
+  // Try direct Excel parsing first (faster, free, handles large files)
+  const directResult = await tryDirectExcelParse(fileBase64, fileName);
+  if (directResult) return directResult;
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error("ANTHROPIC_API_KEY not configured. Add it to your environment variables.");
@@ -100,9 +225,10 @@ export async function extractModbusRegisters(
       sheets.push(`=== Sheet: ${name} ===\n${lines}`);
     }
     const text = sheets.join("\n\n");
+    // Claude's context can handle ~200K chars; use more for large register maps
     content.push({
       type: "text",
-      text: `\n\n--- DOCUMENT CONTENT (${fileName}) ---\n${text.substring(0, 100000)}`,
+      text: `\n\n--- DOCUMENT CONTENT (${fileName}) ---\n${text.substring(0, 200000)}`,
     });
   } else {
     // CSV/text files — decode as UTF-8
