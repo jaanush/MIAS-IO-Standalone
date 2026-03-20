@@ -31,8 +31,9 @@ export const importRouter = createTRPCRouter({
         operator: z.enum(["==", "!="]),
         value: z.string(),
       })),
+      filterLogic: z.enum(["AND", "OR"]).default("AND"),
     }))
     .mutation(({ input }) => extractMappedRows(
-      input.fileBase64, input.sheetName, input.mappings, input.filters
+      input.fileBase64, input.sheetName, input.mappings, input.filters, input.filterLogic
     )),
 });

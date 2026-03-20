@@ -111,6 +111,7 @@ export async function extractMappedRows(
   sheetName: string,
   mappings: ColumnMapping[],
   filters: RowFilter[],
+  filterLogic: "AND" | "OR" = "AND",
 ): Promise<{ rows: MappedRow[]; totalRows: number; filteredOut: number }> {
   const XLSX = await import("xlsx");
   const buf = Buffer.from(fileBase64, "base64");
@@ -152,13 +153,21 @@ export async function extractMappedRows(
     if (!row.some((c: any) => String(c ?? "").trim())) continue;
     totalRows++;
 
-    // Apply filters
-    let pass = true;
-    for (const f of filterSpecs) {
-      if (f.colIdx < 0) continue;
-      const val = String(row[f.colIdx] ?? "").trim();
-      if (f.operator === "==" && val !== f.value) { pass = false; break; }
-      if (f.operator === "!=" && val === f.value) { pass = false; break; }
+    // Apply filters with AND/OR logic
+    const activeFilters = filterSpecs.filter((f) => f.colIdx >= 0);
+    let pass: boolean;
+    if (activeFilters.length === 0) {
+      pass = true;
+    } else if (filterLogic === "AND") {
+      pass = activeFilters.every((f) => {
+        const val = String(row[f.colIdx] ?? "").trim();
+        return f.operator === "==" ? val === f.value : val !== f.value;
+      });
+    } else {
+      pass = activeFilters.some((f) => {
+        const val = String(row[f.colIdx] ?? "").trim();
+        return f.operator === "==" ? val === f.value : val !== f.value;
+      });
     }
     if (!pass) { filteredOut++; continue; }
 

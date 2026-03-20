@@ -40,6 +40,7 @@ interface ImportPreset {
   sheetHint: string;
   mappings: ColumnMapping[];
   filters: RowFilter[];
+  filterLogic: "AND" | "OR";
 }
 
 const LS_PRESETS_KEY = "mias-import-presets";
@@ -76,6 +77,7 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
   const [selectedSheet, setSelectedSheet] = useState<string>("");
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [filters, setFilters] = useState<RowFilter[]>([]);
+  const [filterLogic, setFilterLogic] = useState<"AND" | "OR">("AND");
   const [previewRows, setPreviewRows] = useState<MappedRow[]>([]);
   const [previewStats, setPreviewStats] = useState({ total: 0, filtered: 0 });
   const [importing, setImporting] = useState(false);
@@ -154,6 +156,7 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
     const validMappings = preset.mappings.filter((m) => currentHeaders.includes(m.sourceColumn));
     setMappings(validMappings);
     setFilters(preset.filters);
+    setFilterLogic(preset.filterLogic ?? "AND");
     if (hintedSheet || selectedSheet) setStep("map");
   }
 
@@ -164,6 +167,7 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
       sheetHint: selectedSheet,
       mappings,
       filters,
+      filterLogic,
     };
     const all = loadPresets().filter((p) => p.name !== preset.name);
     all.push(preset);
@@ -209,9 +213,27 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
       fileBase64,
       sheetName: selectedSheet,
       mappings,
-      filters: filters.filter((f) => f.value), // skip empty value filters
+      filters: filters.filter((f) => f.value),
+      filterLogic,
     });
   }
+
+  // Live-filtered sample rows (client-side preview of filter effect)
+  const filteredSampleRows = useMemo(() => {
+    if (!currentSheet) return [];
+    const activeFilters = filters.filter((f) => f.value);
+    if (activeFilters.length === 0) return currentSheet.sampleRows;
+
+    return currentSheet.sampleRows.filter((row) => {
+      const checks = activeFilters.map((f) => {
+        const colIdx = currentSheet.headers.indexOf(f.column);
+        if (colIdx < 0) return true;
+        const val = row[colIdx] ?? "";
+        return f.operator === "==" ? val === f.value : val !== f.value;
+      });
+      return filterLogic === "AND" ? checks.every(Boolean) : checks.some(Boolean);
+    });
+  }, [currentSheet, filters, filterLogic]);
 
   async function doImport() {
     setImporting(true);
@@ -380,7 +402,15 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
             {/* Filters */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Row Filters</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold">Row Filters</h3>
+                  {filters.length > 1 && (
+                    <div className="flex rounded-md border text-[10px]">
+                      <button type="button" onClick={() => setFilterLogic("AND")} className={`px-2 py-0.5 ${filterLogic === "AND" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>AND</button>
+                      <button type="button" onClick={() => setFilterLogic("OR")} className={`px-2 py-0.5 ${filterLogic === "OR" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>OR</button>
+                    </div>
+                  )}
+                </div>
                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={addFilter}>
                   <Plus className="h-3 w-3 mr-1" /> Add filter
                 </Button>
@@ -401,10 +431,15 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
               ))}
             </div>
 
-            {/* Sample data */}
+            {/* Sample data (live-filtered) */}
             {currentSheet && currentSheet.sampleRows.length > 0 && (
               <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-muted-foreground">Sample Data (first 5 rows)</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  Sample Data
+                  {filters.some((f) => f.value) && (
+                    <span className="font-normal ml-1">({filteredSampleRows.length}/{currentSheet.sampleRows.length} match filters)</span>
+                  )}
+                </h3>
                 <div className="overflow-x-auto rounded border max-h-36 overflow-y-auto">
                   <table className="w-full text-[10px]">
                     <thead className="sticky top-0 bg-background">
@@ -415,13 +450,16 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
                       </tr>
                     </thead>
                     <tbody>
-                      {currentSheet.sampleRows.map((row, i) => (
+                      {filteredSampleRows.map((row, i) => (
                         <tr key={i} className="border-b last:border-0">
                           {currentSheet.headers.map((_, j) => (
                             <td key={j} className="px-1.5 py-0.5 truncate max-w-[120px]">{row[j] ?? ""}</td>
                           ))}
                         </tr>
                       ))}
+                      {filteredSampleRows.length === 0 && (
+                        <tr><td colSpan={currentSheet.headers.length} className="px-2 py-3 text-center text-muted-foreground">No sample rows match the current filters</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -491,13 +529,24 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
           </div>
         )}
 
-        {/* Step 5: Done */}
+        {/* Step 5: Done — offer to save preset */}
         {step === "done" && (
-          <div className="space-y-3 py-2">
+          <div className="space-y-4 py-2">
             <p className="text-sm text-green-600 font-medium">Import complete.</p>
-            <div className="flex justify-end">
-              <Button onClick={handleClose}>Close</Button>
-            </div>
+            {!showSavePreset ? (
+              <div className="flex justify-between">
+                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => setShowSavePreset(true)}>
+                  Save as preset for next time?
+                </Button>
+                <Button onClick={handleClose}>Close</Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Input className="h-8 text-xs flex-1" value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Preset name..." autoFocus onKeyDown={(e) => { if (e.key === "Enter") { saveCurrentPreset(); handleClose(); } }} />
+                <Button size="sm" className="h-8 text-xs" onClick={() => { saveCurrentPreset(); handleClose(); }} disabled={!presetName.trim()}>Save & Close</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleClose}>Skip</Button>
+              </div>
+            )}
           </div>
         )}
       </DialogContent>
@@ -516,6 +565,7 @@ function FilterRow({ filter, headers, fileBase64, sheetName, onChange, onRemove 
   onRemove: () => void;
 }) {
   const [values, setValues] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const columnValues = trpc.import.columnValues.useMutation({
     onSuccess: (data) => setValues(data),
   });
@@ -533,6 +583,10 @@ function FilterRow({ filter, headers, fileBase64, sheetName, onChange, onRemove 
     columnValues.mutate({ fileBase64, sheetName, columnHeader: filter.column });
   }
 
+  const filteredSuggestions = values.filter((v) =>
+    !filter.value || v.toLowerCase().includes(filter.value.toLowerCase())
+  ).slice(0, 15);
+
   return (
     <div className="flex items-center gap-2">
       <Select value={filter.column} onValueChange={onColumnChange}>
@@ -548,17 +602,31 @@ function FilterRow({ filter, headers, fileBase64, sheetName, onChange, onRemove 
           <SelectItem value="!=">!=</SelectItem>
         </SelectContent>
       </Select>
-      {values.length > 0 ? (
-        <Select value={filter.value || "__none__"} onValueChange={(v) => onChange({ value: v === "__none__" ? "" : v })}>
-          <SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Select value..." /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">— select —</SelectItem>
-            {values.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      ) : (
-        <Input className="h-8 text-xs flex-1" value={filter.value} onChange={(e) => onChange({ value: e.target.value })} placeholder="Value..." />
-      )}
+      <div className="relative flex-1">
+        <Input
+          className="h-8 text-xs"
+          value={filter.value}
+          onChange={(e) => { onChange({ value: e.target.value }); setShowSuggestions(true); }}
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+          placeholder="Type to filter values..."
+        />
+        {showSuggestions && filteredSuggestions.length > 0 && (
+          <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-md border bg-popover shadow-md max-h-40 overflow-y-auto">
+            {filteredSuggestions.map((v) => (
+              <button
+                key={v}
+                type="button"
+                className="w-full text-left px-2 py-1 text-xs hover:bg-accent truncate"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { onChange({ value: v }); setShowSuggestions(false); }}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <button type="button" onClick={onRemove} className="text-muted-foreground hover:text-destructive">
         <X className="h-4 w-4" />
       </button>
