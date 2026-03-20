@@ -86,11 +86,28 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
   const [showSavePreset, setShowSavePreset] = useState(false);
 
   const scopedKey = presetKey ?? title;
-  const presets = useMemo(() => loadPresets().filter((p) => p.name.startsWith(scopedKey + ":")), [scopedKey]);
+  const [presetVersion, setPresetVersion] = useState(0);
+  const presets = useMemo(() => loadPresets().filter((p) => p.name.startsWith(scopedKey + ":")), [scopedKey, presetVersion]);
 
   const readSheets = trpc.import.readSheets.useMutation({
     onSuccess: (data) => {
       setSheets(data);
+      // Check if any preset matches a sheet in this file
+      const currentPresets = loadPresets().filter((p) => p.name.startsWith(scopedKey + ":"));
+      const matchingPreset = currentPresets.find((p) => data.some((s) => s.name === p.sheetHint));
+      if (matchingPreset) {
+        // Auto-apply the matching preset
+        const sheet = data.find((s) => s.name === matchingPreset.sheetHint);
+        if (sheet) {
+          setSelectedSheet(sheet.name);
+          const validMappings = matchingPreset.mappings.filter((m) => sheet.headers.includes(m.sourceColumn));
+          setMappings(validMappings);
+          setFilters(matchingPreset.filters);
+          setFilterLogic(matchingPreset.filterLogic ?? "AND");
+          setStep("map");
+          return;
+        }
+      }
       if (data.length === 1) {
         setSelectedSheet(data[0].name);
         initMappings(data[0]);
@@ -174,10 +191,12 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
     savePresets(all);
     setShowSavePreset(false);
     setPresetName("");
+    setPresetVersion((v) => v + 1);
   }
 
   function deletePreset(name: string) {
     savePresets(loadPresets().filter((p) => p.name !== name));
+    setPresetVersion((v) => v + 1);
   }
 
   function selectSheet(name: string) {
@@ -299,19 +318,40 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
         {/* Step 2: Sheet selection */}
         {step === "sheet" && (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Select a sheet to import from:</p>
+            {/* Saved presets — shown first for quick re-import */}
             {presets.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Or apply a saved preset:</p>
-                <div className="flex gap-2 flex-wrap">
-                  {presets.map((p) => (
-                    <Button key={p.name} variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyPreset(p)}>
-                      {p.name.replace(scopedKey + ":", "")} ({p.sheetHint})
-                    </Button>
-                  ))}
+              <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                <p className="text-sm font-medium">Saved Presets</p>
+                <div className="space-y-1">
+                  {presets.map((p) => {
+                    const displayName = p.name.replace(scopedKey + ":", "");
+                    const sheetExists = sheets.some((s) => s.name === p.sheetHint);
+                    return (
+                      <div key={p.name} className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs flex-1 justify-start"
+                          onClick={() => applyPreset(p)}
+                          disabled={!sheetExists}
+                        >
+                          <span className="font-medium">{displayName}</span>
+                          <span className="ml-2 text-muted-foreground">
+                            Sheet: {p.sheetHint}{!sheetExists && " (not found)"}
+                            {" · "}{p.mappings.length} columns{" · "}{p.filters.length} filter{p.filters.length !== 1 ? "s" : ""}
+                          </span>
+                        </Button>
+                        <button type="button" onClick={() => deletePreset(p.name)} className="text-muted-foreground hover:text-destructive">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
+
+            <p className="text-sm text-muted-foreground">Or select a sheet manually:</p>
             <div className="rounded-md border divide-y">
               {sheets.map((s) => (
                 <button
