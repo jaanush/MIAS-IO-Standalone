@@ -175,9 +175,17 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="space-y-1">
-            <Label>Tag</Label>
-            <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="e.g. TI-101" />
+          <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+            <div className="space-y-1">
+              <Label>Tag</Label>
+              <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="e.g. TI-101" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-muted-foreground">Rev</Label>
+              <div className="h-9 flex items-center rounded-md border border-input bg-muted px-3 text-sm font-mono text-muted-foreground">
+                {(signal as any).revision ?? "—"}
+              </div>
+            </div>
           </div>
           <div className="space-y-1">
             <Label>IO Direction</Label>
