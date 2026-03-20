@@ -94,7 +94,7 @@ type EditValues = {
 
 type ColKey =
   | "select" | "system" | "component" | "desc" | "tag"
-  | "card" | "ch" | "io" | "origin" | "bus" | "canid" | "alarms"
+  | "card" | "ch" | "io" | "origin" | "network" | "bus" | "canid" | "alarms"
   | "trigger" | "filter" | "itype" | "wire" | "eu" | "smin" | "smax" | "dtype"
   | "gvl" | "drawing" | "cabinet" | "actions";
 
@@ -116,6 +116,7 @@ const COL_DEFS: ColDef[] = [
   { key: "ch",        label: "Ch",         defaultWidth: 36 },
   { key: "io",        label: "IO",         defaultWidth: 52 },
   { key: "origin",    label: "Origin",     defaultWidth: 90 },
+  { key: "network",   label: "Network",    defaultWidth: 140 },
   { key: "bus",       label: "Bus",        defaultWidth: 44 },
   { key: "canid",     label: "CAN ID",     defaultWidth: 72 },
   { key: "alarms",    label: "Alarms",     defaultWidth: 58 },
@@ -360,6 +361,11 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
         <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-medium", typeColor)}>{ioCode}</Badge>
       </Td>}
       {!h.has("origin") && <Td><span className="text-xs text-muted-foreground truncate block">{signal.origin}</span></Td>}
+      {!h.has("network") && <Td>{(() => {
+        const net = signal.busSignal?.plcNetwork ?? signal.instanceSignal?.instance?.network;
+        if (!net) return <span className="text-xs text-muted-foreground/25">—</span>;
+        return <span className="text-xs truncate block" title={net.description ?? undefined}>{net.protocol}{net.description ? ` — ${net.description}` : ""}</span>;
+      })()}</Td>}
       {!h.has("bus") && <Td className="text-center">
         {signal.origin !== "IEC" && signal.origin !== "INTERNAL" ? (
           <button type="button" title={signal.busSignal ? "Edit bus config" : "Add bus config"}
@@ -410,11 +416,11 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
       {!h.has("drawing") && <Td><span className="text-xs text-muted-foreground truncate block">{signal.drawingRef ?? "—"}</span></Td>}
       {!h.has("cabinet") && <Td><span className="text-xs text-muted-foreground">{signal.cabinetLocation ?? "—"}</span></Td>}
       {!h.has("actions") && <Td>
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          {signal.instanceSignal?.templateDirty && onRevert && (
+        <div className="flex items-center gap-0.5">
+          {onRevert && (
             <button type="button" title="Revert to component template defaults"
-              className="rounded p-1 hover:bg-accent text-amber-500 hover:text-amber-600 disabled:opacity-50"
-              disabled={isRevertPending} onClick={(e) => { e.stopPropagation(); onRevert(); }}
+              className={cn("rounded p-1 hover:bg-accent disabled:opacity-50", signal.instanceSignal?.templateDirty ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground/25")}
+              disabled={isRevertPending || !signal.instanceSignal?.templateDirty} onClick={(e) => { e.stopPropagation(); onRevert(); }}
             ><RotateCcw className="h-3.5 w-3.5" /></button>
           )}
           <button type="button" title="Advanced"
@@ -649,16 +655,39 @@ const globalFilterFn: FilterFn<SignalRow> = (row, _colId, filterValue: string) =
   );
 };
 
+/** Text filter: "<empty>" matches null/blank, "!<empty>" matches non-empty, otherwise substring. */
+const emptyAwareText: FilterFn<SignalRow> = (row, columnId, filterValue) => {
+  const cellValue = String(row.getValue(columnId) ?? "");
+  const filter = String(filterValue).trim().toLowerCase();
+  if (filter === "<empty>") return cellValue === "";
+  if (filter === "!<empty>") return cellValue !== "";
+  return cellValue.toLowerCase().includes(filter);
+};
+
+/** Faceted filter: "__empty__" matches blank, otherwise exact match. */
+const emptyAwareFacet: FilterFn<SignalRow> = (row, columnId, filterValue) => {
+  const cellValue = String(row.getValue(columnId) ?? "");
+  if (filterValue === "__empty__") return cellValue === "";
+  return cellValue === String(filterValue);
+};
+
 const SIGNAL_COLUMNS = [
   columnHelper.display({ id: "select", enableSorting: false, enableColumnFilter: false }),
-  columnHelper.accessor((r) => r.system?.name ?? "", { id: "system", filterFn: "includesString" }),
-  columnHelper.accessor((r) => r.componentTag ?? "", { id: "component", filterFn: "includesString" }),
-  columnHelper.accessor((r) => r.description ?? "", { id: "desc", filterFn: "includesString" }),
-  columnHelper.accessor((r) => r.tag ?? "", { id: "tag", filterFn: "includesString" }),
-  columnHelper.accessor((r) => r.ioCard ? `${r.ioCard.carrier.plc.name}/${r.ioCard.carrier.name}` : "", { id: "card", filterFn: "includesString" }),
+  columnHelper.accessor((r) => r.system?.name ?? "", { id: "system", filterFn: emptyAwareText }),
+  columnHelper.accessor((r) => r.componentTag ?? "", { id: "component", filterFn: emptyAwareText }),
+  columnHelper.accessor((r) => r.description ?? "", { id: "desc", filterFn: emptyAwareText }),
+  columnHelper.accessor((r) => r.tag ?? "", { id: "tag", filterFn: emptyAwareText }),
+  columnHelper.accessor((r) => r.ioCard ? `${r.ioCard.carrier.plc.name}/${r.ioCard.carrier.name}` : "", { id: "card", filterFn: emptyAwareText }),
   columnHelper.accessor((r) => r.channelPosition ?? null, { id: "ch", enableColumnFilter: false }),
-  columnHelper.accessor((r) => getSignalIoCode(r), { id: "io", filterFn: "equalsString" }),
-  columnHelper.accessor((r) => r.origin, { id: "origin", filterFn: "equalsString" }),
+  columnHelper.accessor((r) => getSignalIoCode(r), { id: "io", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.origin, { id: "origin", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => {
+    const net = r.busSignal?.plcNetwork ?? r.instanceSignal?.instance?.network;
+    if (!net) return "";
+    const parts: string[] = [net.protocol];
+    if (net.description) parts.push(net.description);
+    return parts.join(" — ");
+  }, { id: "network", filterFn: emptyAwareText }),
   columnHelper.display({ id: "bus", enableSorting: false, enableColumnFilter: false }),
   columnHelper.accessor(
     (r) => {
@@ -675,24 +704,24 @@ const SIGNAL_COLUMNS = [
         : (r.analogSignal?.alarms?.length ?? 0),
     { id: "alarms", enableColumnFilter: false }
   ),
-  columnHelper.accessor((r) => r.discreteSignal?.trigger ?? "", { id: "trigger", filterFn: "equalsString" }),
+  columnHelper.accessor((r) => r.discreteSignal?.trigger ?? "", { id: "trigger", filterFn: emptyAwareFacet }),
   columnHelper.accessor((r) => r.discreteSignal?.filterTimeMs != null ? Number(r.discreteSignal.filterTimeMs) : null, { id: "filter", enableColumnFilter: false }),
-  columnHelper.accessor((r) => r.analogSignal?.inputType?.name ?? "", { id: "itype", filterFn: "equalsString" }),
-  columnHelper.accessor((r) => r.analogSignal?.wireConfig ?? "", { id: "wire", filterFn: "equalsString" }),
-  columnHelper.accessor((r) => r.analogSignal?.engineeringUnit?.symbol ?? "", { id: "eu", filterFn: "equalsString" }),
+  columnHelper.accessor((r) => r.analogSignal?.inputType?.name ?? "", { id: "itype", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.analogSignal?.wireConfig ?? "", { id: "wire", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.analogSignal?.engineeringUnit?.symbol ?? "", { id: "eu", filterFn: emptyAwareFacet }),
   columnHelper.accessor((r) => r.analogSignal?.scaleMin != null ? Number(r.analogSignal.scaleMin) : null, { id: "smin", enableColumnFilter: false }),
   columnHelper.accessor((r) => r.analogSignal?.scaleMax != null ? Number(r.analogSignal.scaleMax) : null, { id: "smax", enableColumnFilter: false }),
-  columnHelper.accessor((r) => r.analogSignal?.plcDataTypeCatalog?.code ?? r.analogSignal?.engineeringUnit?.plcDataTypeCatalog?.code ?? "", { id: "dtype", filterFn: "equalsString" }),
-  columnHelper.accessor((r) => r.gvl?.name ?? "", { id: "gvl", filterFn: "includesString" }),
-  columnHelper.accessor((r) => r.drawingRef ?? "", { id: "drawing", filterFn: "includesString" }),
-  columnHelper.accessor((r) => r.cabinetLocation ?? "", { id: "cabinet", filterFn: "includesString" }),
+  columnHelper.accessor((r) => r.analogSignal?.plcDataTypeCatalog?.code ?? r.analogSignal?.engineeringUnit?.plcDataTypeCatalog?.code ?? "", { id: "dtype", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.gvl?.name ?? "", { id: "gvl", filterFn: emptyAwareText }),
+  columnHelper.accessor((r) => r.drawingRef ?? "", { id: "drawing", filterFn: emptyAwareText }),
+  columnHelper.accessor((r) => r.cabinetLocation ?? "", { id: "cabinet", filterFn: emptyAwareText }),
   columnHelper.display({ id: "actions", enableSorting: false, enableColumnFilter: false }),
 ];
 
 // ── Column filter inputs ──────────────────────────────────────────────────────
 
 // Columns with text filter (free-text substring match)
-const TEXT_FILTER_COLS = new Set<ColKey>(["system", "component", "desc", "tag", "card", "gvl", "drawing", "cabinet"]);
+const TEXT_FILTER_COLS = new Set<ColKey>(["system", "component", "desc", "tag", "card", "network", "gvl", "drawing", "cabinet"]);
 // Columns with faceted select filter (dynamic values from data)
 const FACET_FILTER_COLS = new Set<ColKey>(["io", "origin", "trigger", "itype", "wire", "eu", "dtype"]);
 
@@ -712,7 +741,7 @@ function FilterCell({
         className={cn(base, "px-1.5")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Filter…"
+        placeholder="Filter… (<empty>)"
         onClick={(e) => e.stopPropagation()}
       />
     );
@@ -721,6 +750,7 @@ function FilterCell({
   if (FACET_FILTER_COLS.has(colKey)) {
     // Build options from faceted unique values (only values present in current data)
     const facetMap = column.getFacetedUniqueValues();
+    const emptyCount = facetMap.get("") ?? facetMap.get(null as any) ?? 0;
     const facetOptions = Array.from(facetMap.keys())
       .filter((v) => v !== "" && v != null)
       .sort()
@@ -734,6 +764,7 @@ function FilterCell({
         onClick={(e) => e.stopPropagation()}
       >
         <option value="">All ({facetMap.get("") != null ? facetMap.size - 1 : facetMap.size})</option>
+        {emptyCount > 0 && <option value="__empty__">(empty) ({emptyCount})</option>}
         {facetOptions.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label} ({facetMap.get(o.value) ?? 0})
