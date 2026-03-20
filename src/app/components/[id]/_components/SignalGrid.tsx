@@ -14,6 +14,7 @@ import {
   type GroupingState,
   type ExpandedState,
   type Column,
+  type Row,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { trpc } from "@/trpc/client";
@@ -255,20 +256,21 @@ function defaultsSummary(row: SignalRowState, inputTypes: { id: number; name: st
 
 function busSummary(row: SignalRowState): string {
   const o = row.origin;
-  if (o === "CANOPEN") {
+  // Detect protocol from origin OR from populated fields (origin may be null on templates)
+  if (o === "CANOPEN" || (!o && (row.canopenIndex != null || row.canopenSubIndex != null))) {
     const parts: string[] = [];
     if (row.canopenIndex != null) parts.push(`0x${row.canopenIndex.toString(16).toUpperCase().padStart(4, "0")}`);
     if (row.canopenSubIndex != null) parts.push(`sub${row.canopenSubIndex}`);
     if (row.bitOffset != null) parts.push(`bit${row.bitOffset}`);
     return parts.join(" ") || "—";
   }
-  if (o === "J1939") {
+  if (o === "J1939" || (!o && (row.j1939Pgn != null || row.j1939Spn != null))) {
     const parts: string[] = [];
     if (row.j1939Pgn != null) parts.push(`PGN:${row.j1939Pgn}`);
     if (row.j1939Spn != null) parts.push(`SPN:${row.j1939Spn}`);
     return parts.join(" ") || "—";
   }
-  if (o === "CANBUS") {
+  if (o === "CANBUS" || (!o && row.canId != null)) {
     const parts: string[] = [];
     if (row.canId != null) parts.push(`0x${row.canId.toString(16).toUpperCase()}`);
     if (row.bitOffset != null && row.bitLength != null) parts.push(`b${row.bitOffset}+${row.bitLength}`);
@@ -276,7 +278,7 @@ function busSummary(row: SignalRowState): string {
     else if (row.muxId != null) parts.push(`m${row.muxId}`);
     return parts.join(" ") || "—";
   }
-  if (o === "MODBUS_RTU" || o === "MODBUS_TCP") {
+  if (o === "MODBUS_RTU" || o === "MODBUS_TCP" || row.modbusRegisterType != null || row.modbusRegisterOffset != null) {
     if (row.modbusRegisterOffset != null) {
       const abbr: Record<string, string> = { HOLDING_REGISTER: "HR", INPUT_REGISTER: "IR", COIL: "CO", DISCRETE_INPUT: "DI" };
       const prefix = row.modbusRegisterType ? (abbr[row.modbusRegisterType] ?? row.modbusRegisterType) : "";
@@ -612,6 +614,15 @@ function SortHeader({ column, label }: { column: Column<TableRow, unknown>; labe
   );
 }
 
+/** Custom filter: "<empty>" matches null/blank, "!<empty>" matches non-empty, otherwise substring match. */
+function emptyAwareFilter(row: Row<TableRow>, columnId: string, filterValue: string): boolean {
+  const cellValue = row.getValue<string>(columnId) ?? "";
+  const filter = filterValue.trim().toLowerCase();
+  if (filter === "<empty>") return cellValue === "" || cellValue === "(none)";
+  if (filter === "!<empty>") return cellValue !== "" && cellValue !== "(none)";
+  return cellValue.toLowerCase().includes(filter);
+}
+
 const COLUMNS = [
   columnHelper.display({ id: "select",   header: "",            enableSorting: false }),
   columnHelper.display({ id: "active",   header: "Active",      enableSorting: false }),
@@ -619,25 +630,25 @@ const COLUMNS = [
     id: "type",
     header: ({ column }) => <SortHeader column={column} label="Type" />,
     enableGrouping: true,
-    filterFn: "includesString",
+    filterFn: emptyAwareFilter,
   }),
   columnHelper.accessor((r) => r.local.origin ?? "(none)", {
     id: "origin",
     header: ({ column }) => <SortHeader column={column} label="Origin" />,
     enableGrouping: true,
-    filterFn: "includesString",
+    filterFn: emptyAwareFilter,
   }),
   columnHelper.accessor((r) => r.local.tagSuffix ?? "", {
     id: "tag",
     header: ({ column }) => <SortHeader column={column} label="Tag Suffix" />,
     enableGrouping: false,
-    filterFn: "includesString",
+    filterFn: emptyAwareFilter,
   }),
   columnHelper.accessor((r) => r.local.description ?? "", {
     id: "desc",
     header: ({ column }) => <SortHeader column={column} label="Description" />,
     enableGrouping: false,
-    filterFn: "includesString",
+    filterFn: emptyAwareFilter,
   }),
   columnHelper.display({ id: "defaults", header: "Defaults", enableSorting: false }),
   columnHelper.display({ id: "alarms",   header: "Alarms",     enableSorting: false }),
@@ -702,6 +713,7 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
   const { data: inputTypes = [] } = trpc.signal.analogInputTypes.useQuery();
   const { data: plcDataTypes = [] } = trpc.signal.plcDataTypeList.useQuery();
   const upsert = trpc.components.signalUpsert.useMutation();
+  const bulkPatch = trpc.components.signalBulkPatch.useMutation();
   const deleteMutation = trpc.components.signalDelete.useMutation();
   const purgeMutation = trpc.components.signalPurge.useMutation();
 
@@ -787,55 +799,25 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
         analogAlarms: row.analogAlarms,
       });
 
-      // Bulk propagate changes to other selected rows
+      // Bulk propagate changes to other selected rows via single API call
       const original = editOriginals.get(key);
       if (original && rowSelection.has(key) && rowSelection.size > 1 && row.id) {
         const diff = computeSignalDiff(original, row);
         if (Object.keys(diff).length > 0) {
-          const otherKeys = Array.from(rowSelection).filter((k) => k !== key);
-          for (const otherKey of otherKeys) {
-            const otherSignal = signals.find((s) => String(s.id) === otherKey);
-            if (!otherSignal) continue;
-            const otherBase = localEdits.get(otherKey) ?? toRowState(otherSignal);
-            const patched = applySignalDiff(otherBase, diff);
-            await upsert.mutateAsync({
-              id: otherSignal.id,
-              componentId,
-              channelOffset: patched.channelOffset,
-              active: patched.active,
-              ioType: patched.ioType,
-              origin: patched.origin as never,
-              plcDataTypeId: patched.plcDataTypeId,
-              rawDataType: patched.rawDataType as never,
-              byteOrder: patched.byteOrder as never,
-              canNodeId: patched.canNodeId,
-              canId: patched.canId,
-              bitOffset: patched.bitOffset,
-              bitLength: patched.bitLength,
-              isMuxIndicator: patched.isMuxIndicator,
-              muxId: patched.muxId,
-              canopenIndex: patched.canopenIndex,
-              canopenSubIndex: patched.canopenSubIndex,
-              j1939Pgn: patched.j1939Pgn,
-              j1939Spn: patched.j1939Spn,
-              modbusUnitId: patched.modbusUnitId,
-              modbusRegisterType: patched.modbusRegisterType as never,
-              modbusRegisterOffset: patched.modbusRegisterOffset,
-              timeoutMs: patched.timeoutMs,
-              tagSuffix: patched.tagSuffix,
-              description: patched.description,
-              defaultTrigger: patched.defaultTrigger as never,
-              defaultFilterTimeMs: patched.defaultFilterTimeMs,
-              defaultSwitchingType: patched.defaultSwitchingType as never,
-              defaultInputTypeId: patched.defaultInputTypeId,
-              defaultWireConfig: patched.defaultWireConfig as never,
-              defaultScaleMin: patched.defaultScaleMin,
-              defaultScaleMax: patched.defaultScaleMax,
-              defaultEuId: patched.defaultEuId,
-              discreteAlarms: patched.discreteAlarms,
-              analogAlarms: patched.analogAlarms,
+          const otherIds = Array.from(rowSelection)
+            .filter((k) => k !== key)
+            .map((k) => signals.find((s) => String(s.id) === k)?.id)
+            .filter((id): id is number => id != null);
+          if (otherIds.length > 0) {
+            // Strip alarm arrays — bulkPatch only handles scalar fields
+            const { discreteAlarms: _da, analogAlarms: _aa, id: _id, channelOffset: _co, ...patchData } = diff as Record<string, unknown>;
+            await bulkPatch.mutateAsync({
+              ids: otherIds,
+              data: patchData as any,
             });
-            setLocalEdits((prev) => { const m = new Map(prev); m.delete(otherKey); return m; });
+            for (const otherKey of Array.from(rowSelection).filter((k) => k !== key)) {
+              setLocalEdits((prev) => { const m = new Map(prev); m.delete(otherKey); return m; });
+            }
           }
         }
       }
@@ -1063,7 +1045,7 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
                   <th key={k} className="px-1 py-0.5">
                     <input
                       className="w-full rounded border border-input bg-background px-1.5 py-0.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-ring"
-                      placeholder={`Filter...`}
+                      placeholder="Filter... (<empty>)"
                       value={filterVal}
                       onChange={(e) => col?.setFilterValue(e.target.value || undefined)}
                     />
@@ -1112,14 +1094,23 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
                     dirty={dirty}
                     isSaving={savingKeys.has(key)}
                     selected={rowSelection.has(key)}
-                    onToggleSelect={() => toggleSelection(key)}
+                    onToggleSelect={() => {
+                      setRowSelection((prev) => {
+                        const s = new Set(prev);
+                        if (s.has(key)) s.delete(key); else s.add(key);
+                        return s;
+                      });
+                    }}
                     engineeringUnits={euData}
                     inputTypes={inputTypes}
                     plcDataTypes={plcDataTypes}
-                    onChange={makeOnChange(key).onChange}
-                    onSave={() => { const r = localEdits.get(key) ?? (isNew ? newRows.find(n => n._tempId === key) : null); if (r) saveRow(key, r as any); }}
-                    onDiscard={() => discardRow(key)}
-                    onDelete={() => deleteRow(key)}
+                    onChange={makeOnChange(key, isNew, saved)}
+                    onSave={() => saveRow(key, local)}
+                    onDiscard={() => {
+                      if (isNew) setNewRows((prev) => prev.filter((r) => r._tempId !== key));
+                      else { setLocalEdits((prev) => { const m = new Map(prev); m.delete(key); return m; }); setEditOriginals((prev) => { const m = new Map(prev); m.delete(key); return m; }); }
+                    }}
+                    onDelete={() => deleteRow(Number(key))}
                   />
                 );
               })
@@ -1155,8 +1146,11 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
                     plcDataTypes={plcDataTypes}
                     onChange={makeOnChange(key, isNew, saved)}
                     onSave={() => saveRow(key, local)}
-                    onDiscard={() => discardRow(key)}
-                    onDelete={() => deleteRow(key)}
+                    onDiscard={() => {
+                      if (isNew) setNewRows((prev) => prev.filter((r) => r._tempId !== key));
+                      else { setLocalEdits((prev) => { const m = new Map(prev); m.delete(key); return m; }); setEditOriginals((prev) => { const m = new Map(prev); m.delete(key); return m; }); }
+                    }}
+                    onDelete={() => deleteRow(Number(key))}
                   />
                 );
                 })}

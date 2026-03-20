@@ -21,7 +21,7 @@ export const importRouter = createTRPCRouter({
   extractRows: protectedProcedure
     .input(z.object({
       fileBase64: z.string(),
-      sheetName: z.string(),
+      sheetNames: z.array(z.string()).min(1),
       mappings: z.array(z.object({
         sourceColumn: z.string(),
         targetField: z.string(),
@@ -33,7 +33,19 @@ export const importRouter = createTRPCRouter({
       })),
       filterLogic: z.enum(["AND", "OR"]).default("AND"),
     }))
-    .mutation(({ input }) => extractMappedRows(
-      input.fileBase64, input.sheetName, input.mappings, input.filters, input.filterLogic
-    )),
+    .mutation(async ({ input }) => {
+      // Extract from all selected sheets and combine
+      let allRows: Record<string, string>[] = [];
+      let totalRows = 0;
+      let filteredOut = 0;
+      for (const sheetName of input.sheetNames) {
+        const result = await extractMappedRows(
+          input.fileBase64, sheetName, input.mappings, input.filters, input.filterLogic
+        );
+        allRows.push(...result.rows);
+        totalRows += result.totalRows;
+        filteredOut += result.filteredOut;
+      }
+      return { rows: allRows, totalRows, filteredOut };
+    }),
 });

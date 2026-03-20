@@ -52,10 +52,13 @@ export function BusConfigDialog({ open, onClose, row, plcDataTypes, onChange }: 
   }
 
   const origin = row.origin;
-  const isCanopen = origin === "CANOPEN";
-  const isJ1939 = origin === "J1939";
-  const isRawCan = origin === "CANBUS";
-  const isModbus = origin === "MODBUS_RTU" || origin === "MODBUS_TCP";
+  // Detect protocol from origin OR from populated fields (origin may be null on component templates)
+  const isCanopen = origin === "CANOPEN" || (!origin && (row.canopenIndex != null || row.canopenSubIndex != null));
+  const isJ1939 = origin === "J1939" || (!origin && (row.j1939Pgn != null || row.j1939Spn != null));
+  const isRawCan = origin === "CANBUS" || (!origin && row.canId != null && !isCanopen && !isJ1939);
+  const isModbus = origin === "MODBUS_RTU" || origin === "MODBUS_TCP"
+    || (!origin && (row.modbusRegisterType != null || row.modbusRegisterOffset != null));
+  const isUnknown = !origin && !isCanopen && !isJ1939 && !isRawCan && !isModbus;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>

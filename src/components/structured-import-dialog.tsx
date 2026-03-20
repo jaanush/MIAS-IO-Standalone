@@ -74,7 +74,7 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
   const [step, setStep] = useState<"upload" | "sheet" | "map" | "preview" | "done">("upload");
   const [fileBase64, setFileBase64] = useState<string>("");
   const [sheets, setSheets] = useState<SheetInfo[]>([]);
-  const [selectedSheet, setSelectedSheet] = useState<string>("");
+  const [selectedSheets, setSelectedSheets] = useState<Set<string>>(new Set());
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [filters, setFilters] = useState<RowFilter[]>([]);
   const [filterLogic, setFilterLogic] = useState<"AND" | "OR">("AND");
@@ -92,29 +92,22 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
   const readSheets = trpc.import.readSheets.useMutation({
     onSuccess: (data) => {
       setSheets(data);
-      // Check if any preset matches a sheet in this file
+      // Pre-select sheet from matching preset (but always show sheet step)
       const currentPresets = loadPresets().filter((p) => p.name.startsWith(scopedKey + ":"));
       const matchingPreset = currentPresets.find((p) => data.some((s) => s.name === p.sheetHint));
       if (matchingPreset) {
-        // Auto-apply the matching preset
         const sheet = data.find((s) => s.name === matchingPreset.sheetHint);
         if (sheet) {
-          setSelectedSheet(sheet.name);
+          setSelectedSheets(new Set([sheet.name]));
           const validMappings = matchingPreset.mappings.filter((m) => sheet.headers.includes(m.sourceColumn));
           setMappings(validMappings);
           setFilters(matchingPreset.filters);
           setFilterLogic(matchingPreset.filterLogic ?? "AND");
-          setStep("map");
-          return;
         }
+      } else if (data.length === 1) {
+        setSelectedSheets(new Set([data[0].name]));
       }
-      if (data.length === 1) {
-        setSelectedSheet(data[0].name);
-        initMappings(data[0]);
-        setStep("map");
-      } else {
-        setStep("sheet");
-      }
+      setStep("sheet");
     },
   });
 
@@ -128,7 +121,15 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
 
   const columnValues = trpc.import.columnValues.useMutation();
 
-  const currentSheet = sheets.find((s) => s.name === selectedSheet);
+  // Use the first selected sheet as the reference for headers/samples
+  const firstSelected = [...selectedSheets][0];
+  const currentSheet = sheets.find((s) => s.name === firstSelected);
+
+  // Header fingerprint for compatibility — sheets are compatible if they have the same headers
+  function headerKey(sheet: SheetInfo): string {
+    return sheet.headers.join("\t");
+  }
+  const selectedHeaderKey = currentSheet ? headerKey(currentSheet) : null;
   const headers = currentSheet?.headers ?? [];
 
   function initMappings(sheet: SheetInfo) {
@@ -166,22 +167,22 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
     // Try to find the hinted sheet
     const hintedSheet = sheets.find((s) => s.name === preset.sheetHint);
     if (hintedSheet) {
-      setSelectedSheet(hintedSheet.name);
+      setSelectedSheets(new Set([hintedSheet.name]));
     }
     // Apply mappings (only if source columns exist in current headers)
-    const currentHeaders = (hintedSheet ?? sheets.find((s) => s.name === selectedSheet))?.headers ?? [];
+    const currentHeaders = (hintedSheet ?? currentSheet)?.headers ?? [];
     const validMappings = preset.mappings.filter((m) => currentHeaders.includes(m.sourceColumn));
     setMappings(validMappings);
     setFilters(preset.filters);
     setFilterLogic(preset.filterLogic ?? "AND");
-    if (hintedSheet || selectedSheet) setStep("map");
+    if (hintedSheet || selectedSheets.size > 0) setStep("map");
   }
 
   function saveCurrentPreset() {
     if (!presetName.trim()) return;
     const preset: ImportPreset = {
       name: `${scopedKey}:${presetName.trim()}`,
-      sheetHint: selectedSheet,
+      sheetHint: firstSelected ?? "",
       mappings,
       filters,
       filterLogic,
@@ -199,11 +200,21 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
     setPresetVersion((v) => v + 1);
   }
 
-  function selectSheet(name: string) {
-    setSelectedSheet(name);
-    const sheet = sheets.find((s) => s.name === name);
-    if (sheet) initMappings(sheet);
-    setStep("map");
+  function toggleSheet(name: string) {
+    setSelectedSheets((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+        // Init mappings from the first selected sheet
+        if (next.size === 1) {
+          const sheet = sheets.find((s) => s.name === name);
+          if (sheet) initMappings(sheet);
+        }
+      }
+      return next;
+    });
   }
 
   function setMapping(targetField: string, sourceColumn: string) {
@@ -230,7 +241,7 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
   function doExtract() {
     extractRows.mutate({
       fileBase64,
-      sheetName: selectedSheet,
+      sheetNames: [...selectedSheets],
       mappings,
       filters: filters.filter((f) => f.value),
       filterLogic,
@@ -272,7 +283,7 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
     setStep("upload");
     setFileBase64("");
     setSheets([]);
-    setSelectedSheet("");
+    setSelectedSheets(new Set());
     setMappings([]);
     setFilters([]);
     setPreviewRows([]);
@@ -351,26 +362,42 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
               </div>
             )}
 
-            <p className="text-sm text-muted-foreground">Or select a sheet manually:</p>
+            <p className="text-sm text-muted-foreground">Select sheets to import (multiple allowed if columns match):</p>
             <div className="rounded-md border divide-y">
-              {sheets.map((s) => (
-                <button
-                  key={s.name}
-                  onClick={() => selectSheet(s.name)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent/30 text-left"
-                >
-                  <div>
-                    <div className="text-sm font-medium">{s.name}</div>
-                    <div className="text-xs text-muted-foreground">{s.headers.slice(0, 5).join(", ")}{s.headers.length > 5 ? "..." : ""}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{s.rowCount} rows</span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </button>
-              ))}
+              {sheets.map((s) => {
+                const isSelected = selectedSheets.has(s.name);
+                const isCompatible = selectedHeaderKey === null || headerKey(s) === selectedHeaderKey;
+                const isDisabled = !isSelected && !isCompatible;
+                return (
+                  <label
+                    key={s.name}
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer ${isDisabled ? "opacity-40 cursor-not-allowed" : "hover:bg-accent/30"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      checked={isSelected}
+                      disabled={isDisabled}
+                      onChange={() => !isDisabled && toggleSheet(s.name)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium">{s.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{s.headers.slice(0, 5).join(", ")}{s.headers.length > 5 ? "..." : ""}</div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground">{s.rowCount} rows</span>
+                      {isDisabled && <span className="text-[10px] text-amber-600">different columns</span>}
+                    </div>
+                  </label>
+                );
+              })}
             </div>
-            <Button variant="outline" onClick={() => setStep("upload")}>Back</Button>
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep("upload")}>Back</Button>
+              <Button onClick={() => { if (currentSheet) initMappings(currentSheet); setStep("map"); }} disabled={selectedSheets.size === 0}>
+                Continue with {selectedSheets.size} sheet{selectedSheets.size !== 1 ? "s" : ""}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -378,7 +405,7 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
         {step === "map" && (
           <div className="space-y-5">
             <div className="text-sm text-muted-foreground">
-              Sheet: <span className="font-medium text-foreground">{selectedSheet}</span> ({currentSheet?.rowCount} rows)
+              Sheet{selectedSheets.size > 1 ? "s" : ""}: <span className="font-medium text-foreground">{[...selectedSheets].join(", ")}</span> ({currentSheet?.rowCount} rows)
             </div>
 
             {/* Presets */}
@@ -464,7 +491,7 @@ export function StructuredImportDialog({ open, onClose, title, presetKey, target
                   filter={f}
                   headers={headers}
                   fileBase64={fileBase64}
-                  sheetName={selectedSheet}
+                  sheetName={firstSelected ?? ""}
                   onChange={(update) => updateFilter(idx, update)}
                   onRemove={() => removeFilter(idx)}
                 />

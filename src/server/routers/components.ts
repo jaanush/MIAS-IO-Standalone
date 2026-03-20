@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import { extractModbusRegisters, type ExtractedRegister } from "../lib/modbus-ai-extract";
-import { getEffectiveSignals } from "../lib/component-signals";
+import { getEffectiveSignals, syncNewSignalToInstances, removeSignalFromInstances } from "../lib/component-signals";
 import { SIGNAL_ORIGINS, IO_TYPES, RAW_DATA_TYPES, BYTE_ORDERS, MODBUS_REGISTER_TYPES, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, DISCRETE_ALARM_CONDITIONS, ANALOG_ALARM_CONDITIONS, ALARM_SEVERITIES, COMPONENT_STATUS, BUS_PROTOCOLS } from "@/lib/enums";
 
 /** Recompute minCanIdOffset = max(canId) - min(canId) + 1 across active signals */
@@ -266,7 +266,7 @@ export const componentsRouter = createTRPCRouter({
           DISCRETE_INPUT: "DISCRETE_INPUT",
         };
 
-        await db.componentSignal.create({
+        const newSig = await db.componentSignal.create({
           data: {
             componentId,
             channelOffset: startOffset + i,
@@ -281,6 +281,7 @@ export const componentsRouter = createTRPCRouter({
             active: true,
           },
         });
+        await syncNewSignalToInstances(newSig.id);
         created++;
       }
 
@@ -295,6 +296,12 @@ export const componentsRouter = createTRPCRouter({
 
       let signal;
       if (id) {
+        // Check if active flag is changing (need old value for comparison)
+        const oldSignal = await db.componentSignal.findUniqueOrThrow({
+          where: { id },
+          select: { active: true },
+        });
+
         // Clear existing alarms before replacing
         await db.componentDiscreteAlarm.deleteMany({ where: { componentSignalId: id } });
         await db.componentAnalogAlarm.deleteMany({ where: { componentSignalId: id } });
@@ -312,6 +319,15 @@ export const componentsRouter = createTRPCRouter({
             defaultInputType: { select: { id: true, code: true, name: true } },
           },
         });
+
+        // Handle active flag changes — sync to instances
+        if (oldSignal.active && !data.active) {
+          // Deactivated — remove from all instances
+          await removeSignalFromInstances(id);
+        } else if (!oldSignal.active && data.active) {
+          // Re-activated — add to all instances
+          await syncNewSignalToInstances(id);
+        }
 
         // Propagate default changes to bound non-dirty project signals
         const boundInstanceSignals = await db.instanceSignal.findMany({
@@ -409,6 +425,11 @@ export const componentsRouter = createTRPCRouter({
             defaultInputType: { select: { id: true, code: true, name: true } },
           },
         });
+
+        // Sync new signal to all existing component instances
+        if (data.active !== false) {
+          await syncNewSignalToInstances(signal.id);
+        }
       }
 
       // Refresh min CAN ID offset when canId may have changed
@@ -426,6 +447,11 @@ export const componentsRouter = createTRPCRouter({
         where: { id: input.id },
         select: { componentId: true, canId: true },
       });
+      // Remove from all component instances first (clears FK constraint)
+      await removeSignalFromInstances(input.id);
+      // Delete component-level alarms
+      await db.componentDiscreteAlarm.deleteMany({ where: { componentSignalId: input.id } });
+      await db.componentAnalogAlarm.deleteMany({ where: { componentSignalId: input.id } });
       await db.componentSignal.delete({ where: { id: input.id } });
       if (sig.canId != null) {
         await refreshMinCanIdOffset(sig.componentId);
@@ -436,7 +462,15 @@ export const componentsRouter = createTRPCRouter({
   signalPurge: protectedProcedure
     .input(z.object({ componentId: z.number().int() }))
     .mutation(async ({ input }) => {
-      // Delete alarms first, then signals
+      // Remove all signals from instances first
+      const componentSignals = await db.componentSignal.findMany({
+        where: { componentId: input.componentId },
+        select: { id: true },
+      });
+      for (const cs of componentSignals) {
+        await removeSignalFromInstances(cs.id);
+      }
+      // Delete component-level alarms, then signals
       await db.componentDiscreteAlarm.deleteMany({
         where: { componentSignal: { componentId: input.componentId } },
       });
@@ -447,6 +481,172 @@ export const componentsRouter = createTRPCRouter({
         where: { componentId: input.componentId },
       });
       return { count: result.count };
+    }),
+
+  /** Bulk-patch a set of component signals with the same partial update. */
+  signalBulkPatch: protectedProcedure
+    .input(z.object({
+      ids: z.array(z.number().int()).min(1),
+      data: z.object({
+        ioType: z.enum(IO_TYPES).optional(),
+        origin: z.enum(SIGNAL_ORIGINS).optional().nullable(),
+        tagSuffix: z.string().optional().nullable(),
+        description: z.string().optional().nullable(),
+        active: z.boolean().optional(),
+        plcDataTypeId: z.number().int().optional().nullable(),
+        rawDataType: z.enum(RAW_DATA_TYPES).optional().nullable(),
+        byteOrder: z.enum(BYTE_ORDERS).optional().nullable(),
+        canNodeId: z.number().int().optional().nullable(),
+        canId: z.number().int().optional().nullable(),
+        bitOffset: z.number().int().optional().nullable(),
+        bitLength: z.number().int().optional().nullable(),
+        isMuxIndicator: z.boolean().optional(),
+        muxId: z.number().int().optional().nullable(),
+        canopenIndex: z.number().int().optional().nullable(),
+        canopenSubIndex: z.number().int().optional().nullable(),
+        j1939Pgn: z.number().int().optional().nullable(),
+        j1939Spn: z.number().int().optional().nullable(),
+        modbusUnitId: z.number().int().optional().nullable(),
+        modbusRegisterType: z.enum(MODBUS_REGISTER_TYPES).optional().nullable(),
+        modbusRegisterOffset: z.number().int().optional().nullable(),
+        timeoutMs: z.number().int().optional().nullable(),
+        defaultTrigger: z.enum(TRIGGER_TYPES).optional().nullable(),
+        defaultFilterTimeMs: z.number().optional().nullable(),
+        defaultSwitchingType: z.enum(SWITCHING_TYPES).optional().nullable(),
+        defaultInputTypeId: z.number().int().optional().nullable(),
+        defaultWireConfig: z.enum(WIRE_CONFIGS).optional().nullable(),
+        defaultScaleMin: z.number().optional().nullable(),
+        defaultScaleMax: z.number().optional().nullable(),
+        defaultEuId: z.number().int().optional().nullable(),
+      }),
+    }))
+    .mutation(async ({ input }) => {
+      const { ids, data } = input;
+
+      // Build update payload — only include provided (non-undefined) fields
+      const updateData: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(data)) {
+        if (v !== undefined) updateData[k] = v;
+      }
+      if (Object.keys(updateData).length === 0) return { updated: 0 };
+
+      // Check for active flag changes before applying
+      let wasActive: Map<number, boolean> | null = null;
+      if (data.active !== undefined) {
+        const existing = await db.componentSignal.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, active: true },
+        });
+        wasActive = new Map(existing.map((s) => [s.id, s.active]));
+      }
+
+      // Bulk update all component signals
+      await db.componentSignal.updateMany({
+        where: { id: { in: ids } },
+        data: updateData,
+      });
+
+      // Handle active flag changes — sync instances
+      if (data.active !== undefined && wasActive) {
+        for (const id of ids) {
+          const prev = wasActive.get(id) ?? true;
+          if (prev && !data.active) {
+            await removeSignalFromInstances(id);
+          } else if (!prev && data.active) {
+            await syncNewSignalToInstances(id);
+          }
+        }
+      }
+
+      // Propagate to non-dirty instance signals
+      if (data.active !== false) {
+        const boundInstanceSignals = await db.instanceSignal.findMany({
+          where: { componentSignalId: { in: ids }, templateDirty: false },
+          include: {
+            signals: { select: { id: true, signalType: true, busSignal: { select: { signalId: true } } } },
+            instance: { select: { canIdOffset: true } },
+          },
+        });
+
+        for (const ins of boundInstanceSignals) {
+          const canIdOffset = ins.instance?.canIdOffset ?? 0;
+          for (const sig of ins.signals) {
+            // Base signal fields
+            const sigUpdate: Record<string, unknown> = {};
+            if (data.tagSuffix !== undefined) sigUpdate.tag = data.tagSuffix;
+            if (data.description !== undefined) sigUpdate.description = data.description;
+            if (data.origin !== undefined && data.origin !== null) sigUpdate.origin = data.origin;
+            if (Object.keys(sigUpdate).length > 0) {
+              await db.signal.update({ where: { id: sig.id }, data: sigUpdate });
+            }
+
+            // Bus signal fields
+            if (sig.busSignal) {
+              const busFields: Record<string, unknown> = {};
+              if (data.rawDataType !== undefined) busFields.rawDataType = data.rawDataType ?? "WORD";
+              if (data.byteOrder !== undefined) busFields.byteOrder = data.byteOrder ?? "BIG_ENDIAN";
+              if (data.timeoutMs !== undefined) busFields.timeoutMs = data.timeoutMs;
+              if (data.canNodeId !== undefined) busFields.nodeId = data.canNodeId;
+              if (data.canId !== undefined) busFields.canId = data.canId != null ? data.canId + canIdOffset : null;
+              if (data.bitOffset !== undefined) busFields.bitOffset = data.bitOffset;
+              if (data.bitLength !== undefined) busFields.bitLength = data.bitLength;
+              if (data.isMuxIndicator !== undefined) busFields.isMuxIndicator = data.isMuxIndicator;
+              if (data.muxId !== undefined) busFields.muxId = data.muxId;
+              if (data.canopenIndex !== undefined) busFields.canopenIndex = data.canopenIndex;
+              if (data.canopenSubIndex !== undefined) busFields.canopenSubIndex = data.canopenSubIndex;
+              if (data.j1939Pgn !== undefined) busFields.j1939Pgn = data.j1939Pgn;
+              if (data.j1939Spn !== undefined) busFields.j1939Spn = data.j1939Spn;
+              if (data.modbusUnitId !== undefined) busFields.unitId = data.modbusUnitId;
+              if (data.modbusRegisterType !== undefined) busFields.registerType = data.modbusRegisterType;
+              if (data.modbusRegisterOffset !== undefined) busFields.registerOffset = data.modbusRegisterOffset;
+              if (Object.keys(busFields).length > 0) {
+                await db.busSignal.update({ where: { signalId: sig.id }, data: busFields });
+              }
+            }
+
+            // Discrete/analog defaults
+            const isDisc = sig.signalType === "DISCRETE";
+            if (isDisc) {
+              const disc: Record<string, unknown> = {};
+              if (data.defaultTrigger !== undefined) disc.trigger = data.defaultTrigger ?? "NO";
+              if (data.defaultFilterTimeMs !== undefined) disc.filterTimeMs = data.defaultFilterTimeMs;
+              if (data.defaultSwitchingType !== undefined) disc.switchingType = data.defaultSwitchingType;
+              if (Object.keys(disc).length > 0) {
+                await db.discreteSignal.upsert({
+                  where: { signalId: sig.id },
+                  create: { signalId: sig.id, trigger: data.defaultTrigger ?? "NO", ...disc },
+                  update: disc,
+                });
+              }
+            } else {
+              const ana: Record<string, unknown> = {};
+              if (data.defaultInputTypeId !== undefined) ana.inputTypeId = data.defaultInputTypeId;
+              if (data.defaultWireConfig !== undefined) ana.wireConfig = data.defaultWireConfig;
+              if (data.defaultScaleMin !== undefined) ana.scaleMin = data.defaultScaleMin;
+              if (data.defaultScaleMax !== undefined) ana.scaleMax = data.defaultScaleMax;
+              if (data.defaultEuId !== undefined) ana.engineeringUnitId = data.defaultEuId;
+              if (Object.keys(ana).length > 0) {
+                await db.analogSignal.upsert({
+                  where: { signalId: sig.id },
+                  create: { signalId: sig.id, ...ana },
+                  update: ana,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Refresh CAN offset if canId changed
+      if (data.canId !== undefined && ids.length > 0) {
+        const first = await db.componentSignal.findFirst({
+          where: { id: { in: ids } },
+          select: { componentId: true },
+        });
+        if (first) await refreshMinCanIdOffset(first.componentId);
+      }
+
+      return { updated: ids.length };
     }),
 
   // ── Create component from selected project signals ────────────────

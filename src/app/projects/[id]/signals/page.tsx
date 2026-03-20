@@ -986,6 +986,9 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const del = trpc.signal.delete.useMutation({
     onSuccess: () => utils.signal.list.invalidate({ projectId }),
   });
+  const bulkCreate = trpc.signal.bulkCreate.useMutation({
+    onSuccess: () => utils.signal.list.invalidate({ projectId }),
+  });
   const bulkDel = trpc.signal.bulkDelete.useMutation({
     onSuccess: () => {
       utils.signal.list.invalidate({ projectId });
