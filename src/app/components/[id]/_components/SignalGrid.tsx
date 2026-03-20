@@ -968,21 +968,21 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
     <div className="space-y-3" ref={gridRef}>
       {/* Toolbar */}
       <div className="flex items-center gap-3 text-xs flex-wrap">
-        <span className="text-muted-foreground">Group by:</span>
-        {(["none", "type", "origin"] as const).map((opt) => (
+        <span className="text-muted-foreground">{flatRows.length} signal{flatRows.length !== 1 ? "s" : ""}</span>
+        {signals.length > 0 && (
           <button
-            key={opt}
-            onClick={() => changeGroupBy(opt)}
-            className={[
-              "rounded border px-2.5 py-0.5 transition-colors",
-              groupBy === opt
-                ? "bg-primary text-primary-foreground border-primary"
-                : "border-input hover:bg-accent/50",
-            ].join(" ")}
+            className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+            onClick={async () => {
+              if (!confirm(`Delete ALL ${signals.length} signals from this component? This cannot be undone.`)) return;
+              for (const s of signals) {
+                await deleteMutation.mutateAsync({ id: s.id });
+              }
+              onRefresh();
+            }}
           >
-            {opt === "none" ? "None" : opt === "type" ? "Signal Type" : "Origin"}
+            Purge all
           </button>
-        ))}
+        )}
 
         {selectedCount > 0 && (
           <div className="ml-auto flex items-center gap-2">
