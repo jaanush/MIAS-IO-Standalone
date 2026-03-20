@@ -1,18 +1,21 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, memo } from "react";
 import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
+  getFilteredRowModel,
   getGroupedRowModel,
   getExpandedRowModel,
   createColumnHelper,
   type SortingState,
+  type ColumnFiltersState,
   type GroupingState,
   type ExpandedState,
   type Column,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { trpc } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -343,7 +346,7 @@ type RowProps = {
   onDelete: () => void;
 };
 
-function SignalRow({
+const SignalRow = memo(function SignalRow({
   local,
   dirty,
   isSaving,
@@ -573,7 +576,7 @@ function SignalRow({
       />
     </>
   );
-}
+});
 
 // ── TanStack column definitions ───────────────────────────────────────
 
@@ -616,21 +619,25 @@ const COLUMNS = [
     id: "type",
     header: ({ column }) => <SortHeader column={column} label="Type" />,
     enableGrouping: true,
+    filterFn: "includesString",
   }),
   columnHelper.accessor((r) => r.local.origin ?? "(none)", {
     id: "origin",
     header: ({ column }) => <SortHeader column={column} label="Origin" />,
     enableGrouping: true,
+    filterFn: "includesString",
   }),
   columnHelper.accessor((r) => r.local.tagSuffix ?? "", {
     id: "tag",
     header: ({ column }) => <SortHeader column={column} label="Tag Suffix" />,
     enableGrouping: false,
+    filterFn: "includesString",
   }),
   columnHelper.accessor((r) => r.local.description ?? "", {
     id: "desc",
     header: ({ column }) => <SortHeader column={column} label="Description" />,
     enableGrouping: false,
+    filterFn: "includesString",
   }),
   columnHelper.display({ id: "defaults", header: "Defaults", enableSorting: false }),
   columnHelper.display({ id: "alarms",   header: "Alarms",     enableSorting: false }),
@@ -656,8 +663,15 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
   const [newRows, setNewRows] = useState<NewRow[]>([]);
   const [savingKeys, setSavingKeys] = useState<Set<string>>(new Set());
   const [rowSelection, setRowSelection] = useState<Set<string>>(new Set());
-  const [colWidths, setColWidths] = useState<Record<GridColKey, number>>(() => ({ ...COL_DEFAULTS }));
+  const [colWidths, setColWidths] = useState<Record<GridColKey, number>>(() => {
+    try {
+      const stored = localStorage.getItem("mias-comp-signal-col-widths");
+      if (stored) return { ...COL_DEFAULTS, ...JSON.parse(stored) };
+    } catch {}
+    return { ...COL_DEFAULTS };
+  });
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [groupBy, setGroupBy] = useState<GroupByOption>("none");
   const [grouping, setGrouping] = useState<GroupingState>([]);
   const [expanded, setExpanded] = useState<ExpandedState>(true);
@@ -668,7 +682,11 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
     const startX = e.clientX;
     const startWidth = colWidths[key];
     function onMove(me: MouseEvent) {
-      setColWidths((prev) => ({ ...prev, [key]: Math.max(40, startWidth + me.clientX - startX) }));
+      setColWidths((prev) => {
+        const next = { ...prev, [key]: Math.max(40, startWidth + me.clientX - startX) };
+        localStorage.setItem("mias-comp-signal-col-widths", JSON.stringify(next));
+        return next;
+      });
     }
     function onUp() {
       window.removeEventListener("mousemove", onMove);
@@ -707,14 +725,18 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signals, localEdits, newRows]);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   const table = useReactTable({
     data,
     columns: COLUMNS,
-    state: { sorting, grouping, expanded },
+    state: { sorting, columnFilters, grouping, expanded },
     onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
     onGroupingChange: setGrouping,
     onExpandedChange: setExpanded,
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getGroupedRowModel: getGroupedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
@@ -928,6 +950,17 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
   const colCount = COLUMNS.length;
   const totalWidth = (Object.keys(COL_DEFAULTS) as GridColKey[]).reduce((s, k) => s + colWidths[k], 0);
 
+  const flatRows = useMemo(() => table.getRowModel().rows.filter((r) => !r.getIsGrouped()), [table.getRowModel().rows]);
+  const ROW_HEIGHT = 37;
+  const rowVirtualizer = useVirtualizer({
+    count: flatRows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
+  });
+
+  const FILTER_COLS = new Set<GridColKey>(["type", "origin", "tag", "desc"]);
+
   // Which rows are actively being edited AND selected (for the bulk hint)
   const editingSelectedCount = Array.from(localEdits.keys()).filter((k) => rowSelection.has(k)).length;
 
@@ -979,14 +1012,14 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
         )}
       </div>
 
-      <div className="rounded-md border overflow-x-auto">
+      <div className="rounded-md border overflow-auto max-h-[70vh]" ref={scrollRef}>
         <table className="text-sm" style={{ width: totalWidth, tableLayout: "fixed" }}>
           <colgroup>
             {(Object.keys(COL_DEFAULTS) as GridColKey[]).map((k) => (
               <col key={k} style={{ width: colWidths[k] }} />
             ))}
           </colgroup>
-          <thead>
+          <thead className="sticky top-0 z-10 bg-background">
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id} className="border-b bg-muted/50 text-xs text-muted-foreground">
                 {hg.headers.map((header) => {
@@ -1021,15 +1054,34 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
                 })}
               </tr>
             ))}
+            {/* Filter row */}
+            <tr className="border-b bg-muted/30">
+              {(Object.keys(COL_DEFAULTS) as GridColKey[]).map((k) => {
+                if (!FILTER_COLS.has(k)) return <th key={k} className="px-1 py-0.5" />;
+                const col = table.getColumn(k);
+                const filterVal = (col?.getFilterValue() as string) ?? "";
+                return (
+                  <th key={k} className="px-1 py-0.5">
+                    <input
+                      className="w-full rounded border border-input bg-background px-1.5 py-0.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder={`Filter...`}
+                      value={filterVal}
+                      onChange={(e) => col?.setFilterValue(e.target.value || undefined)}
+                    />
+                  </th>
+                );
+              })}
+            </tr>
           </thead>
           <tbody className="divide-y">
             {table.getRowModel().rows.length === 0 ? (
               <tr>
                 <td colSpan={colCount} className="text-center text-muted-foreground py-8">
-                  No signals yet. Add the first one below.
+                  {columnFilters.length > 0 ? "No signals match the filters." : "No signals yet. Add the first one below."}
                 </td>
               </tr>
-            ) : (
+            ) : groupBy !== "none" ? (
+              // Grouped mode — full render (no virtualization)
               table.getRowModel().rows.map((row) => {
                 if (row.getIsGrouped()) {
                   const groupVal = String(row.getValue(row.groupingColumnId!));
@@ -1051,6 +1103,36 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
                     </tr>
                   );
                 }
+                const { key, isNew, saved, local, dirty } = row.original;
+                return (
+                  <SignalRow
+                    key={key}
+                    rowKey={key}
+                    saved={saved}
+                    local={local}
+                    dirty={dirty}
+                    isSaving={savingKeys.has(key)}
+                    selected={rowSelection.has(key)}
+                    onToggleSelect={() => toggleSelection(key)}
+                    engineeringUnits={euData}
+                    inputTypes={inputTypes}
+                    plcDataTypes={plcDataTypes}
+                    onChange={makeOnChange(key).onChange}
+                    onSave={() => { const r = localEdits.get(key) ?? (isNew ? newRows.find(n => n._tempId === key) : null); if (r) saveRow(key, r as any); }}
+                    onDiscard={() => discardRow(key)}
+                    onDelete={() => deleteRow(key)}
+                  />
+                );
+              })
+            ) : (
+              // Flat mode — virtualized
+              <>
+                {rowVirtualizer.getTotalSize() > 0 && (
+                  <tr style={{ height: rowVirtualizer.getVirtualItems()[0]?.start ?? 0 }}><td /></tr>
+                )}
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = flatRows[virtualRow.index];
+                  if (!row) return null;
 
                 const { key, isNew, saved, local, dirty } = row.original;
                 return (
@@ -1074,24 +1156,15 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
                     plcDataTypes={plcDataTypes}
                     onChange={makeOnChange(key, isNew, saved)}
                     onSave={() => saveRow(key, local)}
-                    onDiscard={() => {
-                      if (isNew) {
-                        setNewRows((prev) => prev.filter((r) => r._tempId !== key));
-                      } else {
-                        setLocalEdits((prev) => { const m = new Map(prev); m.delete(key); return m; });
-                        setEditOriginals((prev) => { const m = new Map(prev); m.delete(key); return m; });
-                      }
-                    }}
-                    onDelete={() => {
-                      if (isNew) {
-                        setNewRows((prev) => prev.filter((r) => r._tempId !== key));
-                      } else {
-                        deleteRow(saved!.id!);
-                      }
-                    }}
+                    onDiscard={() => discardRow(key)}
+                    onDelete={() => deleteRow(key)}
                   />
                 );
-              })
+                })}
+                {rowVirtualizer.getTotalSize() > 0 && (
+                  <tr style={{ height: rowVirtualizer.getTotalSize() - (rowVirtualizer.getVirtualItems().at(-1)?.end ?? 0) }}><td /></tr>
+                )}
+              </>
             )}
           </tbody>
         </table>
