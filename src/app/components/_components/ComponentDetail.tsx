@@ -21,10 +21,57 @@ import {
 import { SignalGrid } from "../[id]/_components/SignalGrid";
 import { ImportDbcDialog } from "../[id]/_components/ImportDbcDialog";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Network, ChevronRight } from "lucide-react";
+import { Upload, Network, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { StructuredImportDialog, type TargetField } from "@/components/structured-import-dialog";
 import { cn } from "@/lib/utils";
 import { ImportModbusDialog } from "./ImportModbusDialog";
 import { COMPONENT_STATUS, BUS_PROTOCOLS } from "@/lib/enums";
+
+// ── Structured import helpers ────────────────────────────────────────────────
+
+const MODBUS_TARGET_FIELDS: TargetField[] = [
+  { key: "address", label: "Modbus Address", required: true },
+  { key: "registerType", label: "Register Type" },
+  { key: "bit", label: "Bit Position" },
+  { key: "name", label: "Signal Name", required: true },
+  { key: "description", label: "Description" },
+  { key: "dataType", label: "Data Type" },
+  { key: "access", label: "Access (R/W)" },
+  { key: "unit", label: "Unit" },
+  { key: "scale", label: "Scale Factor" },
+];
+
+function resolveRegisterType(raw: string | undefined, address: string | undefined): "HOLDING_REGISTER" | "INPUT_REGISTER" | "COIL" | "DISCRETE_INPUT" {
+  const r = (raw ?? "").toLowerCase();
+  if (r.includes("holding")) return "HOLDING_REGISTER";
+  if (r.includes("input")) return "INPUT_REGISTER";
+  if (r.includes("coil")) return "COIL";
+  if (r.includes("discrete")) return "DISCRETE_INPUT";
+  const addr = parseInt(address ?? "", 10);
+  if (addr >= 40000) return "HOLDING_REGISTER";
+  if (addr >= 30000) return "INPUT_REGISTER";
+  return "HOLDING_REGISTER";
+}
+
+function resolveDataType(raw: string | undefined, bit: string | undefined): "INT16" | "UINT16" | "INT32" | "UINT32" | "FLOAT32" | "BOOL" | "WORD" | "DWORD" {
+  const r = (raw ?? "").toUpperCase();
+  if (r === "BOOL" || (bit && bit !== "--" && bit !== "")) return "BOOL";
+  if (r === "INT" || r === "INT16") return "INT16";
+  if (r === "UINT" || r === "UINT16" || r === "WORD") return "UINT16";
+  if (r === "DINT" || r === "INT32") return "INT32";
+  if (r === "UDINT" || r === "UINT32" || r === "DWORD") return "UINT32";
+  if (r === "REAL" || r === "FLOAT" || r === "FLOAT32") return "FLOAT32";
+  return "INT16";
+}
+
+function resolveAccess(raw: string | undefined): "R" | "W" | "RW" {
+  const r = (raw ?? "").toUpperCase().replace(/[^RWO]/g, "");
+  if (r.includes("W") && r.includes("R")) return "RW";
+  if (r.includes("W")) return "W";
+  return "R";
+}
+
+// ── Form schema ─────────────────────────────────────────────────────────────
 
 const schema = z.object({
   name: z.string().min(1, "Required"),
@@ -50,10 +97,12 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const [showImportDbc, setShowImportDbc] = useState(false);
   const [showImportModbus, setShowImportModbus] = useState(false);
+  const [showStructuredImport, setShowStructuredImport] = useState(false);
   const utils = trpc.useUtils();
 
   const { data, isLoading, refetch } = trpc.components.componentById.useQuery({ id });
   const { data: allComponents = [] } = trpc.components.componentList.useQuery();
+  const importMut = trpc.components.modbusImport.useMutation();
   const { data: effectiveSignals = [] } = trpc.components.effectiveSignals.useQuery(
     { componentId: id },
     { enabled: !!data?.parentId }
@@ -295,11 +344,14 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowStructuredImport(true)}>
+              <FileSpreadsheet className="h-4 w-4 mr-1" /> Structured Import
+            </Button>
             <Button size="sm" variant="outline" onClick={() => setShowImportModbus(true)}>
-              <Network className="h-4 w-4 mr-1" /> Import Modbus
+              <Network className="h-4 w-4 mr-1" /> AI Import
             </Button>
             <Button size="sm" variant="outline" onClick={() => setShowImportDbc(true)}>
-              <Upload className="h-4 w-4 mr-1" /> Import DBC
+              <Upload className="h-4 w-4 mr-1" /> DBC
             </Button>
           </div>
         </div>
@@ -309,6 +361,33 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
           onRefresh={() => refetch()}
         />
       </section>
+
+      {showStructuredImport && data && (
+        <StructuredImportDialog
+          open
+          onClose={() => setShowStructuredImport(false)}
+          title={`Structured Import — ${data.name}`}
+          targetFields={MODBUS_TARGET_FIELDS}
+          onImport={async (rows) => {
+            // Convert mapped rows to component signals
+            const signals = rows.map((row, i) => ({
+              address: parseInt(row.address, 10) || 0,
+              registerType: resolveRegisterType(row.registerType, row.address),
+              dataType: resolveDataType(row.dataType, row.bit),
+              name: (row.name || "").replace(/[^A-Za-z0-9_]/g, "_").substring(0, 100),
+              description: row.description || row.name || "",
+              unit: row.unit || null,
+              scaleFactor: row.scale ? parseFloat(row.scale) : null,
+              offset: null,
+              readWrite: resolveAccess(row.access),
+              bitPosition: row.bit && row.bit !== "--" ? parseInt(row.bit, 10) : null,
+            }));
+            await importMut.mutateAsync({ componentId: id, registers: signals });
+            refetch();
+            setShowStructuredImport(false);
+          }}
+        />
+      )}
 
       {showImportModbus && data && (
         <ImportModbusDialog

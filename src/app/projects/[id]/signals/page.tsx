@@ -35,6 +35,27 @@ import { ProjectAlarmsDialog } from "./_components/ProjectAlarmsDialog";
 import { ComponentGroup } from "./_components/ComponentGroup";
 import { CreateComponentDialog } from "./_components/CreateComponentDialog";
 import { ExportLegacyDialog } from "./_components/ExportDialog";
+import { StructuredImportDialog, type TargetField } from "@/components/structured-import-dialog";
+
+const SIGNAL_TARGET_FIELDS: TargetField[] = [
+  { key: "description", label: "Description", required: true },
+  { key: "tag", label: "Tag" },
+  { key: "ioType", label: "I/O Type (DI/DO/AI/AO)" },
+  { key: "system", label: "System" },
+  { key: "subsystem", label: "Subsystem" },
+  { key: "element", label: "Element" },
+  { key: "signalFunction", label: "Signal Function" },
+  { key: "instrumentTag", label: "Instrument Tag" },
+  { key: "signalClassification", label: "Signal Classification" },
+  { key: "cabinet", label: "Cabinet" },
+  { key: "trigger", label: "Logic/Trigger (NO/NC)" },
+  { key: "unit", label: "Unit" },
+  { key: "rangeLow", label: "Range Low" },
+  { key: "rangeHigh", label: "Range High" },
+  { key: "supplierName", label: "Supplier Name" },
+  { key: "supplierSensorType", label: "Supplier Sensor Type" },
+  { key: "notes", label: "Notes" },
+];
 
 type SignalRow = inferRouterOutputs<AppRouter>["signal"]["list"][number];
 type CardInfo = inferRouterOutputs<AppRouter>["signal"]["cardsForProject"][number];
@@ -787,6 +808,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const [showImport, setShowImport] = useState(false);
   const [showImportMpv, setShowImportMpv] = useState(false);
   const [showAddFromComponent, setShowAddFromComponent] = useState(false);
+  const [showStructuredImport, setShowStructuredImport] = useState(false);
   const [showExportLegacy, setShowExportLegacy] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<Set<ColKey>>(new Set());
 
@@ -1195,6 +1217,10 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 MPV
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowStructuredImport(true)}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Structured
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
@@ -1586,6 +1612,43 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
           projectId={projectId}
           open
           onClose={() => setShowExportLegacy(false)}
+        />
+      )}
+
+      {showStructuredImport && (
+        <StructuredImportDialog
+          open
+          onClose={() => setShowStructuredImport(false)}
+          title="Structured Signal Import"
+          targetFields={SIGNAL_TARGET_FIELDS}
+          onImport={async (rows) => {
+            const signals = rows.map((row) => {
+              const ioType = (row.ioType ?? "").toUpperCase();
+              const isDiscrete = ioType === "DI" || ioType === "DO";
+              const isOutput = ioType === "DO" || ioType === "AO";
+              return {
+                signalType: (isDiscrete ? "DISCRETE" : "ANALOG") as "DISCRETE" | "ANALOG",
+                origin: "IEC" as const,
+                tag: row.tag || row.description?.replace(/[^A-Za-z0-9\s]/g, "").trim().replace(/\s+/g, "_").substring(0, 150) || null,
+                description: row.description || null,
+                direction: (isOutput ? "OUTPUT" : "INPUT") as "INPUT" | "OUTPUT",
+                instrumentTag: row.instrumentTag || null,
+                signalClassification: row.signalClassification || null,
+                subsystem: row.subsystem || null,
+                element: row.element || null,
+                signalFunction: row.signalFunction || null,
+                supplierName: row.supplierName || null,
+                supplierSensorType: row.supplierSensorType || null,
+                cabinetLocation: row.cabinet || null,
+                notes: row.notes || null,
+                trigger: ((row.trigger ?? "").toUpperCase().includes("NC") ? "NC" : "NO") as "NO" | "NC",
+                scaleMin: row.rangeLow ? parseFloat(row.rangeLow) : null,
+                scaleMax: row.rangeHigh ? parseFloat(row.rangeHigh) : null,
+              };
+            });
+            await bulkCreate.mutateAsync({ projectId, signals });
+            utils.signal.list.invalidate({ projectId });
+          }}
         />
       )}
 
