@@ -184,14 +184,35 @@ export const componentsRouter = createTRPCRouter({
     .mutation(({ input }) => db.hardwareComponent.delete({ where: { id: input.id } })),
 
   // ── AI Modbus extraction ────────────────────────────────────────────
+  modbusListSheets: protectedProcedure
+    .input(z.object({
+      fileBase64: z.string(),
+      fileName: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      if (!input.fileName.endsWith(".xlsx") && !input.fileName.endsWith(".xls")) {
+        return { sheets: [] };
+      }
+      const XLSX = await import("xlsx");
+      const buf = Buffer.from(input.fileBase64, "base64");
+      const wb = XLSX.read(buf, { type: "buffer" });
+      const sheets = wb.SheetNames.map((name) => {
+        const ws = wb.Sheets[name];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+        return { name, rowCount: rows.length };
+      });
+      return { sheets };
+    }),
+
   modbusExtract: protectedProcedure
     .input(z.object({
       fileBase64: z.string(),
       fileName: z.string(),
       mimeType: z.string(),
+      selectedSheets: z.array(z.string()).optional(),
     }))
     .mutation(async ({ input }) => {
-      return extractModbusRegisters(input.fileBase64, input.fileName, input.mimeType);
+      return extractModbusRegisters(input.fileBase64, input.fileName, input.mimeType, input.selectedSheets);
     }),
 
   modbusImport: protectedProcedure

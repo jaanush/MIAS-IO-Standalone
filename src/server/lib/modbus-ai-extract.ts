@@ -62,7 +62,7 @@ Respond with ONLY valid JSON matching this schema:
  * Try to parse a structured Excel Modbus register list directly (no AI needed).
  * Returns null if the file doesn't match the expected column structure.
  */
-async function tryDirectExcelParse(fileBase64: string, fileName: string): Promise<ExtractionResult | null> {
+async function tryDirectExcelParse(fileBase64: string, fileName: string, selectedSheets?: string[]): Promise<ExtractionResult | null> {
   if (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls")) return null;
 
   const XLSX = await import("xlsx");
@@ -72,7 +72,11 @@ async function tryDirectExcelParse(fileBase64: string, fileName: string): Promis
   const registers: ExtractedRegister[] = [];
   let deviceName: string | null = null;
 
-  for (const sheetName of wb.SheetNames) {
+  const sheetsToProcess = selectedSheets?.length
+    ? wb.SheetNames.filter((n) => selectedSheets.includes(n))
+    : wb.SheetNames;
+
+  for (const sheetName of sheetsToProcess) {
     const ws = wb.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
     if (rows.length < 2) continue;
@@ -183,9 +187,10 @@ export async function extractModbusRegisters(
   fileBase64: string,
   fileName: string,
   mimeType: string,
+  selectedSheets?: string[],
 ): Promise<ExtractionResult> {
   // Try direct Excel parsing first (faster, free, handles large files)
-  const directResult = await tryDirectExcelParse(fileBase64, fileName);
+  const directResult = await tryDirectExcelParse(fileBase64, fileName, selectedSheets);
   if (directResult) return directResult;
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

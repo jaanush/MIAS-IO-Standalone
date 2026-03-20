@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, Trash2, Check, Pencil } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 
 type Register = {
   address: number;
@@ -34,10 +34,7 @@ type Props = {
 };
 
 const REG_TYPE_SHORT: Record<string, string> = {
-  HOLDING_REGISTER: "HR",
-  INPUT_REGISTER: "IR",
-  COIL: "C",
-  DISCRETE_INPUT: "DI",
+  HOLDING_REGISTER: "HR", INPUT_REGISTER: "IR", COIL: "C", DISCRETE_INPUT: "DI",
 };
 
 const RW_COLOR: Record<string, string> = {
@@ -48,11 +45,27 @@ const RW_COLOR: Record<string, string> = {
 
 export function ImportModbusDialog({ componentId, componentName, open, onClose, onImported }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [step, setStep] = useState<"upload" | "review" | "done">("upload");
+  const [step, setStep] = useState<"upload" | "sheets" | "review" | "done">("upload");
+  const [fileData, setFileData] = useState<{ base64: string; name: string; mime: string } | null>(null);
+  const [sheets, setSheets] = useState<{ name: string; rowCount: number }[]>([]);
+  const [selectedSheets, setSelectedSheets] = useState<Set<string>>(new Set());
   const [registers, setRegisters] = useState<Register[]>([]);
   const [deviceName, setDeviceName] = useState<string | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
+
+  const listSheets = trpc.components.modbusListSheets.useMutation({
+    onSuccess: (data) => {
+      if (data.sheets.length > 1) {
+        setSheets(data.sheets);
+        setSelectedSheets(new Set(data.sheets.map((s) => s.name)));
+        setStep("sheets");
+      } else {
+        // Single sheet or non-Excel — go straight to extract
+        doExtract();
+      }
+    },
+  });
 
   const extract = trpc.components.modbusExtract.useMutation({
     onSuccess: (data) => {
@@ -70,7 +83,17 @@ export function ImportModbusDialog({ componentId, componentName, open, onClose, 
     },
   });
 
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function doExtract(sheetsFilter?: string[]) {
+    if (!fileData) return;
+    extract.mutate({
+      fileBase64: fileData.base64,
+      fileName: fileData.name,
+      mimeType: fileData.mime,
+      selectedSheets: sheetsFilter,
+    });
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -78,11 +101,16 @@ export function ImportModbusDialog({ componentId, componentName, open, onClose, 
     reader.onload = () => {
       const dataUrl = reader.result as string;
       const base64 = dataUrl.split(",")[1];
-      extract.mutate({
-        fileBase64: base64,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-      });
+      const data = { base64, name: file.name, mime: file.type || "application/octet-stream" };
+      setFileData(data);
+
+      // For Excel files, list sheets first
+      if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+        listSheets.mutate({ fileBase64: base64, fileName: file.name });
+      } else {
+        // Non-Excel — go straight to AI extraction
+        extract.mutate({ fileBase64: base64, fileName: file.name, mimeType: data.mime });
+      }
     };
     reader.readAsDataURL(file);
   }
@@ -90,6 +118,15 @@ export function ImportModbusDialog({ componentId, componentName, open, onClose, 
   function handleImport() {
     const filtered = registers.filter((_, i) => !excluded.has(i));
     importMut.mutate({ componentId, registers: filtered });
+  }
+
+  function toggleSheet(name: string) {
+    setSelectedSheets((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
   }
 
   function toggleExclude(idx: number) {
@@ -102,8 +139,11 @@ export function ImportModbusDialog({ componentId, componentName, open, onClose, 
   }
 
   function handleClose() {
-    if (extract.isPending || importMut.isPending) return;
+    if (extract.isPending || importMut.isPending || listSheets.isPending) return;
     setStep("upload");
+    setFileData(null);
+    setSheets([]);
+    setSelectedSheets(new Set());
     setRegisters([]);
     setDeviceName(null);
     setNotes(null);
@@ -124,39 +164,77 @@ export function ImportModbusDialog({ componentId, componentName, open, onClose, 
         {step === "upload" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Upload a Modbus register map document. Supported formats: PDF, images (PNG/JPG),
-              Excel (.xlsx), CSV, or plain text. The AI will extract register definitions automatically.
+              Upload a Modbus register map. Structured Excel files are parsed directly.
+              PDFs and images use AI extraction.
             </p>
-
-            <div className="space-y-1">
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv,.txt"
-                onChange={handleFileUpload}
-                disabled={extract.isPending}
-                className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded file:border file:border-input file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-accent"
-              />
-            </div>
-
-            {extract.isPending && (
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv,.txt"
+              onChange={handleFileUpload}
+              disabled={listSheets.isPending || extract.isPending}
+              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded file:border file:border-input file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-accent"
+            />
+            {(listSheets.isPending || extract.isPending) && (
               <div className="flex items-center gap-2 py-8 justify-center">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">AI is extracting registers...</span>
+                <span className="text-sm text-muted-foreground">
+                  {listSheets.isPending ? "Reading sheets..." : "Extracting registers..."}
+                </span>
               </div>
             )}
-
-            {extract.error && (
+            {(listSheets.error || extract.error) && (
               <p className="rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {extract.error.message}
+                {(listSheets.error || extract.error)?.message}
               </p>
             )}
           </div>
         )}
 
+        {step === "sheets" && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Select which sheets to import registers from:
+            </p>
+            <div className="rounded-md border divide-y">
+              {sheets.map((s) => (
+                <label key={s.name} className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent/30 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-input"
+                    checked={selectedSheets.has(s.name)}
+                    onChange={() => toggleSheet(s.name)}
+                  />
+                  <span className="text-sm font-medium flex-1">{s.name}</span>
+                  <span className="text-xs text-muted-foreground">{s.rowCount} rows</span>
+                </label>
+              ))}
+            </div>
+            {extract.isPending && (
+              <div className="flex items-center gap-2 py-4 justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Extracting registers...</span>
+              </div>
+            )}
+            {extract.error && (
+              <p className="rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {extract.error.message}
+              </p>
+            )}
+            <div className="flex justify-between pt-1">
+              <Button variant="outline" onClick={() => { setStep("upload"); setSheets([]); }}>Back</Button>
+              <Button
+                onClick={() => doExtract([...selectedSheets])}
+                disabled={selectedSheets.size === 0 || extract.isPending}
+              >
+                Extract from {selectedSheets.size} sheet{selectedSheets.size !== 1 ? "s" : ""}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {step === "review" && (
           <div className="space-y-4">
-            {/* Summary */}
             <div className="rounded-md border bg-muted/20 p-3 text-sm space-y-1">
               {deviceName && <div><span className="text-muted-foreground">Device:</span> <span className="font-medium">{deviceName}</span></div>}
               <div>
@@ -167,7 +245,6 @@ export function ImportModbusDialog({ componentId, componentName, open, onClose, 
               {notes && <div className="text-xs text-muted-foreground mt-1">{notes}</div>}
             </div>
 
-            {/* Register table */}
             <div className="overflow-x-auto rounded-md border max-h-[50vh] overflow-y-auto">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-background">
@@ -187,36 +264,19 @@ export function ImportModbusDialog({ componentId, componentName, open, onClose, 
                   {registers.map((reg, i) => {
                     const isExcluded = excluded.has(i);
                     return (
-                      <tr
-                        key={i}
-                        className={`border-b last:border-0 ${isExcluded ? "opacity-30" : "hover:bg-accent/20"}`}
-                      >
+                      <tr key={i} className={`border-b last:border-0 ${isExcluded ? "opacity-30" : "hover:bg-accent/20"}`}>
                         <td className="px-2 py-1">
-                          <input
-                            type="checkbox"
-                            className="h-3.5 w-3.5 rounded border-input cursor-pointer"
-                            checked={!isExcluded}
-                            onChange={() => toggleExclude(i)}
-                          />
+                          <input type="checkbox" className="h-3.5 w-3.5 rounded border-input cursor-pointer" checked={!isExcluded} onChange={() => toggleExclude(i)} />
                         </td>
                         <td className="px-2 py-1 font-mono tabular-nums">{reg.address}</td>
-                        <td className="px-2 py-1">
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">
-                            {REG_TYPE_SHORT[reg.registerType] ?? reg.registerType}
-                          </Badge>
-                        </td>
+                        <td className="px-2 py-1"><Badge variant="outline" className="text-[10px] px-1 py-0">{REG_TYPE_SHORT[reg.registerType] ?? reg.registerType}</Badge></td>
                         <td className="px-2 py-1 font-mono">{reg.dataType}</td>
-                        <td className="px-2 py-1">
-                          <Badge variant="outline" className={`text-[10px] px-1 py-0 ${RW_COLOR[reg.readWrite] ?? ""}`}>
-                            {reg.readWrite}
-                          </Badge>
-                        </td>
+                        <td className="px-2 py-1"><Badge variant="outline" className={`text-[10px] px-1 py-0 ${RW_COLOR[reg.readWrite] ?? ""}`}>{reg.readWrite}</Badge></td>
                         <td className="px-2 py-1 font-mono truncate max-w-[150px]">{reg.name}</td>
                         <td className="px-2 py-1 truncate max-w-[200px]">{reg.description}</td>
                         <td className="px-2 py-1 text-muted-foreground">{reg.unit ?? "—"}</td>
                         <td className="px-2 py-1 font-mono text-muted-foreground">
                           {reg.scaleFactor != null ? `×${reg.scaleFactor}` : "—"}
-                          {reg.offset != null && reg.offset !== 0 ? ` +${reg.offset}` : ""}
                         </td>
                       </tr>
                     );
@@ -232,7 +292,7 @@ export function ImportModbusDialog({ componentId, componentName, open, onClose, 
             )}
 
             <div className="flex justify-between items-center pt-1">
-              <Button variant="outline" onClick={() => { setStep("upload"); setRegisters([]); setExcluded(new Set()); }}>
+              <Button variant="outline" onClick={() => { setStep(sheets.length > 1 ? "sheets" : "upload"); setRegisters([]); setExcluded(new Set()); }}>
                 Back
               </Button>
               <div className="flex gap-2">
