@@ -703,6 +703,7 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
   const { data: plcDataTypes = [] } = trpc.signal.plcDataTypeList.useQuery();
   const upsert = trpc.components.signalUpsert.useMutation();
   const deleteMutation = trpc.components.signalDelete.useMutation();
+  const purgeMutation = trpc.components.signalPurge.useMutation();
 
   const nextOffset = Math.max(-1, ...signals.map((s) => s.channelOffset), ...newRows.map((r) => r.channelOffset)) + 1;
 
@@ -974,9 +975,7 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
             className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
             onClick={async () => {
               if (!confirm(`Delete ALL ${signals.length} signals from this component? This cannot be undone.`)) return;
-              for (const s of signals) {
-                await deleteMutation.mutateAsync({ id: s.id });
-              }
+              await purgeMutation.mutateAsync({ componentId });
               onRefresh();
             }}
           >

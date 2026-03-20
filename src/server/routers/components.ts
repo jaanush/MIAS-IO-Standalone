@@ -426,6 +426,22 @@ export const componentsRouter = createTRPCRouter({
       return sig;
     }),
 
+  signalPurge: protectedProcedure
+    .input(z.object({ componentId: z.number().int() }))
+    .mutation(async ({ input }) => {
+      // Delete alarms first, then signals
+      await db.componentDiscreteAlarm.deleteMany({
+        where: { componentSignal: { componentId: input.componentId } },
+      });
+      await db.componentAnalogAlarm.deleteMany({
+        where: { componentSignal: { componentId: input.componentId } },
+      });
+      const result = await db.componentSignal.deleteMany({
+        where: { componentId: input.componentId },
+      });
+      return { count: result.count };
+    }),
+
   // ── Create component from selected project signals ────────────────
   createFromSignals: protectedProcedure
     .input(z.object({
