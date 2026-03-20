@@ -22,6 +22,7 @@ type Props = {
 
 export function AddFromComponentDialog({ projectId, open, onClose, onAdded }: Props) {
   const [search, setSearch] = useState("");
+  const [scope, setScope] = useState<"global" | "project">("global");
   const [selectedComponentId, setSelectedTemplateId] = useState<number | null>(null);
   const [componentTag, setComponentTag] = useState("");
   const [defaultOrigin, setDefaultOrigin] = useState<string>("CANBUS");
@@ -29,10 +30,16 @@ export function AddFromComponentDialog({ projectId, open, onClose, onAdded }: Pr
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
 
-  const { data: templates = [], isLoading: loadingTemplates } = trpc.signal.componentList.useQuery(
+  const { data: globalTemplates = [] } = trpc.signal.componentList.useQuery(
     undefined,
-    { enabled: open }
+    { enabled: open && scope === "global" }
   );
+  const { data: projectTemplates = [] } = trpc.components.projectComponentList.useQuery(
+    { projectId },
+    { enabled: open && scope === "project" }
+  );
+  const templates = scope === "global" ? globalTemplates : projectTemplates;
+  const loadingTemplates = false;
   const { data: signals = [], isLoading: loadingSignals } = trpc.signal.componentSignals.useQuery(
     { componentId: selectedComponentId! },
     { enabled: selectedComponentId != null }
@@ -125,6 +132,10 @@ export function AddFromComponentDialog({ projectId, open, onClose, onAdded }: Pr
         <div className="flex gap-4 min-h-0 flex-1 overflow-hidden">
           {/* Left: template list */}
           <div className="flex flex-col w-64 shrink-0 min-h-0">
+            <div className="flex rounded-md border text-[11px] mb-2 shrink-0">
+              <button type="button" onClick={() => { setScope("global"); setSelectedTemplateId(null); }} className={`flex-1 px-2 py-1 ${scope === "global" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>Global</button>
+              <button type="button" onClick={() => { setScope("project"); setSelectedTemplateId(null); }} className={`flex-1 px-2 py-1 ${scope === "project" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>Project</button>
+            </div>
             <Input
               placeholder="Search components…"
               value={search}

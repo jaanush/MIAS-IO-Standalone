@@ -444,11 +444,14 @@ export const projectHardwareRouter = createTRPCRouter({
 
   // List global components that have at least one bus signal matching the given protocol
   componentsForNetwork: protectedProcedure
-    .input(z.object({ protocol: z.string() }))
+    .input(z.object({ protocol: z.string(), projectId: z.number().int().optional() }))
     .query(async ({ input }) => {
       return db.hardwareComponent.findMany({
         where: {
-          projectId: null,
+          OR: [
+            { projectId: null },
+            ...(input.projectId ? [{ projectId: input.projectId }] : []),
+          ],
           signals: { some: { origin: { not: "IEC" } } },
         },
         orderBy: { name: "asc" },

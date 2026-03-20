@@ -62,7 +62,7 @@ export function AddComponentInstanceDialog({
   const selectedNetwork = networks.find((n) => n.id === Number(networkId));
 
   const { data: components = [] } = trpc.projectHardware.componentsForNetwork.useQuery(
-    { protocol: selectedNetwork?.protocol ?? "" },
+    { protocol: selectedNetwork?.protocol ?? "", projectId },
     { enabled: !!selectedNetwork }
   );
 
