@@ -82,8 +82,30 @@ export async function extractModbusRegisters(
         data: fileBase64,
       },
     });
+  } else if (
+    mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    mimeType === "application/vnd.ms-excel" ||
+    fileName.endsWith(".xlsx") ||
+    fileName.endsWith(".xls")
+  ) {
+    // Excel files: parse server-side with xlsx, convert to readable text for the AI
+    const XLSX = await import("xlsx");
+    const buf = Buffer.from(fileBase64, "base64");
+    const wb = XLSX.read(buf, { type: "buffer" });
+    const sheets: string[] = [];
+    for (const name of wb.SheetNames) {
+      const ws = wb.Sheets[name];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+      const lines = rows.map((r) => r.map((c: any) => String(c ?? "")).join("\t")).join("\n");
+      sheets.push(`=== Sheet: ${name} ===\n${lines}`);
+    }
+    const text = sheets.join("\n\n");
+    content.push({
+      type: "text",
+      text: `\n\n--- DOCUMENT CONTENT (${fileName}) ---\n${text.substring(0, 100000)}`,
+    });
   } else {
-    // For Excel/CSV/text — decode and send as text
+    // CSV/text files — decode as UTF-8
     const text = Buffer.from(fileBase64, "base64").toString("utf-8");
     content.push({
       type: "text",
