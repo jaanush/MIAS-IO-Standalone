@@ -32,7 +32,7 @@ import { ImportMpvDialog } from "./_components/ImportMpvDialog";
 import { AddFromComponentDialog } from "./_components/AddFromComponentDialog";
 import { ProjectBusConfigDialog } from "./_components/ProjectBusConfigDialog";
 import { ProjectAlarmsDialog } from "./_components/ProjectAlarmsDialog";
-import { ProjectDefaultsDialog } from "./_components/ProjectDefaultsDialog";
+import { ProjectDetailsDialog } from "./_components/ProjectDetailsDialog";
 import { ComponentGroup } from "./_components/ComponentGroup";
 import { CreateComponentDialog } from "./_components/CreateComponentDialog";
 import { ExportLegacyDialog } from "./_components/ExportDialog";
@@ -96,8 +96,15 @@ type EditValues = {
 type ColKey =
   | "select" | "system" | "component" | "desc" | "tag"
   | "card" | "ch" | "io" | "origin" | "network" | "bus" | "defaults" | "canid" | "alarms"
-  | "trigger" | "filter" | "itype" | "wire" | "eu" | "smin" | "smax" | "dtype"
-  // Individual bus fields (hidden by default)
+  // Discrete detail fields
+  | "trigger" | "filter" | "switchType" | "sigVoltage" | "discPlcType"
+  // Analog detail fields
+  | "itype" | "wire" | "eu" | "smin" | "smax" | "dtype"
+  | "rawMin" | "rawMax" | "rawZero" | "clampLow" | "clampHigh" | "deadband"
+  | "wireBreak" | "shortCircuit" | "outOfRange" | "namurNe43"
+  | "tankLevel" | "scalingFb" | "dbRawMin" | "dbRawZero" | "dbRawMax"
+  | "failRaw" | "failMargin" | "failBehavior" | "failDelay"
+  // Bus fields
   | "rawDataType" | "byteOrder" | "canNodeId" | "bitOffset" | "bitLength"
   | "muxIndicator" | "muxId" | "canopenIdx" | "canopenSub"
   | "j1939Pgn" | "j1939Spn" | "modbusUnit" | "modbusRegType" | "modbusRegOfs" | "timeoutMs"
@@ -127,18 +134,42 @@ const COL_DEFS: ColDef[] = [
   { key: "origin",    label: "Origin",     defaultWidth: 90 },
   { key: "network",   label: "Network",    defaultWidth: 140 },
   { key: "bus",       label: "Bus",        defaultWidth: 44 },
-  { key: "defaults",  label: "Defaults",   defaultWidth: 44 },
+  { key: "defaults",  label: "Details",    defaultWidth: 44 },
   { key: "canid",     label: "CAN ID",     defaultWidth: 72 },
   { key: "alarms",    label: "Alarms",     defaultWidth: 58 },
-  { key: "trigger",   label: "Trigger",    defaultWidth: 60,  disc: true },
-  { key: "filter",    label: "Filter ms",  defaultWidth: 70,  disc: true },
-  { key: "itype",     label: "Input",      defaultWidth: 90,  anlg: true },
-  { key: "wire",      label: "Wire",       defaultWidth: 68,  anlg: true },
-  { key: "eu",        label: "EU",         defaultWidth: 52,  anlg: true },
-  { key: "smin",      label: "Scale Min",  defaultWidth: 68,  anlg: true },
-  { key: "smax",      label: "Scale Max",  defaultWidth: 68,  anlg: true },
-  { key: "dtype",     label: "PLC Type",   defaultWidth: 72,  anlg: true },
-  // Individual bus fields — hidden by default
+  // Discrete detail fields — hidden by default (covered by Details dialog)
+  { key: "trigger",    label: "Trigger",      defaultWidth: 60,  disc: true, defaultHidden: true, group: "Discrete" },
+  { key: "filter",     label: "Filter ms",    defaultWidth: 70,  disc: true, defaultHidden: true, group: "Discrete" },
+  { key: "switchType", label: "Switch Type",  defaultWidth: 80,  disc: true, defaultHidden: true, group: "Discrete" },
+  { key: "sigVoltage", label: "Voltage",      defaultWidth: 72,  disc: true, defaultHidden: true, group: "Discrete" },
+  { key: "discPlcType",label: "PLC Type",     defaultWidth: 72,  disc: true, defaultHidden: true, group: "Discrete" },
+  // Analog detail fields — hidden by default (covered by Details dialog)
+  { key: "itype",      label: "Input Type",   defaultWidth: 90,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "wire",       label: "Wire",         defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "eu",         label: "EU",           defaultWidth: 52,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "smin",       label: "Scale Min",    defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "smax",       label: "Scale Max",    defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "dtype",      label: "PLC Type",     defaultWidth: 72,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "rawMin",     label: "Raw Min",      defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "rawMax",     label: "Raw Max",      defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "rawZero",    label: "Raw Zero",     defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "clampLow",   label: "Clamp Low",    defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "clampHigh",  label: "Clamp High",   defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "deadband",   label: "Deadband",     defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "wireBreak",  label: "Wire Break",   defaultWidth: 72,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "shortCircuit",label: "Short Circ",  defaultWidth: 72,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "outOfRange", label: "Out of Range", defaultWidth: 80,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "namurNe43",  label: "NAMUR NE43",   defaultWidth: 72,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "tankLevel",  label: "Tank Level",   defaultWidth: 72,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "scalingFb",  label: "Scaling FB",   defaultWidth: 120, anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "dbRawMin",   label: "DB Raw Min",   defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "dbRawZero",  label: "DB Raw Zero",  defaultWidth: 72,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "dbRawMax",   label: "DB Raw Max",   defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "failRaw",    label: "Fail Raw",     defaultWidth: 68,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "failMargin", label: "Fail Margin",  defaultWidth: 72,  anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "failBehavior",label: "Fail Behavior",defaultWidth: 90, anlg: true, defaultHidden: true, group: "Analog" },
+  { key: "failDelay",  label: "Fail Delay ms",defaultWidth: 80,  anlg: true, defaultHidden: true, group: "Analog" },
+  // Individual bus fields — hidden by default (covered by Bus dialog)
   { key: "rawDataType",  label: "Raw Type",   defaultWidth: 72,  defaultHidden: true, group: "Bus" },
   { key: "byteOrder",    label: "Byte Order", defaultWidth: 90,  defaultHidden: true, group: "Bus" },
   { key: "canNodeId",    label: "CAN Node",   defaultWidth: 68,  defaultHidden: true, group: "Bus" },
@@ -359,7 +390,7 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
     : null;
 
   const dash = <span className="text-xs text-muted-foreground/25">—</span>;
-  const num = (v: number | null | undefined) => v != null ? <span className="text-xs font-mono tabular-nums">{v}</span> : dash;
+  const num = (v: unknown) => v != null ? <span className="text-xs font-mono tabular-nums">{Number(v)}</span> : dash;
   const txt = (v: string | null | undefined) => v ? <span className="text-xs truncate block">{v}</span> : dash;
 
   function renderCell(key: ColKey) {
@@ -378,7 +409,7 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
         return <Td key={key}>{net ? <span className="text-xs truncate block" title={net.description ?? undefined}>{net.protocol}{net.description ? ` — ${net.description}` : ""}</span> : dash}</Td>;
       }
       case "bus": return <Td key={key} className="text-center">{signal.origin !== "IEC" && signal.origin !== "INTERNAL" ? <button type="button" title={bs ? "Edit bus config" : "Add bus config"} className={cn("rounded p-0.5 transition-colors", bs ? "text-blue-600 hover:bg-blue-50" : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent")} onClick={(e) => { e.stopPropagation(); onBusConfig(); }}><Network className="h-3.5 w-3.5" /></button> : dash}</Td>;
-      case "defaults": return <Td key={key} className="text-center"><button type="button" title="Signal defaults" className="rounded p-0.5 transition-colors text-muted-foreground hover:text-foreground hover:bg-accent" onClick={(e) => { e.stopPropagation(); onDefaults(); }}><Settings2 className="h-3.5 w-3.5" /></button></Td>;
+      case "defaults": return <Td key={key} className="text-center"><button type="button" title="Signal details" className="rounded p-0.5 transition-colors text-muted-foreground hover:text-foreground hover:bg-accent" onClick={(e) => { e.stopPropagation(); onDefaults(); }}><Settings2 className="h-3.5 w-3.5" /></button></Td>;
       case "canid": {
         const rawCanId = bs?.canId ?? signal.instanceSignal?.componentSignal?.canId ?? null;
         if (rawCanId == null) return <Td key={key} className="text-center">{dash}</Td>;
@@ -391,15 +422,38 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
         return <Td key={key} className="text-center"><button type="button" title={count > 0 ? `${count} alarm${count === 1 ? "" : "s"}` : "No alarms"} className="flex items-center justify-center gap-0.5 rounded p-0.5 transition-colors hover:bg-accent" onClick={(e) => { e.stopPropagation(); onAlarms(); }}><Bell className={cn("h-3.5 w-3.5", count > 0 ? "text-amber-500" : "text-muted-foreground/30")} />{count > 0 && <span className="text-[10px] font-medium text-amber-600 tabular-nums">{count}</span>}</button></Td>;
       }
       // Discrete-only
+      // Discrete fields
       case "trigger": return isDisc ? <Td key={key}><span className="text-xs">{signal.discreteSignal?.trigger ?? "—"}</span></Td> : <Na key={key} />;
       case "filter": return isDisc ? <Td key={key}><span className="text-xs text-muted-foreground">{signal.discreteSignal?.filterTimeMs != null ? `${Number(signal.discreteSignal.filterTimeMs)} ms` : "—"}</span></Td> : <Na key={key} />;
-      // Analog-only
+      case "switchType": return isDisc ? <Td key={key}>{txt(signal.discreteSignal?.switchingType)}</Td> : <Na key={key} />;
+      case "sigVoltage": return isDisc ? <Td key={key}>{txt(signal.discreteSignal?.signalVoltage)}</Td> : <Na key={key} />;
+      case "discPlcType": return isDisc ? <Td key={key}>{txt(signal.discreteSignal?.plcDataType?.code)}</Td> : <Na key={key} />;
+      // Analog fields
       case "itype": return isAnlg ? <Td key={key}><span className="text-xs truncate block">{signal.analogSignal?.inputType?.name ?? "—"}</span></Td> : <Na key={key} />;
       case "wire": return isAnlg ? <Td key={key}><span className="text-xs text-muted-foreground">{signal.analogSignal?.wireConfig ? (WIRE_CONFIG_LABELS[signal.analogSignal.wireConfig] ?? signal.analogSignal.wireConfig) : "—"}</span></Td> : <Na key={key} />;
       case "eu": return isAnlg ? <Td key={key}><span className="text-xs text-muted-foreground">{signal.analogSignal?.engineeringUnit?.symbol ?? "—"}</span></Td> : <Na key={key} />;
       case "smin": return isAnlg ? <Td key={key} className="text-right"><span className="text-xs tabular-nums">{signal.analogSignal?.scaleMin != null ? Number(signal.analogSignal.scaleMin) : "—"}</span></Td> : <Na key={key} />;
       case "smax": return isAnlg ? <Td key={key} className="text-right"><span className="text-xs tabular-nums">{signal.analogSignal?.scaleMax != null ? Number(signal.analogSignal.scaleMax) : "—"}</span></Td> : <Na key={key} />;
       case "dtype": return isAnlg ? <Td key={key}>{(() => { const euType = signal.analogSignal?.engineeringUnit?.plcDataTypeCatalog?.code; const sigType = signal.analogSignal?.plcDataTypeCatalog?.code; const resolved = euType ?? sigType; return resolved ? <span className={cn("text-xs font-mono", euType && "text-purple-600")} title={euType ? "From EU" : undefined}>{resolved}</span> : dash; })()}</Td> : <Na key={key} />;
+      case "rawMin": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.rawMin)}</Td> : <Na key={key} />;
+      case "rawMax": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.rawMax)}</Td> : <Na key={key} />;
+      case "rawZero": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.rawZero)}</Td> : <Na key={key} />;
+      case "clampLow": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.clampLow)}</Td> : <Na key={key} />;
+      case "clampHigh": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.clampHigh)}</Td> : <Na key={key} />;
+      case "deadband": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.deadband)}</Td> : <Na key={key} />;
+      case "wireBreak": return isAnlg ? <Td key={key}>{signal.analogSignal?.detectWireBreak ? <span className="text-xs">Yes</span> : dash}</Td> : <Na key={key} />;
+      case "shortCircuit": return isAnlg ? <Td key={key}>{signal.analogSignal?.detectShortCircuit ? <span className="text-xs">Yes</span> : dash}</Td> : <Na key={key} />;
+      case "outOfRange": return isAnlg ? <Td key={key}>{signal.analogSignal?.detectOutOfRange ? <span className="text-xs">Yes</span> : dash}</Td> : <Na key={key} />;
+      case "namurNe43": return isAnlg ? <Td key={key}>{signal.analogSignal?.namurNe43 ? <span className="text-xs">Yes</span> : dash}</Td> : <Na key={key} />;
+      case "tankLevel": return isAnlg ? <Td key={key}>{signal.analogSignal?.useTankLevel ? <span className="text-xs">Yes</span> : dash}</Td> : <Na key={key} />;
+      case "scalingFb": return isAnlg ? <Td key={key}>{txt(signal.analogSignal?.scalingFbOverride)}</Td> : <Na key={key} />;
+      case "dbRawMin": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.deadbandRawMin)}</Td> : <Na key={key} />;
+      case "dbRawZero": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.deadbandRawZero)}</Td> : <Na key={key} />;
+      case "dbRawMax": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.deadbandRawMax)}</Td> : <Na key={key} />;
+      case "failRaw": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.sensorFailRaw)}</Td> : <Na key={key} />;
+      case "failMargin": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.sensorFailMargin)}</Td> : <Na key={key} />;
+      case "failBehavior": return isAnlg ? <Td key={key}>{txt(signal.analogSignal?.sensorFailBehavior)}</Td> : <Na key={key} />;
+      case "failDelay": return isAnlg ? <Td key={key} className="text-right">{num(signal.analogSignal?.sensorFailDelayMs)}</Td> : <Na key={key} />;
       // Individual bus fields
       case "rawDataType": return <Td key={key}>{txt(bs?.rawDataType)}</Td>;
       case "byteOrder": return <Td key={key}>{txt(bs?.byteOrder === "BIG_ENDIAN" ? "BE" : bs?.byteOrder === "LITTLE_ENDIAN" ? "LE" : null)}</Td>;
@@ -722,14 +776,38 @@ const SIGNAL_COLUMNS = [
         : (r.analogSignal?.alarms?.length ?? 0),
     { id: "alarms", enableColumnFilter: false }
   ),
+  // Discrete detail fields
   columnHelper.accessor((r) => r.discreteSignal?.trigger ?? "", { id: "trigger", filterFn: emptyAwareFacet }),
   columnHelper.accessor((r) => r.discreteSignal?.filterTimeMs != null ? Number(r.discreteSignal.filterTimeMs) : null, { id: "filter", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.discreteSignal?.switchingType ?? "", { id: "switchType", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.discreteSignal?.signalVoltage ?? "", { id: "sigVoltage", filterFn: emptyAwareText }),
+  columnHelper.accessor((r) => r.discreteSignal?.plcDataType?.code ?? "", { id: "discPlcType", filterFn: emptyAwareFacet }),
+  // Analog detail fields
   columnHelper.accessor((r) => r.analogSignal?.inputType?.name ?? "", { id: "itype", filterFn: emptyAwareFacet }),
   columnHelper.accessor((r) => r.analogSignal?.wireConfig ?? "", { id: "wire", filterFn: emptyAwareFacet }),
   columnHelper.accessor((r) => r.analogSignal?.engineeringUnit?.symbol ?? "", { id: "eu", filterFn: emptyAwareFacet }),
   columnHelper.accessor((r) => r.analogSignal?.scaleMin != null ? Number(r.analogSignal.scaleMin) : null, { id: "smin", enableColumnFilter: false }),
   columnHelper.accessor((r) => r.analogSignal?.scaleMax != null ? Number(r.analogSignal.scaleMax) : null, { id: "smax", enableColumnFilter: false }),
   columnHelper.accessor((r) => r.analogSignal?.plcDataTypeCatalog?.code ?? r.analogSignal?.engineeringUnit?.plcDataTypeCatalog?.code ?? "", { id: "dtype", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.analogSignal?.rawMin != null ? Number(r.analogSignal.rawMin) : null, { id: "rawMin", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.rawMax != null ? Number(r.analogSignal.rawMax) : null, { id: "rawMax", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.rawZero != null ? Number(r.analogSignal.rawZero) : null, { id: "rawZero", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.clampLow != null ? Number(r.analogSignal.clampLow) : null, { id: "clampLow", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.clampHigh != null ? Number(r.analogSignal.clampHigh) : null, { id: "clampHigh", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.deadband != null ? Number(r.analogSignal.deadband) : null, { id: "deadband", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.detectWireBreak ? "Yes" : "", { id: "wireBreak", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.analogSignal?.detectShortCircuit ? "Yes" : "", { id: "shortCircuit", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.analogSignal?.detectOutOfRange ? "Yes" : "", { id: "outOfRange", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.analogSignal?.namurNe43 ? "Yes" : "", { id: "namurNe43", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.analogSignal?.useTankLevel ? "Yes" : "", { id: "tankLevel", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.analogSignal?.scalingFbOverride ?? "", { id: "scalingFb", filterFn: emptyAwareText }),
+  columnHelper.accessor((r) => r.analogSignal?.deadbandRawMin != null ? Number(r.analogSignal.deadbandRawMin) : null, { id: "dbRawMin", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.deadbandRawZero != null ? Number(r.analogSignal.deadbandRawZero) : null, { id: "dbRawZero", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.deadbandRawMax != null ? Number(r.analogSignal.deadbandRawMax) : null, { id: "dbRawMax", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.sensorFailRaw != null ? Number(r.analogSignal.sensorFailRaw) : null, { id: "failRaw", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.sensorFailMargin != null ? Number(r.analogSignal.sensorFailMargin) : null, { id: "failMargin", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.analogSignal?.sensorFailBehavior ?? "", { id: "failBehavior", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.analogSignal?.sensorFailDelayMs ?? null, { id: "failDelay", enableColumnFilter: false }),
   // Individual bus fields (hidden by default)
   columnHelper.accessor((r) => r.busSignal?.rawDataType ?? "", { id: "rawDataType", filterFn: emptyAwareFacet }),
   columnHelper.accessor((r) => r.busSignal?.byteOrder ?? "", { id: "byteOrder", filterFn: emptyAwareFacet }),
@@ -755,9 +833,9 @@ const SIGNAL_COLUMNS = [
 // ── Column filter inputs ──────────────────────────────────────────────────────
 
 // Columns with text filter (free-text substring match)
-const TEXT_FILTER_COLS = new Set<ColKey>(["system", "component", "desc", "tag", "card", "network", "gvl", "drawing", "cabinet"]);
+const TEXT_FILTER_COLS = new Set<ColKey>(["system", "component", "desc", "tag", "card", "network", "sigVoltage", "scalingFb", "gvl", "drawing", "cabinet"]);
 // Columns with faceted select filter (dynamic values from data)
-const FACET_FILTER_COLS = new Set<ColKey>(["io", "origin", "trigger", "itype", "wire", "eu", "dtype", "rawDataType", "byteOrder", "muxIndicator", "modbusRegType"]);
+const FACET_FILTER_COLS = new Set<ColKey>(["io", "origin", "trigger", "switchType", "discPlcType", "itype", "wire", "eu", "dtype", "wireBreak", "shortCircuit", "outOfRange", "namurNe43", "tankLevel", "failBehavior", "rawDataType", "byteOrder", "muxIndicator", "modbusRegType"]);
 
 function FilterCell({
   colKey, column, value, onChange,
@@ -1679,7 +1757,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
       )}
 
       {defaultsSignal && (
-        <ProjectDefaultsDialog
+        <ProjectDetailsDialog
           open
           signal={defaultsSignal}
           onClose={() => setDefaultsSignal(null)}
