@@ -32,6 +32,7 @@ import { ImportMpvDialog } from "./_components/ImportMpvDialog";
 import { AddFromComponentDialog } from "./_components/AddFromComponentDialog";
 import { ProjectBusConfigDialog } from "./_components/ProjectBusConfigDialog";
 import { ProjectAlarmsDialog } from "./_components/ProjectAlarmsDialog";
+import { ProjectDefaultsDialog } from "./_components/ProjectDefaultsDialog";
 import { ComponentGroup } from "./_components/ComponentGroup";
 import { CreateComponentDialog } from "./_components/CreateComponentDialog";
 import { ExportLegacyDialog } from "./_components/ExportDialog";
@@ -94,8 +95,12 @@ type EditValues = {
 
 type ColKey =
   | "select" | "system" | "component" | "desc" | "tag"
-  | "card" | "ch" | "io" | "origin" | "network" | "bus" | "canid" | "alarms"
+  | "card" | "ch" | "io" | "origin" | "network" | "bus" | "defaults" | "canid" | "alarms"
   | "trigger" | "filter" | "itype" | "wire" | "eu" | "smin" | "smax" | "dtype"
+  // Individual bus fields (hidden by default)
+  | "rawDataType" | "byteOrder" | "canNodeId" | "bitOffset" | "bitLength"
+  | "muxIndicator" | "muxId" | "canopenIdx" | "canopenSub"
+  | "j1939Pgn" | "j1939Spn" | "modbusUnit" | "modbusRegType" | "modbusRegOfs" | "timeoutMs"
   | "gvl" | "drawing" | "cabinet" | "actions";
 
 type ColDef = {
@@ -104,6 +109,10 @@ type ColDef = {
   defaultWidth: number;
   disc?: true;
   anlg?: true;
+  /** Hidden by default (user must enable via column selector) */
+  defaultHidden?: true;
+  /** Group label for popover sections */
+  group?: string;
 };
 
 const COL_DEFS: ColDef[] = [
@@ -118,6 +127,7 @@ const COL_DEFS: ColDef[] = [
   { key: "origin",    label: "Origin",     defaultWidth: 90 },
   { key: "network",   label: "Network",    defaultWidth: 140 },
   { key: "bus",       label: "Bus",        defaultWidth: 44 },
+  { key: "defaults",  label: "Defaults",   defaultWidth: 44 },
   { key: "canid",     label: "CAN ID",     defaultWidth: 72 },
   { key: "alarms",    label: "Alarms",     defaultWidth: 58 },
   { key: "trigger",   label: "Trigger",    defaultWidth: 60,  disc: true },
@@ -128,11 +138,30 @@ const COL_DEFS: ColDef[] = [
   { key: "smin",      label: "Scale Min",  defaultWidth: 68,  anlg: true },
   { key: "smax",      label: "Scale Max",  defaultWidth: 68,  anlg: true },
   { key: "dtype",     label: "PLC Type",   defaultWidth: 72,  anlg: true },
+  // Individual bus fields — hidden by default
+  { key: "rawDataType",  label: "Raw Type",   defaultWidth: 72,  defaultHidden: true, group: "Bus" },
+  { key: "byteOrder",    label: "Byte Order", defaultWidth: 90,  defaultHidden: true, group: "Bus" },
+  { key: "canNodeId",    label: "CAN Node",   defaultWidth: 68,  defaultHidden: true, group: "Bus" },
+  { key: "bitOffset",    label: "Bit Ofs",    defaultWidth: 56,  defaultHidden: true, group: "Bus" },
+  { key: "bitLength",    label: "Bit Len",    defaultWidth: 56,  defaultHidden: true, group: "Bus" },
+  { key: "muxIndicator", label: "Mux?",       defaultWidth: 44,  defaultHidden: true, group: "Bus" },
+  { key: "muxId",        label: "Mux ID",     defaultWidth: 56,  defaultHidden: true, group: "Bus" },
+  { key: "canopenIdx",   label: "CO Index",   defaultWidth: 72,  defaultHidden: true, group: "Bus" },
+  { key: "canopenSub",   label: "CO Sub",     defaultWidth: 56,  defaultHidden: true, group: "Bus" },
+  { key: "j1939Pgn",     label: "J1939 PGN",  defaultWidth: 72,  defaultHidden: true, group: "Bus" },
+  { key: "j1939Spn",     label: "J1939 SPN",  defaultWidth: 72,  defaultHidden: true, group: "Bus" },
+  { key: "modbusUnit",   label: "MB Unit",    defaultWidth: 64,  defaultHidden: true, group: "Bus" },
+  { key: "modbusRegType",label: "MB Reg Type", defaultWidth: 90, defaultHidden: true, group: "Bus" },
+  { key: "modbusRegOfs", label: "MB Offset",  defaultWidth: 72,  defaultHidden: true, group: "Bus" },
+  { key: "timeoutMs",    label: "Timeout ms",  defaultWidth: 72, defaultHidden: true, group: "Bus" },
   { key: "gvl",       label: "GVL",        defaultWidth: 80 },
   { key: "drawing",   label: "Drawing",    defaultWidth: 80 },
   { key: "cabinet",   label: "Cabinet",    defaultWidth: 68 },
   { key: "actions",   label: "",           defaultWidth: 56 },
 ];
+
+const DEFAULT_HIDDEN = new Set<ColKey>(COL_DEFS.filter((d) => d.defaultHidden).map((d) => d.key));
+const LS_COL_ORDER = "mias-signal-col-order";
 
 // ── Label maps ────────────────────────────────────────────────────────────────
 
@@ -307,115 +336,90 @@ function Td({ children, className }: { children?: React.ReactNode; className?: s
 
 // ── Display row ───────────────────────────────────────────────────────────────
 
-const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDelete, onBusConfig, onAlarms, onRevert, isRevertPending, hiddenColumns }: {
+const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, onEdit, onAdvanced, onDelete, onBusConfig, onDefaults, onAlarms, onRevert, isRevertPending, visibleCols }: {
   signal: SignalRow;
   selected: boolean;
   onToggleSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onEdit: () => void; onAdvanced: () => void; onDelete: () => void;
   onBusConfig: () => void;
+  onDefaults: () => void;
   onAlarms: () => void;
   onRevert?: () => void;
   isRevertPending?: boolean;
-  hiddenColumns: Set<ColKey>;
+  visibleCols: ColDef[];
 }) {
   const ioCode = getSignalIoCode(signal);
   const typeColor = TYPE_COLORS[ioCode] ?? "bg-muted border-border text-muted-foreground";
   const isDisc = signal.signalType === "DISCRETE";
   const isAnlg = signal.signalType === "ANALOG";
-  const h = hiddenColumns;
+  const bs = signal.busSignal;
 
   const hardware = signal.ioCard
     ? `${signal.ioCard.carrier.plc.name} / ${signal.ioCard.carrier.name} / Slot ${signal.ioCard.slotPosition + 1}`
     : null;
 
-  return (
-    <tr
-      className={cn(
-        "border-b border-border/40 cursor-pointer group",
-        selected ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-accent/30"
-      )}
-      onClick={onEdit}
-    >
-      {!h.has("select") && <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
-        <input type="checkbox" className="h-3.5 w-3.5 rounded border-input cursor-pointer" checked={selected} onChange={onToggleSelect} />
-      </td>}
-      {!h.has("system") && <Td><span className="text-xs text-muted-foreground truncate block" title={signal.system?.name}>{signal.system?.name ?? "—"}</span></Td>}
-      {!h.has("component") && <Td><span className="text-xs text-muted-foreground truncate block">{signal.componentTag ?? "—"}</span></Td>}
-      {!h.has("desc") && <Td><span className="block truncate text-sm" title={signal.description ?? undefined}>{signal.description ?? ""}</span></Td>}
-      {!h.has("tag") && <Td>
-        {signal.tag
-          ? <span className="font-mono text-xs truncate block">{signal.tag}</span>
-          : <span className="text-muted-foreground/40 text-xs italic">—</span>}
-      </Td>}
-      {!h.has("card") && <Td>
-        {signal.origin === "IEC"
-          ? hardware
-            ? <span className="text-xs block truncate">{hardware}</span>
-            : <span className="text-xs text-muted-foreground/40">—</span>
-          : <span className="text-xs text-muted-foreground italic">Via network</span>}
-      </Td>}
-      {!h.has("ch") && <Td className="text-center">
-        <span className="text-xs tabular-nums">{signal.origin === "IEC" && signal.channelPosition != null ? signal.channelPosition : ""}</span>
-      </Td>}
-      {!h.has("io") && <Td>
-        <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-medium", typeColor)}>{ioCode}</Badge>
-      </Td>}
-      {!h.has("origin") && <Td><span className="text-xs text-muted-foreground truncate block">{signal.origin}</span></Td>}
-      {!h.has("network") && <Td>{(() => {
-        const net = signal.busSignal?.plcNetwork ?? signal.instanceSignal?.instance?.network;
-        if (!net) return <span className="text-xs text-muted-foreground/25">—</span>;
-        return <span className="text-xs truncate block" title={net.description ?? undefined}>{net.protocol}{net.description ? ` — ${net.description}` : ""}</span>;
-      })()}</Td>}
-      {!h.has("bus") && <Td className="text-center">
-        {signal.origin !== "IEC" && signal.origin !== "INTERNAL" ? (
-          <button type="button" title={signal.busSignal ? "Edit bus config" : "Add bus config"}
-            className={cn("rounded p-0.5 transition-colors", signal.busSignal ? "text-blue-600 hover:bg-blue-50" : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent")}
-            onClick={(e) => { e.stopPropagation(); onBusConfig(); }}
-          ><Network className="h-3.5 w-3.5" /></button>
-        ) : <span className="text-xs text-muted-foreground/25">—</span>}
-      </Td>}
-      {!h.has("canid") && <Td className="text-center">
-        {(() => {
-          const rawCanId = signal.busSignal?.canId ?? signal.instanceSignal?.componentSignal?.canId ?? null;
-          if (rawCanId == null) return <span className="text-xs text-muted-foreground/25">—</span>;
-          const offset = signal.instanceSignal?.instance?.canIdOffset ?? 0;
-          const resolved = rawCanId + offset;
-          return <span className="font-mono text-xs tabular-nums" title={offset !== 0 ? `Raw: 0x${rawCanId.toString(16).toUpperCase()} + offset ${offset >= 0 ? "+" : ""}${offset}` : undefined}>{`0x${resolved.toString(16).toUpperCase()}`}</span>;
-        })()}
-      </Td>}
-      {!h.has("alarms") && <Td className="text-center">
-        {(() => {
-          const count = isDisc ? (signal.discreteSignal?.alarms?.length ?? 0) : (signal.analogSignal?.alarms?.length ?? 0);
-          return (
-            <button type="button" title={count > 0 ? `${count} alarm${count === 1 ? "" : "s"}` : "No alarms"}
-              className="flex items-center justify-center gap-0.5 rounded p-0.5 transition-colors hover:bg-accent"
-              onClick={(e) => { e.stopPropagation(); onAlarms(); }}
-            >
-              <Bell className={cn("h-3.5 w-3.5", count > 0 ? "text-amber-500" : "text-muted-foreground/30")} />
-              {count > 0 && <span className="text-[10px] font-medium text-amber-600 tabular-nums">{count}</span>}
-            </button>
-          );
-        })()}
-      </Td>}
-      {/* Discrete-only */}
-      {!h.has("trigger") && (isDisc ? <Td><span className="text-xs">{signal.discreteSignal?.trigger ?? "—"}</span></Td> : <Na />)}
-      {!h.has("filter") && (isDisc ? <Td><span className="text-xs text-muted-foreground">{signal.discreteSignal?.filterTimeMs != null ? `${Number(signal.discreteSignal.filterTimeMs)} ms` : "—"}</span></Td> : <Na />)}
-      {/* Analog-only */}
-      {!h.has("itype") && (isAnlg ? <Td><span className="text-xs truncate block">{signal.analogSignal?.inputType?.name ?? "—"}</span></Td> : <Na />)}
-      {!h.has("wire") && (isAnlg ? <Td><span className="text-xs text-muted-foreground">{signal.analogSignal?.wireConfig ? (WIRE_CONFIG_LABELS[signal.analogSignal.wireConfig] ?? signal.analogSignal.wireConfig) : "—"}</span></Td> : <Na />)}
-      {!h.has("eu") && (isAnlg ? <Td><span className="text-xs text-muted-foreground">{signal.analogSignal?.engineeringUnit?.symbol ?? "—"}</span></Td> : <Na />)}
-      {!h.has("smin") && (isAnlg ? <Td className="text-right"><span className="text-xs tabular-nums">{signal.analogSignal?.scaleMin != null ? Number(signal.analogSignal.scaleMin) : "—"}</span></Td> : <Na />)}
-      {!h.has("smax") && (isAnlg ? <Td className="text-right"><span className="text-xs tabular-nums">{signal.analogSignal?.scaleMax != null ? Number(signal.analogSignal.scaleMax) : "—"}</span></Td> : <Na />)}
-      {!h.has("dtype") && (isAnlg ? <Td>{(() => {
-        const euType = signal.analogSignal?.engineeringUnit?.plcDataTypeCatalog?.code;
-        const sigType = signal.analogSignal?.plcDataTypeCatalog?.code;
-        const resolved = euType ?? sigType;
-        return resolved ? <span className={cn("text-xs font-mono", euType && "text-purple-600")} title={euType ? "From EU" : undefined}>{resolved}</span> : <span className="text-xs text-muted-foreground/40">—</span>;
-      })()}</Td> : <Na />)}
-      {!h.has("gvl") && <Td><span className="text-xs text-muted-foreground truncate block">{signal.gvl?.name ?? "—"}</span></Td>}
-      {!h.has("drawing") && <Td><span className="text-xs text-muted-foreground truncate block">{signal.drawingRef ?? "—"}</span></Td>}
-      {!h.has("cabinet") && <Td><span className="text-xs text-muted-foreground">{signal.cabinetLocation ?? "—"}</span></Td>}
-      {!h.has("actions") && <Td>
+  const dash = <span className="text-xs text-muted-foreground/25">—</span>;
+  const num = (v: number | null | undefined) => v != null ? <span className="text-xs font-mono tabular-nums">{v}</span> : dash;
+  const txt = (v: string | null | undefined) => v ? <span className="text-xs truncate block">{v}</span> : dash;
+
+  function renderCell(key: ColKey) {
+    switch (key) {
+      case "select": return <td key={key} className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="h-3.5 w-3.5 rounded border-input cursor-pointer" checked={selected} onChange={onToggleSelect} /></td>;
+      case "system": return <Td key={key}><span className="text-xs text-muted-foreground truncate block" title={signal.system?.name}>{signal.system?.name ?? "—"}</span></Td>;
+      case "component": return <Td key={key}><span className="text-xs text-muted-foreground truncate block">{signal.componentTag ?? "—"}</span></Td>;
+      case "desc": return <Td key={key}><span className="block truncate text-sm" title={signal.description ?? undefined}>{signal.description ?? ""}</span></Td>;
+      case "tag": return <Td key={key}>{signal.tag ? <span className="font-mono text-xs truncate block">{signal.tag}</span> : <span className="text-muted-foreground/40 text-xs italic">—</span>}</Td>;
+      case "card": return <Td key={key}>{signal.origin === "IEC" ? (hardware ? <span className="text-xs block truncate">{hardware}</span> : <span className="text-xs text-muted-foreground/40">—</span>) : <span className="text-xs text-muted-foreground italic">Via network</span>}</Td>;
+      case "ch": return <Td key={key} className="text-center"><span className="text-xs tabular-nums">{signal.origin === "IEC" && signal.channelPosition != null ? signal.channelPosition : ""}</span></Td>;
+      case "io": return <Td key={key}><Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-medium", typeColor)}>{ioCode}</Badge></Td>;
+      case "origin": return <Td key={key}><span className="text-xs text-muted-foreground truncate block">{signal.origin}</span></Td>;
+      case "network": {
+        const net = bs?.plcNetwork ?? signal.instanceSignal?.instance?.network;
+        return <Td key={key}>{net ? <span className="text-xs truncate block" title={net.description ?? undefined}>{net.protocol}{net.description ? ` — ${net.description}` : ""}</span> : dash}</Td>;
+      }
+      case "bus": return <Td key={key} className="text-center">{signal.origin !== "IEC" && signal.origin !== "INTERNAL" ? <button type="button" title={bs ? "Edit bus config" : "Add bus config"} className={cn("rounded p-0.5 transition-colors", bs ? "text-blue-600 hover:bg-blue-50" : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent")} onClick={(e) => { e.stopPropagation(); onBusConfig(); }}><Network className="h-3.5 w-3.5" /></button> : dash}</Td>;
+      case "defaults": return <Td key={key} className="text-center"><button type="button" title="Signal defaults" className="rounded p-0.5 transition-colors text-muted-foreground hover:text-foreground hover:bg-accent" onClick={(e) => { e.stopPropagation(); onDefaults(); }}><Settings2 className="h-3.5 w-3.5" /></button></Td>;
+      case "canid": {
+        const rawCanId = bs?.canId ?? signal.instanceSignal?.componentSignal?.canId ?? null;
+        if (rawCanId == null) return <Td key={key} className="text-center">{dash}</Td>;
+        const offset = signal.instanceSignal?.instance?.canIdOffset ?? 0;
+        const resolved = rawCanId + offset;
+        return <Td key={key} className="text-center"><span className="font-mono text-xs tabular-nums" title={offset !== 0 ? `Raw: 0x${rawCanId.toString(16).toUpperCase()} + offset ${offset >= 0 ? "+" : ""}${offset}` : undefined}>{`0x${resolved.toString(16).toUpperCase()}`}</span></Td>;
+      }
+      case "alarms": {
+        const count = isDisc ? (signal.discreteSignal?.alarms?.length ?? 0) : (signal.analogSignal?.alarms?.length ?? 0);
+        return <Td key={key} className="text-center"><button type="button" title={count > 0 ? `${count} alarm${count === 1 ? "" : "s"}` : "No alarms"} className="flex items-center justify-center gap-0.5 rounded p-0.5 transition-colors hover:bg-accent" onClick={(e) => { e.stopPropagation(); onAlarms(); }}><Bell className={cn("h-3.5 w-3.5", count > 0 ? "text-amber-500" : "text-muted-foreground/30")} />{count > 0 && <span className="text-[10px] font-medium text-amber-600 tabular-nums">{count}</span>}</button></Td>;
+      }
+      // Discrete-only
+      case "trigger": return isDisc ? <Td key={key}><span className="text-xs">{signal.discreteSignal?.trigger ?? "—"}</span></Td> : <Na key={key} />;
+      case "filter": return isDisc ? <Td key={key}><span className="text-xs text-muted-foreground">{signal.discreteSignal?.filterTimeMs != null ? `${Number(signal.discreteSignal.filterTimeMs)} ms` : "—"}</span></Td> : <Na key={key} />;
+      // Analog-only
+      case "itype": return isAnlg ? <Td key={key}><span className="text-xs truncate block">{signal.analogSignal?.inputType?.name ?? "—"}</span></Td> : <Na key={key} />;
+      case "wire": return isAnlg ? <Td key={key}><span className="text-xs text-muted-foreground">{signal.analogSignal?.wireConfig ? (WIRE_CONFIG_LABELS[signal.analogSignal.wireConfig] ?? signal.analogSignal.wireConfig) : "—"}</span></Td> : <Na key={key} />;
+      case "eu": return isAnlg ? <Td key={key}><span className="text-xs text-muted-foreground">{signal.analogSignal?.engineeringUnit?.symbol ?? "—"}</span></Td> : <Na key={key} />;
+      case "smin": return isAnlg ? <Td key={key} className="text-right"><span className="text-xs tabular-nums">{signal.analogSignal?.scaleMin != null ? Number(signal.analogSignal.scaleMin) : "—"}</span></Td> : <Na key={key} />;
+      case "smax": return isAnlg ? <Td key={key} className="text-right"><span className="text-xs tabular-nums">{signal.analogSignal?.scaleMax != null ? Number(signal.analogSignal.scaleMax) : "—"}</span></Td> : <Na key={key} />;
+      case "dtype": return isAnlg ? <Td key={key}>{(() => { const euType = signal.analogSignal?.engineeringUnit?.plcDataTypeCatalog?.code; const sigType = signal.analogSignal?.plcDataTypeCatalog?.code; const resolved = euType ?? sigType; return resolved ? <span className={cn("text-xs font-mono", euType && "text-purple-600")} title={euType ? "From EU" : undefined}>{resolved}</span> : dash; })()}</Td> : <Na key={key} />;
+      // Individual bus fields
+      case "rawDataType": return <Td key={key}>{txt(bs?.rawDataType)}</Td>;
+      case "byteOrder": return <Td key={key}>{txt(bs?.byteOrder === "BIG_ENDIAN" ? "BE" : bs?.byteOrder === "LITTLE_ENDIAN" ? "LE" : null)}</Td>;
+      case "canNodeId": return <Td key={key}>{num(bs?.nodeId)}</Td>;
+      case "bitOffset": return <Td key={key}>{num(bs?.bitOffset)}</Td>;
+      case "bitLength": return <Td key={key}>{num(bs?.bitLength)}</Td>;
+      case "muxIndicator": return <Td key={key}>{bs?.isMuxIndicator ? <span className="text-xs">Yes</span> : dash}</Td>;
+      case "muxId": return <Td key={key}>{num(bs?.muxId)}</Td>;
+      case "canopenIdx": return <Td key={key}>{bs?.canopenIndex != null ? <span className="text-xs font-mono">0x{bs.canopenIndex.toString(16).toUpperCase().padStart(4, "0")}</span> : dash}</Td>;
+      case "canopenSub": return <Td key={key}>{num(bs?.canopenSubIndex)}</Td>;
+      case "j1939Pgn": return <Td key={key}>{num(bs?.j1939Pgn)}</Td>;
+      case "j1939Spn": return <Td key={key}>{num(bs?.j1939Spn)}</Td>;
+      case "modbusUnit": return <Td key={key}>{num(bs?.unitId)}</Td>;
+      case "modbusRegType": return <Td key={key}>{txt(bs?.registerType ? ({ HOLDING_REGISTER: "HR", INPUT_REGISTER: "IR", COIL: "CO", DISCRETE_INPUT: "DI" }[bs.registerType] ?? bs.registerType) : null)}</Td>;
+      case "modbusRegOfs": return <Td key={key}>{num(bs?.registerOffset)}</Td>;
+      case "timeoutMs": return <Td key={key}>{num(bs?.timeoutMs)}</Td>;
+      case "gvl": return <Td key={key}><span className="text-xs text-muted-foreground truncate block">{signal.gvl?.name ?? "—"}</span></Td>;
+      case "drawing": return <Td key={key}><span className="text-xs text-muted-foreground truncate block">{signal.drawingRef ?? "—"}</span></Td>;
+      case "cabinet": return <Td key={key}><span className="text-xs text-muted-foreground">{signal.cabinetLocation ?? "—"}</span></Td>;
+      case "actions": return <Td key={key}>
         <div className="flex items-center gap-0.5">
           {onRevert && (
             <button type="button" title="Revert to component template defaults"
@@ -432,7 +436,20 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
             onClick={(e) => { e.stopPropagation(); if (confirm(`Delete signal "${signal.tag ?? signal.description ?? `#${signal.id}`}"?`)) onDelete(); }}
           ><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
-      </Td>}
+      </Td>;
+      default: return null;
+    }
+  }
+
+  return (
+    <tr
+      className={cn(
+        "border-b border-border/40 cursor-pointer group",
+        selected ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-accent/30"
+      )}
+      onClick={onEdit}
+    >
+      {visibleCols.map((d) => renderCell(d.key))}
     </tr>
   );
 });
@@ -689,6 +706,7 @@ const SIGNAL_COLUMNS = [
     return parts.join(" — ");
   }, { id: "network", filterFn: emptyAwareText }),
   columnHelper.display({ id: "bus", enableSorting: false, enableColumnFilter: false }),
+  columnHelper.display({ id: "defaults", enableSorting: false, enableColumnFilter: false }),
   columnHelper.accessor(
     (r) => {
       const rawCanId = r.busSignal?.canId ?? r.instanceSignal?.componentSignal?.canId ?? null;
@@ -712,6 +730,22 @@ const SIGNAL_COLUMNS = [
   columnHelper.accessor((r) => r.analogSignal?.scaleMin != null ? Number(r.analogSignal.scaleMin) : null, { id: "smin", enableColumnFilter: false }),
   columnHelper.accessor((r) => r.analogSignal?.scaleMax != null ? Number(r.analogSignal.scaleMax) : null, { id: "smax", enableColumnFilter: false }),
   columnHelper.accessor((r) => r.analogSignal?.plcDataTypeCatalog?.code ?? r.analogSignal?.engineeringUnit?.plcDataTypeCatalog?.code ?? "", { id: "dtype", filterFn: emptyAwareFacet }),
+  // Individual bus fields (hidden by default)
+  columnHelper.accessor((r) => r.busSignal?.rawDataType ?? "", { id: "rawDataType", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.busSignal?.byteOrder ?? "", { id: "byteOrder", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.busSignal?.nodeId ?? null, { id: "canNodeId", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.busSignal?.bitOffset ?? null, { id: "bitOffset", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.busSignal?.bitLength ?? null, { id: "bitLength", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.busSignal?.isMuxIndicator ? "Yes" : "", { id: "muxIndicator", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.busSignal?.muxId ?? null, { id: "muxId", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.busSignal?.canopenIndex ?? null, { id: "canopenIdx", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.busSignal?.canopenSubIndex ?? null, { id: "canopenSub", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.busSignal?.j1939Pgn ?? null, { id: "j1939Pgn", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.busSignal?.j1939Spn ?? null, { id: "j1939Spn", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.busSignal?.unitId ?? null, { id: "modbusUnit", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.busSignal?.registerType ?? "", { id: "modbusRegType", filterFn: emptyAwareFacet }),
+  columnHelper.accessor((r) => r.busSignal?.registerOffset ?? null, { id: "modbusRegOfs", enableColumnFilter: false }),
+  columnHelper.accessor((r) => r.busSignal?.timeoutMs ?? null, { id: "timeoutMs", enableColumnFilter: false }),
   columnHelper.accessor((r) => r.gvl?.name ?? "", { id: "gvl", filterFn: emptyAwareText }),
   columnHelper.accessor((r) => r.drawingRef ?? "", { id: "drawing", filterFn: emptyAwareText }),
   columnHelper.accessor((r) => r.cabinetLocation ?? "", { id: "cabinet", filterFn: emptyAwareText }),
@@ -723,7 +757,7 @@ const SIGNAL_COLUMNS = [
 // Columns with text filter (free-text substring match)
 const TEXT_FILTER_COLS = new Set<ColKey>(["system", "component", "desc", "tag", "card", "network", "gvl", "drawing", "cabinet"]);
 // Columns with faceted select filter (dynamic values from data)
-const FACET_FILTER_COLS = new Set<ColKey>(["io", "origin", "trigger", "itype", "wire", "eu", "dtype"]);
+const FACET_FILTER_COLS = new Set<ColKey>(["io", "origin", "trigger", "itype", "wire", "eu", "dtype", "rawDataType", "byteOrder", "muxIndicator", "modbusRegType"]);
 
 function FilterCell({
   colKey, column, value, onChange,
@@ -836,18 +870,31 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const [advancedSignal, setAdvancedSignal] = useState<SignalRow | null>(null);
   const [busConfigSignal, setBusConfigSignal] = useState<SignalRow | null>(null);
   const [alarmSignal, setAlarmSignal] = useState<SignalRow | null>(null);
+  const [defaultsSignal, setDefaultsSignal] = useState<SignalRow | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [showImportMpv, setShowImportMpv] = useState(false);
   const [showAddFromComponent, setShowAddFromComponent] = useState(false);
   const [showStructuredImport, setShowStructuredImport] = useState(false);
   const [showExportLegacy, setShowExportLegacy] = useState(false);
-  const [hiddenColumns, setHiddenColumns] = useState<Set<ColKey>>(new Set());
+  const [hiddenColumns, setHiddenColumns] = useState<Set<ColKey>>(DEFAULT_HIDDEN);
+  const [columnOrder, setColumnOrder] = useState<ColKey[]>(() => COL_DEFS.map((d) => d.key));
 
-  // Load persisted hidden columns after hydration
+  // Load persisted hidden columns + order after hydration
   useEffect(() => {
     try {
       const stored = localStorage.getItem(LS_COL_HIDDEN);
       if (stored) setHiddenColumns(new Set(JSON.parse(stored)));
+    } catch {}
+    try {
+      const stored = localStorage.getItem(LS_COL_ORDER);
+      if (stored) {
+        const parsed = JSON.parse(stored) as ColKey[];
+        // Merge: keep stored order, append any new columns not in the stored set
+        const allKeys = new Set(COL_DEFS.map((d) => d.key));
+        const valid = parsed.filter((k) => allKeys.has(k));
+        const missing = COL_DEFS.map((d) => d.key).filter((k) => !valid.includes(k));
+        setColumnOrder([...valid, ...missing]);
+      }
     } catch {}
   }, []);
   const [showCreateComponent, setShowCreateComponent] = useState(false);
@@ -1115,7 +1162,9 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
     setGlobalFilter("");
   }
 
-  const visibleCols = useMemo(() => COL_DEFS.filter((d) => !hiddenColumns.has(d.key)), [hiddenColumns]);
+  const colDefMap = useMemo(() => new Map(COL_DEFS.map((d) => [d.key, d])), []);
+  const orderedColDefs = useMemo(() => columnOrder.map((k) => colDefMap.get(k)!).filter(Boolean), [columnOrder, colDefMap]);
+  const visibleCols = useMemo(() => orderedColDefs.filter((d) => !hiddenColumns.has(d.key)), [orderedColDefs, hiddenColumns]);
   const totalWidth = visibleCols.reduce((sum, d) => sum + widths[d.key], 0);
 
   const flatRows = useMemo(() => !grouped ? table.getRowModel().rows : [], [grouped, table.getRowModel().rows]);
@@ -1199,31 +1248,53 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                 <Columns3 className="h-4 w-4 mr-1" /> Columns
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-52 max-h-80 overflow-y-auto p-2">
+            <PopoverContent align="end" className="w-64 max-h-[420px] overflow-y-auto p-2">
               <div className="space-y-0.5">
-                {COL_DEFS.filter((d) => d.key !== "select" && d.key !== "actions").map((d) => (
-                  <label key={d.key} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer text-sm">
-                    <input
-                      type="checkbox"
-                      className="h-3.5 w-3.5 rounded border-input"
-                      checked={!hiddenColumns.has(d.key)}
-                      onChange={() => {
-                        setHiddenColumns((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(d.key)) next.delete(d.key);
-                          else next.add(d.key);
-                          localStorage.setItem(LS_COL_HIDDEN, JSON.stringify([...next]));
-                          return next;
-                        });
-                      }}
-                    />
-                    <span className={d.disc ? "text-muted-foreground" : d.anlg ? "text-muted-foreground" : ""}>
-                      {d.label}
-                      {d.disc && <span className="ml-1 text-[10px] text-blue-500">DI/DO</span>}
-                      {d.anlg && <span className="ml-1 text-[10px] text-purple-500">AI/AO</span>}
-                    </span>
-                  </label>
-                ))}
+                {columnOrder.filter((k) => k !== "select" && k !== "actions").map((key, idx) => {
+                  const d = colDefMap.get(key);
+                  if (!d) return null;
+                  const reorderable = columnOrder.filter((k2) => k2 !== "select" && k2 !== "actions");
+                  const posInList = reorderable.indexOf(key);
+                  const isFirst = posInList === 0;
+                  const isLast = posInList === reorderable.length - 1;
+                  const prevGroup = posInList > 0 ? colDefMap.get(reorderable[posInList - 1])?.group : undefined;
+                  const showGroupHeader = d.group && d.group !== prevGroup;
+                  return (
+                    <div key={key}>
+                      {showGroupHeader && <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 pt-2 pb-0.5">{d.group}</div>}
+                      <div className="flex items-center gap-1 px-1 py-0.5 rounded hover:bg-accent group/col">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 rounded border-input shrink-0"
+                          checked={!hiddenColumns.has(d.key)}
+                          onChange={() => {
+                            setHiddenColumns((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(d.key)) next.delete(d.key);
+                              else next.add(d.key);
+                              localStorage.setItem(LS_COL_HIDDEN, JSON.stringify([...next]));
+                              return next;
+                            });
+                          }}
+                        />
+                        <span className={cn("flex-1 text-sm truncate", (d.disc || d.anlg) && "text-muted-foreground")}>
+                          {d.label || key}
+                          {d.disc && <span className="ml-1 text-[10px] text-blue-500">DI/DO</span>}
+                          {d.anlg && <span className="ml-1 text-[10px] text-purple-500">AI/AO</span>}
+                          {d.defaultHidden && <span className="ml-1 text-[10px] text-muted-foreground/50">detail</span>}
+                        </span>
+                        <div className="flex opacity-0 group-hover/col:opacity-100">
+                          <button type="button" disabled={isFirst} className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-20"
+                            onClick={() => { setColumnOrder((prev) => { const next = [...prev]; const i = next.indexOf(key); if (i > 0) { [next[i - 1], next[i]] = [next[i], next[i - 1]]; } localStorage.setItem(LS_COL_ORDER, JSON.stringify(next)); return next; }); }}
+                          ><ChevronUp className="h-3 w-3" /></button>
+                          <button type="button" disabled={isLast} className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-20"
+                            onClick={() => { setColumnOrder((prev) => { const next = [...prev]; const i = next.indexOf(key); if (i < next.length - 1) { [next[i], next[i + 1]] = [next[i + 1], next[i]]; } localStorage.setItem(LS_COL_ORDER, JSON.stringify(next)); return next; }); }}
+                          ><ChevronDown className="h-3 w-3" /></button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </PopoverContent>
           </Popover>
@@ -1443,7 +1514,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                         );
                       }
                       return (
-                        <DisplayRow hiddenColumns={hiddenColumns}
+                        <DisplayRow visibleCols={visibleCols}
                           key={signal.id}
                           signal={signal}
                           selected={row.getIsSelected()}
@@ -1452,6 +1523,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                           onAdvanced={() => setAdvancedSignal(signal)}
                           onDelete={() => del.mutate({ id: signal.id })}
                           onBusConfig={() => setBusConfigSignal(signal)}
+                          onDefaults={() => setDefaultsSignal(signal)}
                           onAlarms={() => setAlarmSignal(signal)}
                           onRevert={signal.instanceSignal ? () => signalRevert.mutate({ signalId: signal.id }) : undefined}
                           isRevertPending={signalRevert.isPending}
@@ -1513,7 +1585,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                         );
                       }
                       return (
-                        <DisplayRow hiddenColumns={hiddenColumns}
+                        <DisplayRow visibleCols={visibleCols}
                           key={signal.id}
                           signal={signal}
                           selected={row.getIsSelected()}
@@ -1522,6 +1594,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                           onAdvanced={() => setAdvancedSignal(signal)}
                           onDelete={() => del.mutate({ id: signal.id })}
                           onBusConfig={() => setBusConfigSignal(signal)}
+                          onDefaults={() => setDefaultsSignal(signal)}
                           onAlarms={() => setAlarmSignal(signal)}
                         />
                       );
@@ -1555,7 +1628,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                     );
                   }
                   return (
-                    <DisplayRow hiddenColumns={hiddenColumns}
+                    <DisplayRow visibleCols={visibleCols}
                       key={signal.id}
                       signal={signal}
                       selected={row.getIsSelected()}
@@ -1564,6 +1637,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                       onAdvanced={() => setAdvancedSignal(signal)}
                       onDelete={() => del.mutate({ id: signal.id })}
                       onBusConfig={() => setBusConfigSignal(signal)}
+                          onDefaults={() => setDefaultsSignal(signal)}
                       onAlarms={() => setAlarmSignal(signal)}
                       onRevert={signal.instanceSignal ? () => signalRevert.mutate({ signalId: signal.id }) : undefined}
                       isRevertPending={signalRevert.isPending}
@@ -1600,6 +1674,18 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
           onSaved={() => {
             utils.signal.list.invalidate({ projectId });
             setAlarmSignal(null);
+          }}
+        />
+      )}
+
+      {defaultsSignal && (
+        <ProjectDefaultsDialog
+          open
+          signal={defaultsSignal}
+          onClose={() => setDefaultsSignal(null)}
+          onSaved={() => {
+            utils.signal.list.invalidate({ projectId });
+            setDefaultsSignal(null);
           }}
         />
       )}
