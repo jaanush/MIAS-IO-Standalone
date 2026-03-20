@@ -246,10 +246,10 @@ export const componentsRouter = createTRPCRouter({
           ? (isInput ? "DI" : "DO")
           : (isInput ? "AI" : "AO");
 
-        // Map data types
+        // Map extracted data types to BusRawDataType enum values
         const rawDataTypeMap: Record<string, string> = {
-          INT16: "INT16", UINT16: "UINT16", INT32: "INT32", UINT32: "UINT32",
-          FLOAT32: "FLOAT32", BOOL: "UINT16", WORD: "UINT16", DWORD: "UINT32",
+          INT16: "INT", UINT16: "UINT", INT32: "DINT", UINT32: "UDINT",
+          FLOAT32: "REAL", BOOL: "BOOL", WORD: "WORD", DWORD: "DWORD",
         };
 
         const modbusRegTypeMap: Record<string, string> = {
