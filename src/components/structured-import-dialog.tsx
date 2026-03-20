@@ -35,10 +35,31 @@ type ColumnMapping = { sourceColumn: string; targetField: string };
 type RowFilter = { column: string; operator: "==" | "!="; value: string };
 type MappedRow = Record<string, string>;
 
+interface ImportPreset {
+  name: string;
+  sheetHint: string;
+  mappings: ColumnMapping[];
+  filters: RowFilter[];
+}
+
+const LS_PRESETS_KEY = "mias-import-presets";
+
+function loadPresets(): ImportPreset[] {
+  try {
+    return JSON.parse(localStorage.getItem(LS_PRESETS_KEY) ?? "[]");
+  } catch { return []; }
+}
+
+function savePresets(presets: ImportPreset[]) {
+  localStorage.setItem(LS_PRESETS_KEY, JSON.stringify(presets));
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
   title: string;
+  /** Unique key for this import type — presets are scoped by this */
+  presetKey?: string;
   /** Target fields the user maps Excel columns to */
   targetFields: TargetField[];
   /** Called with the final mapped rows — the parent handles the actual DB import */
@@ -47,7 +68,7 @@ interface Props {
 
 // ── Component ──────────────────────────────────────────────────────────
 
-export function StructuredImportDialog({ open, onClose, title, targetFields, onImport }: Props) {
+export function StructuredImportDialog({ open, onClose, title, presetKey, targetFields, onImport }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<"upload" | "sheet" | "map" | "preview" | "done">("upload");
   const [fileBase64, setFileBase64] = useState<string>("");
@@ -59,6 +80,11 @@ export function StructuredImportDialog({ open, onClose, title, targetFields, onI
   const [previewStats, setPreviewStats] = useState({ total: 0, filtered: 0 });
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [presetName, setPresetName] = useState("");
+  const [showSavePreset, setShowSavePreset] = useState(false);
+
+  const scopedKey = presetKey ?? title;
+  const presets = useMemo(() => loadPresets().filter((p) => p.name.startsWith(scopedKey + ":")), [scopedKey]);
 
   const readSheets = trpc.import.readSheets.useMutation({
     onSuccess: (data) => {
@@ -115,6 +141,39 @@ export function StructuredImportDialog({ open, onClose, title, targetFields, onI
       readSheets.mutate({ fileBase64: b64 });
     };
     reader.readAsDataURL(file);
+  }
+
+  function applyPreset(preset: ImportPreset) {
+    // Try to find the hinted sheet
+    const hintedSheet = sheets.find((s) => s.name === preset.sheetHint);
+    if (hintedSheet) {
+      setSelectedSheet(hintedSheet.name);
+    }
+    // Apply mappings (only if source columns exist in current headers)
+    const currentHeaders = (hintedSheet ?? sheets.find((s) => s.name === selectedSheet))?.headers ?? [];
+    const validMappings = preset.mappings.filter((m) => currentHeaders.includes(m.sourceColumn));
+    setMappings(validMappings);
+    setFilters(preset.filters);
+    if (hintedSheet || selectedSheet) setStep("map");
+  }
+
+  function saveCurrentPreset() {
+    if (!presetName.trim()) return;
+    const preset: ImportPreset = {
+      name: `${scopedKey}:${presetName.trim()}`,
+      sheetHint: selectedSheet,
+      mappings,
+      filters,
+    };
+    const all = loadPresets().filter((p) => p.name !== preset.name);
+    all.push(preset);
+    savePresets(all);
+    setShowSavePreset(false);
+    setPresetName("");
+  }
+
+  function deletePreset(name: string) {
+    savePresets(loadPresets().filter((p) => p.name !== name));
   }
 
   function selectSheet(name: string) {
@@ -219,6 +278,18 @@ export function StructuredImportDialog({ open, onClose, title, targetFields, onI
         {step === "sheet" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Select a sheet to import from:</p>
+            {presets.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Or apply a saved preset:</p>
+                <div className="flex gap-2 flex-wrap">
+                  {presets.map((p) => (
+                    <Button key={p.name} variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyPreset(p)}>
+                      {p.name.replace(scopedKey + ":", "")} ({p.sheetHint})
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="rounded-md border divide-y">
               {sheets.map((s) => (
                 <button
@@ -247,6 +318,37 @@ export function StructuredImportDialog({ open, onClose, title, targetFields, onI
             <div className="text-sm text-muted-foreground">
               Sheet: <span className="font-medium text-foreground">{selectedSheet}</span> ({currentSheet?.rowCount} rows)
             </div>
+
+            {/* Presets */}
+            {(presets.length > 0 || mappings.length > 0) && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {presets.map((p) => {
+                  const displayName = p.name.replace(scopedKey + ":", "");
+                  return (
+                    <div key={p.name} className="flex items-center gap-1">
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyPreset(p)}>
+                        {displayName}
+                      </Button>
+                      <button type="button" onClick={() => deletePreset(p.name)} className="text-muted-foreground hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {mappings.length > 0 && !showSavePreset && (
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setShowSavePreset(true)}>
+                    Save as preset...
+                  </Button>
+                )}
+                {showSavePreset && (
+                  <div className="flex items-center gap-1">
+                    <Input className="h-7 text-xs w-32" value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Preset name" autoFocus onKeyDown={(e) => { if (e.key === "Enter") saveCurrentPreset(); if (e.key === "Escape") setShowSavePreset(false); }} />
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={saveCurrentPreset} disabled={!presetName.trim()}>Save</Button>
+                    <button type="button" onClick={() => setShowSavePreset(false)} className="text-muted-foreground"><X className="h-3 w-3" /></button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Column mapping */}
             <div className="space-y-2">
