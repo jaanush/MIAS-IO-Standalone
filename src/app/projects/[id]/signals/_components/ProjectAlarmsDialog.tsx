@@ -65,10 +65,28 @@ export function ProjectAlarmsDialog({ signal, open, onClose, onSaved }: Props) {
   const [discrete, setDiscrete] = useState<DiscreteAlarmRow[]>([]);
   const [analog, setAnalog] = useState<AnalogAlarmRow[]>([]);
 
+  // Alarm config fields (from signal base table)
+  const [alarmGroup, setAlarmGroup] = useState<string>(signal.alarmGroup ?? "");
+  const [alarmBlockMask, setAlarmBlockMask] = useState<string>(signal.alarmBlockMask ?? "");
+  const [commBlockMask, setCommBlockMask] = useState<string>(signal.commBlockMask ?? "");
+  const [fatBlock, setFatBlock] = useState(signal.fatBlock ?? false);
+  const [suppressionSt, setSuppressionSt] = useState<string>(signal.suppressionSt ?? "");
+  const [specialAlarmFb, setSpecialAlarmFb] = useState<string>(signal.specialAlarmFb ?? "");
+  const [specialAlarmInput, setSpecialAlarmInput] = useState<string>(signal.specialAlarmInput ?? "");
+  const [anaToDigAlarm, setAnaToDigAlarm] = useState(signal.anaToDigAlarm ?? false);
+
   const isDiscrete = signal.signalType === "DISCRETE";
 
   useEffect(() => {
     if (open) {
+      setAlarmGroup(signal.alarmGroup ?? "");
+      setAlarmBlockMask(signal.alarmBlockMask ?? "");
+      setCommBlockMask(signal.commBlockMask ?? "");
+      setFatBlock(signal.fatBlock ?? false);
+      setSuppressionSt(signal.suppressionSt ?? "");
+      setSpecialAlarmFb(signal.specialAlarmFb ?? "");
+      setSpecialAlarmInput(signal.specialAlarmInput ?? "");
+      setAnaToDigAlarm(signal.anaToDigAlarm ?? false);
       if (signal.discreteSignal?.alarms) {
         setDiscrete(
           signal.discreteSignal.alarms.map((a) => ({
@@ -98,19 +116,32 @@ export function ProjectAlarmsDialog({ signal, open, onClose, onSaved }: Props) {
     }
   }, [open, signal]);
 
-  const upsert = trpc.signal.signalAlarmUpsert.useMutation({
-    onSuccess: () => {
-      onSaved();
-    },
-  });
+  const upsert = trpc.signal.signalAlarmUpsert.useMutation();
+  const updateSignal = trpc.signal.update.useMutation();
 
-  function handleSave() {
-    upsert.mutate({
-      signalId: signal.id,
-      discreteAlarms: discrete,
-      analogAlarms: analog,
-    });
+  async function handleSave() {
+    await Promise.all([
+      upsert.mutateAsync({
+        signalId: signal.id,
+        discreteAlarms: discrete,
+        analogAlarms: analog,
+      }),
+      updateSignal.mutateAsync({
+        id: signal.id,
+        alarmGroup: alarmGroup || null,
+        alarmBlockMask: alarmBlockMask || null,
+        commBlockMask: commBlockMask || null,
+        fatBlock,
+        suppressionSt: suppressionSt || null,
+        specialAlarmFb: specialAlarmFb || null,
+        specialAlarmInput: specialAlarmInput || null,
+        anaToDigAlarm,
+      }),
+    ]);
+    onSaved();
   }
+
+  const saving = upsert.isPending || updateSignal.isPending;
 
   // ── Discrete alarms ──────────────────────────────────────────────
   const usedDiscreteConditions = new Set(discrete.map((a) => a.condition));
@@ -154,7 +185,7 @@ export function ProjectAlarmsDialog({ signal, open, onClose, onSaved }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Alarms
@@ -162,7 +193,52 @@ export function ProjectAlarmsDialog({ signal, open, onClose, onSaved }: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
+        <div className="space-y-4 py-2">
+          {/* Alarm configuration */}
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Configuration</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Alarm Group</Label>
+              <Input value={alarmGroup} onChange={(e) => setAlarmGroup(e.target.value)} placeholder="A/B/C" maxLength={1} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Block Mask</Label>
+              <Input value={alarmBlockMask} onChange={(e) => setAlarmBlockMask(e.target.value)} placeholder="00000" maxLength={5} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Comm Mask</Label>
+              <Input value={commBlockMask} onChange={(e) => setCommBlockMask(e.target.value)} placeholder="00000" maxLength={5} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Special Alarm FB</Label>
+              <Input value={specialAlarmFb} onChange={(e) => setSpecialAlarmFb(e.target.value)} placeholder="e.g. FB_Alarm_FollowSetpoint" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Special Alarm Input</Label>
+              <Input value={specialAlarmInput} onChange={(e) => setSpecialAlarmInput(e.target.value)} placeholder="ST expression" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Suppression ST Expression</Label>
+            <Input value={suppressionSt} onChange={(e) => setSuppressionSt(e.target.value)} placeholder="e.g. NOT GVL_Modes.bEngineRunning" />
+          </div>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+              <input type="checkbox" className="h-3.5 w-3.5 rounded border-input" checked={fatBlock} onChange={(e) => setFatBlock(e.target.checked)} />
+              FAT Block
+            </label>
+            <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+              <input type="checkbox" className="h-3.5 w-3.5 rounded border-input" checked={anaToDigAlarm} onChange={(e) => setAnaToDigAlarm(e.target.checked)} />
+              Analog→Digital Alarm
+            </label>
+          </div>
+
+          <hr className="border-border" />
+
+          {/* Alarm definitions */}
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Alarm Definitions</p>
           {isDiscrete ? (
             <>
               {discrete.map((alarm, i) => (
@@ -340,11 +416,11 @@ export function ProjectAlarmsDialog({ signal, open, onClose, onSaved }: Props) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={upsert.isPending}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={upsert.isPending}>
-            {upsert.isPending ? "Saving…" : "Save"}
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

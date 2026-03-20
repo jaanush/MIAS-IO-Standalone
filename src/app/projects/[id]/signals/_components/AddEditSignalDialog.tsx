@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SIGNAL_ORIGINS, SIGNAL_TYPES, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, SIGNAL_DIRECTIONS } from "@/lib/enums";
+import { SIGNAL_ORIGINS, SIGNAL_TYPES, SIGNAL_DIRECTIONS } from "@/lib/enums";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -114,44 +114,6 @@ const formSchema = z.object({
   notes: z.string().optional().nullable(),
   signalType: z.enum(SIGNAL_TYPES),
   origin: z.enum(SIGNAL_ORIGINS),
-  ioCardId: z.preprocess(
-    (v) => (v === "" || v == null || v === "none" ? null : Number(v)),
-    z.number().int().nullable().optional()
-  ),
-  channelPosition: numericField,
-  // Discrete
-  trigger: z.enum(TRIGGER_TYPES).default("NO"),
-  filterTimeMs: numericField,
-  switchingType: z.enum(SWITCHING_TYPES).nullable().optional(),
-  signalVoltage: z.string().optional().nullable(),
-  // Analog
-  inputTypeId: z.preprocess(
-    (v) => (v === "" || v == null || v === "none" ? null : Number(v)),
-    z.number().int().nullable().optional()
-  ),
-  wireConfig: z.enum(WIRE_CONFIGS).nullable().optional(),
-  scaleMin: numericField,
-  scaleMax: numericField,
-  rawMin: numericField,
-  rawMax: numericField,
-  rawZero: numericField,
-  deadband: numericField,
-  useTankLevel: z.boolean().default(false),
-  scalingFbOverride: z.string().optional().nullable(),
-  deadbandRawMin: numericField,
-  deadbandRawZero: numericField,
-  deadbandRawMax: numericField,
-  sensorFailRaw: numericField,
-  sensorFailMargin: numericField,
-  sensorFailBehavior: z.string().optional().nullable(),
-  sensorFailDelayMs: z.preprocess(
-    (v) => (v === "" || v == null ? null : Number(v)),
-    z.number().int().nullable().optional()
-  ),
-  engineeringUnitId: z.preprocess(
-    (v) => (v === "" || v == null || v === "none" ? null : Number(v)),
-    z.number().int().nullable().optional()
-  ),
   direction: z.enum(SIGNAL_DIRECTIONS).nullable().optional(),
   systemId: z.preprocess(
     (v) => (v === "" || v == null || v === "none" ? null : Number(v)),
@@ -164,15 +126,6 @@ const formSchema = z.object({
     (v) => (v === "" || v == null || v === "none" ? null : Number(v)),
     z.number().int().nullable().optional()
   ),
-  // Alarm configuration
-  alarmGroup: z.string().max(1).optional().nullable(),
-  alarmBlockMask: z.string().max(5).optional().nullable(),
-  commBlockMask: z.string().max(5).optional().nullable(),
-  fatBlock: z.boolean().default(false),
-  suppressionSt: z.string().optional().nullable(),
-  specialAlarmFb: z.string().max(100).optional().nullable(),
-  specialAlarmInput: z.string().max(255).optional().nullable(),
-  anaToDigAlarm: z.boolean().default(false),
   // Code generation flags
   isRetain: z.boolean().default(false),
   isPersistent: z.boolean().default(false),
@@ -222,18 +175,6 @@ export function AddEditSignalDialog({
 
   const utils = trpc.useUtils();
 
-  const { data: cards = [] } = trpc.signal.cardsForProject.useQuery(
-    { projectId },
-    { enabled: open }
-  );
-
-  const { data: engineeringUnits = [] } = trpc.signal.engineeringUnits.useQuery(
-    undefined,
-    { enabled: open }
-  );
-
-  const { data: inputTypes = [] } = trpc.signal.analogInputTypes.useQuery(undefined, { enabled: open });
-
   const { data: systems = [] } = trpc.signal.systemList.useQuery(undefined, { enabled: open });
   const { data: gvls = [] } = trpc.signal.gvlList.useQuery(undefined, { enabled: open });
 
@@ -274,7 +215,6 @@ export function AddEditSignalDialog({
     defaultValues: {
       signalType: "DISCRETE",
       origin: "IEC",
-      trigger: "NO",
     },
   });
 
@@ -288,44 +228,12 @@ export function AddEditSignalDialog({
         notes: signal.notes ?? "",
         signalType: signal.signalType,
         origin: signal.origin as FormValues["origin"],
-        ioCardId: signal.ioCardId ?? null,
-        channelPosition: signal.channelPosition ?? null,
-        trigger: signal.discreteSignal?.trigger ?? "NO",
-        filterTimeMs: toNum(signal.discreteSignal?.filterTimeMs),
-        switchingType: signal.discreteSignal?.switchingType ?? null,
-        signalVoltage: signal.discreteSignal?.signalVoltage ?? "",
-        inputTypeId: signal.analogSignal?.inputTypeId ?? null,
-        wireConfig: signal.analogSignal?.wireConfig ?? null,
-        scaleMin: toNum(signal.analogSignal?.scaleMin),
-        scaleMax: toNum(signal.analogSignal?.scaleMax),
-        rawMin: toNum(signal.analogSignal?.rawMin),
-        rawMax: toNum(signal.analogSignal?.rawMax),
-        rawZero: toNum(signal.analogSignal?.rawZero),
-        deadband: toNum(signal.analogSignal?.deadband),
-        engineeringUnitId: signal.analogSignal?.engineeringUnitId ?? null,
-        useTankLevel: signal.analogSignal?.useTankLevel ?? false,
-        scalingFbOverride: signal.analogSignal?.scalingFbOverride ?? "",
-        deadbandRawMin: toNum(signal.analogSignal?.deadbandRawMin),
-        deadbandRawZero: toNum(signal.analogSignal?.deadbandRawZero),
-        deadbandRawMax: toNum(signal.analogSignal?.deadbandRawMax),
-        sensorFailRaw: toNum(signal.analogSignal?.sensorFailRaw),
-        sensorFailMargin: toNum(signal.analogSignal?.sensorFailMargin),
-        sensorFailBehavior: signal.analogSignal?.sensorFailBehavior ?? "",
-        sensorFailDelayMs: signal.analogSignal?.sensorFailDelayMs ?? null,
         direction: (signal.direction as FormValues["direction"]) ?? null,
         systemId: signal.systemId ?? null,
         componentTag: signal.componentTag ?? "",
         drawingRef: signal.drawingRef ?? "",
         cabinetLocation: signal.cabinetLocation ?? "",
         gvlId: signal.gvlId ?? null,
-        alarmGroup: signal.alarmGroup ?? "",
-        alarmBlockMask: signal.alarmBlockMask ?? "",
-        commBlockMask: signal.commBlockMask ?? "",
-        fatBlock: signal.fatBlock ?? false,
-        suppressionSt: signal.suppressionSt ?? "",
-        specialAlarmFb: signal.specialAlarmFb ?? "",
-        specialAlarmInput: signal.specialAlarmInput ?? "",
-        anaToDigAlarm: signal.anaToDigAlarm ?? false,
         isRetain: signal.isRetain ?? false,
         isPersistent: signal.isPersistent ?? false,
         loggingEnabled: signal.loggingEnabled ?? false,
@@ -336,47 +244,15 @@ export function AddEditSignalDialog({
       reset({
         signalType: "DISCRETE",
         origin: "IEC",
-        trigger: "NO",
         tag: "",
         description: "",
         notes: "",
-        ioCardId: null,
-        channelPosition: null,
-        filterTimeMs: null,
-        switchingType: null,
-        signalVoltage: "",
-        inputTypeId: null,
-        wireConfig: null,
-        scaleMin: null,
-        scaleMax: null,
-        rawMin: null,
-        rawMax: null,
-        rawZero: null,
-        deadband: null,
-        engineeringUnitId: null,
-        useTankLevel: false,
-        scalingFbOverride: "",
-        deadbandRawMin: null,
-        deadbandRawZero: null,
-        deadbandRawMax: null,
-        sensorFailRaw: null,
-        sensorFailMargin: null,
-        sensorFailBehavior: "",
-        sensorFailDelayMs: null,
         direction: null,
         systemId: null,
         componentTag: "",
         drawingRef: "",
         cabinetLocation: "",
         gvlId: null,
-        alarmGroup: "",
-        alarmBlockMask: "",
-        commBlockMask: "",
-        fatBlock: false,
-        suppressionSt: "",
-        specialAlarmFb: "",
-        specialAlarmInput: "",
-        anaToDigAlarm: false,
         isRetain: false,
         isPersistent: false,
         loggingEnabled: false,
@@ -388,8 +264,6 @@ export function AddEditSignalDialog({
 
   const signalType = watch("signalType");
   const origin = watch("origin");
-  const ioCardId = watch("ioCardId");
-  const isIec = origin === "IEC";
 
   function onSubmit(values: FormValues) {
     const base = {
@@ -397,33 +271,6 @@ export function AddEditSignalDialog({
       description: values.description || null,
       notes: values.notes || null,
       origin: values.origin,
-      ioCardId: values.ioCardId ?? null,
-      channelPosition:
-        values.channelPosition != null ? Number(values.channelPosition) : null,
-      // discrete
-      trigger: values.trigger,
-      filterTimeMs: values.filterTimeMs ?? null,
-      switchingType: values.switchingType ?? null,
-      signalVoltage: values.signalVoltage || null,
-      // analog
-      inputTypeId: values.inputTypeId ?? null,
-      wireConfig: values.wireConfig ?? null,
-      scaleMin: values.scaleMin ?? null,
-      scaleMax: values.scaleMax ?? null,
-      rawMin: values.rawMin ?? null,
-      rawMax: values.rawMax ?? null,
-      rawZero: values.rawZero ?? null,
-      deadband: values.deadband ?? null,
-      engineeringUnitId: values.engineeringUnitId ?? null,
-      useTankLevel: values.useTankLevel ?? false,
-      scalingFbOverride: values.scalingFbOverride || null,
-      deadbandRawMin: values.deadbandRawMin ?? null,
-      deadbandRawZero: values.deadbandRawZero ?? null,
-      deadbandRawMax: values.deadbandRawMax ?? null,
-      sensorFailRaw: values.sensorFailRaw ?? null,
-      sensorFailMargin: values.sensorFailMargin ?? null,
-      sensorFailBehavior: values.sensorFailBehavior || null,
-      sensorFailDelayMs: values.sensorFailDelayMs ?? null,
       // classification
       direction: values.direction ?? null,
       systemId: values.systemId ?? null,
@@ -431,15 +278,6 @@ export function AddEditSignalDialog({
       drawingRef: values.drawingRef || null,
       cabinetLocation: values.cabinetLocation || null,
       gvlId: values.gvlId ?? null,
-      // alarm config
-      alarmGroup: values.alarmGroup || null,
-      alarmBlockMask: values.alarmBlockMask || null,
-      commBlockMask: values.commBlockMask || null,
-      fatBlock: values.fatBlock ?? false,
-      suppressionSt: values.suppressionSt || null,
-      specialAlarmFb: values.specialAlarmFb || null,
-      specialAlarmInput: values.specialAlarmInput || null,
-      anaToDigAlarm: values.anaToDigAlarm ?? false,
       // code gen flags
       isRetain: values.isRetain ?? false,
       isPersistent: values.isPersistent ?? false,
@@ -623,317 +461,7 @@ export function AddEditSignalDialog({
             </div>
           </section>
 
-          {/* ── Section 3: Hardware Assignment ── */}
-          <section className="space-y-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Hardware Assignment
-            </h3>
-            {isIec ? (
-              <>
-                <Field label="Card" error={errors.ioCardId?.message}>
-                  <Controller
-                    name="ioCardId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value != null ? String(field.value) : "none"}
-                        onValueChange={(v) => {
-                          field.onChange(v === "none" ? null : Number(v));
-                          if (v === "none") setValue("channelPosition", null);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="— Unassigned —" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">— Unassigned —</SelectItem>
-                          {cards.map((c) => (
-                            <SelectItem key={c.id} value={String(c.id)}>
-                              {c.path}
-                              {c.articleNumber ? ` — ${c.articleNumber}` : ""}
-                              {c.description ? `: ${c.description}` : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </Field>
-
-                {ioCardId != null && (
-                  <Field label="Channel (0-based)" error={errors.channelPosition?.message}>
-                    <Input
-                      type="number"
-                      min={0}
-                      {...register("channelPosition")}
-                      placeholder="e.g. 0"
-                    />
-                  </Field>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground rounded-md border border-dashed px-3 py-2">
-                Hardware assignment for <strong>{origin}</strong> signals is configured via network settings, not a physical card slot.
-              </p>
-            )}
-          </section>
-
-          {/* ── Section 4: Discrete Settings ── */}
-          {signalType === "DISCRETE" && (
-            <section className="space-y-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Discrete Settings
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Trigger" error={errors.trigger?.message}>
-                  <Controller
-                    name="trigger"
-                    control={control}
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NO">NO — Normally Open</SelectItem>
-                          <SelectItem value="NC">NC — Normally Closed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </Field>
-
-                <Field label="Filter Time (ms)" error={errors.filterTimeMs?.message}>
-                  <Input
-                    type="number"
-                    step="0.001"
-                    {...register("filterTimeMs")}
-                    placeholder="e.g. 3.0"
-                  />
-                </Field>
-
-                <Field label="Switching Type" error={errors.switchingType?.message}>
-                  <Controller
-                    name="switchingType"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value ?? "none"}
-                        onValueChange={(v) => field.onChange(v === "none" ? null : v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="—" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">—</SelectItem>
-                          <SelectItem value="HIGH_SIDE">High Side</SelectItem>
-                          <SelectItem value="LOW_SIDE">Low Side</SelectItem>
-                          <SelectItem value="BOTH">Both</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </Field>
-
-                <Field label="Signal Voltage" error={errors.signalVoltage?.message}>
-                  <Input
-                    {...register("signalVoltage")}
-                    placeholder="e.g. 24 VDC"
-                  />
-                </Field>
-              </div>
-            </section>
-          )}
-
-          {/* ── Section 5: Analog Settings ── */}
-          {signalType === "ANALOG" && (
-            <section className="space-y-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Analog Settings
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Input Type" error={errors.inputTypeId?.message}>
-                  <Controller
-                    name="inputTypeId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value != null ? String(field.value) : "none"}
-                        onValueChange={(v) => field.onChange(v === "none" ? null : Number(v))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select input type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">—</SelectItem>
-                          {inputTypes.map((t) => (
-                            <SelectItem key={t.id} value={String(t.id)}>
-                              {t.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </Field>
-
-                <Field label="Wire Config" error={errors.wireConfig?.message}>
-                  <Controller
-                    name="wireConfig"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value ?? "none"}
-                        onValueChange={(v) => field.onChange(v === "none" ? null : v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="—" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">—</SelectItem>
-                          <SelectItem value="TWO_WIRE">2-Wire</SelectItem>
-                          <SelectItem value="THREE_WIRE">3-Wire</SelectItem>
-                          <SelectItem value="FOUR_WIRE">4-Wire</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Scale Min" error={errors.scaleMin?.message}>
-                  <Input type="number" step="any" {...register("scaleMin")} />
-                </Field>
-                <Field label="Scale Max" error={errors.scaleMax?.message}>
-                  <Input type="number" step="any" {...register("scaleMax")} />
-                </Field>
-                <Field label="Raw Min" error={errors.rawMin?.message}>
-                  <Input type="number" step="any" {...register("rawMin")} />
-                </Field>
-                <Field label="Raw Zero" error={errors.rawZero?.message}>
-                  <Input type="number" step="any" {...register("rawZero")} placeholder="ADC zero point" />
-                </Field>
-                <Field label="Raw Max" error={errors.rawMax?.message}>
-                  <Input type="number" step="any" {...register("rawMax")} />
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Engineering Unit" error={errors.engineeringUnitId?.message}>
-                  <Controller
-                    name="engineeringUnitId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value != null ? String(field.value) : "none"}
-                        onValueChange={(v) =>
-                          field.onChange(v === "none" ? null : Number(v))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="—" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">—</SelectItem>
-                          {engineeringUnits.map((eu) => (
-                            <SelectItem key={eu.id} value={String(eu.id)}>
-                              {eu.symbol}
-                              {eu.description ? ` — ${eu.description}` : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </Field>
-
-                <Field label="Deadband" error={errors.deadband?.message}>
-                  <Input type="number" step="any" {...register("deadband")} />
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Use Tank Level FB">
-                  <label className="flex items-center gap-2 text-sm pt-1">
-                    <input type="checkbox" {...register("useTankLevel")} className="h-4 w-4" />
-                    Use FB_TankLevel (non-linear geometry)
-                  </label>
-                </Field>
-                <Field label="Scaling FB Override" error={errors.scalingFbOverride?.message}>
-                  <Input {...register("scalingFbOverride")} placeholder="e.g. FB_MyCustomScale" />
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <Field label="Deadband Raw Min" error={errors.deadbandRawMin?.message}>
-                  <Input type="number" step="any" {...register("deadbandRawMin")} />
-                </Field>
-                <Field label="Deadband Raw Zero" error={errors.deadbandRawZero?.message}>
-                  <Input type="number" step="any" {...register("deadbandRawZero")} />
-                </Field>
-                <Field label="Deadband Raw Max" error={errors.deadbandRawMax?.message}>
-                  <Input type="number" step="any" {...register("deadbandRawMax")} />
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Sensor Fail Raw ADC" error={errors.sensorFailRaw?.message}>
-                  <Input type="number" step="any" {...register("sensorFailRaw")} placeholder="e.g. 0" />
-                </Field>
-                <Field label="Sensor Fail Margin" error={errors.sensorFailMargin?.message}>
-                  <Input type="number" step="any" {...register("sensorFailMargin")} />
-                </Field>
-                <Field label="Sensor Fail Behavior" error={errors.sensorFailBehavior?.message}>
-                  <Input {...register("sensorFailBehavior")} placeholder="e.g. HOLD" />
-                </Field>
-                <Field label="Sensor Fail Delay (ms)" error={errors.sensorFailDelayMs?.message}>
-                  <Input type="number" {...register("sensorFailDelayMs")} />
-                </Field>
-              </div>
-            </section>
-          )}
-
-          {/* ── Section 6: Alarm Configuration ── */}
-          <section className="space-y-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Alarm Configuration
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Alarm Group (A/B/C)" error={errors.alarmGroup?.message}>
-                <Input {...register("alarmGroup")} placeholder="A, B, or C" maxLength={1} />
-              </Field>
-              <Field label="Alarm Block Mask" error={errors.alarmBlockMask?.message}>
-                <Input {...register("alarmBlockMask")} placeholder="D-HH-H-L-LL e.g. 00000" maxLength={5} />
-              </Field>
-              <Field label="Commissioning Block Mask" error={errors.commBlockMask?.message}>
-                <Input {...register("commBlockMask")} placeholder="D-HH-H-L-LL e.g. 11111" maxLength={5} />
-              </Field>
-            </div>
-            <div className="flex flex-wrap gap-6">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" {...register("fatBlock")} className="h-4 w-4" />
-                FAT Block (block all alarms in FAT init)
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" {...register("anaToDigAlarm")} className="h-4 w-4" />
-                Force Analogue → Digital Alarm
-              </label>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Special Alarm FB" error={errors.specialAlarmFb?.message}>
-                <Input {...register("specialAlarmFb")} placeholder="e.g. FB_Alarm_FollowSetpoint" />
-              </Field>
-              <Field label="Special Alarm Input Ref" error={errors.specialAlarmInput?.message}>
-                <Input {...register("specialAlarmInput")} placeholder="e.g. GVL_Settings.SpeedSetpoint" />
-              </Field>
-            </div>
-            <Field label="Suppression ST Expression" error={errors.suppressionSt?.message}>
-              <Input {...register("suppressionSt")} placeholder="e.g. NOT GVL_Modes.bEngineRunning" />
-            </Field>
-          </section>
-
-          {/* ── Section 7: Code Generation ── */}
+          {/* ── Section 3: Code Generation ── */}
           <section className="space-y-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Code Generation
