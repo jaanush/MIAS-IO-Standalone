@@ -5,6 +5,32 @@ Items here require implementation in MIAS-IO. Once implemented, update
 
 ---
 
+## 21. Unique module names in hardware export
+
+**Status:** New. Required for hardware sync module insertion.
+
+Each card in the hardware export needs a unique `name` field that the plugin
+uses as the CODESYS device tree node name. CODESYS freezes if two modules on
+the same Kbus are inserted with the same name.
+
+Suggested format: `"{articleNumber}_S{slotPosition}"` — e.g. `"750-658_S2"`,
+`"750-658_S3"`, `"750-652_S10"`.
+
+Add a `name` field to each card object in the `carriers[].cards[]` array:
+
+```json
+{
+  "slotPosition": 2,
+  "name": "750-658_S2",
+  "catalog": { "articleNumber": "750-658", "codesysModuleId": "07500658000000004848" }
+}
+```
+
+The plugin will use this name directly in `kbus.insert(name, slot, devId, "")`.
+If `name` is absent, the plugin falls back to `"{article}_S{slot}"`.
+
+---
+
 ## BUG: `isLocalBus` not included in hardware export
 
 **Status:** New.

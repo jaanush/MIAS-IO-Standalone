@@ -473,6 +473,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         catalog: c.catalog ? { articleNumber: c.catalog.articleNumber, manufacturer: c.catalog.vendorName } : null,
         cards: c.cards.map((card) => ({
           id: card.id,
+          name: `${card.catalog?.articleNumber ?? "Module"}_S${card.slotPosition}`,
           slotPosition: card.slotPosition,
           cardType: card.cardType,
           maxInputChannels: card.maxInputChannels,
