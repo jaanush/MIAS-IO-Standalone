@@ -589,6 +589,8 @@ model Project {
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
+  currentRevision   String         @default("A") @db.VarChar(10) @map("current_revision")
+
   creator           User?                  @relation("ProjectCreatedBy", fields: [createdBy], references: [id])
   members           ProjectMember[]
   approvals         ProjectApproval[]
@@ -831,6 +833,7 @@ model Signal {
   loggingEnabled   Boolean      @default(false) @map("logging_enabled")   // generate AnyConversion() logging call
   fbNameOverride   String?      @db.VarChar(255) @map("fb_name_override") // overrides auto-generated tag prefix
   useShortName     Boolean      @default(false) @map("use_short_name")    // use System_Component only (not full hardware path)
+  revision         String       @default("A") @db.VarChar(10)      // revision tag when last edited (A, B, ..., Z, AA, ...)
   createdBy        String?      @db.Uuid @map("created_by")
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")

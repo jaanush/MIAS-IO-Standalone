@@ -4,6 +4,17 @@ import { db } from "@/lib/db";
 import type { PlcDataType } from "../../../prisma/generated/prisma/client/client";
 import { SIGNAL_ORIGINS, SIGNAL_TYPES, SIGNAL_DIRECTIONS, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, RAW_DATA_TYPES, PLC_DATA_TYPES, BYTE_ORDERS, MODBUS_REGISTER_TYPES, DISCRETE_ALARM_CONDITIONS, ANALOG_ALARM_CONDITIONS, ALARM_SEVERITIES, BUS_PROTOCOLS, type SignalOrigin } from "@/lib/enums";
 
+/** Bump A→B, Z→AA, AZ→BA, ZZ→AAA, ZZZ→AAAA */
+function bumpRevision(rev: string): string {
+  const chars = rev.toUpperCase().split("");
+  let carry = true;
+  for (let i = chars.length - 1; i >= 0 && carry; i--) {
+    if (chars[i] === "Z") { chars[i] = "A"; } else { chars[i] = String.fromCharCode(chars[i].charCodeAt(0) + 1); carry = false; }
+  }
+  if (carry) chars.unshift("A");
+  return chars.join("");
+}
+
 const signalInclude = {
   discreteSignal: { include: { alarms: true, plcDataType: { select: { id: true, code: true } } } },
   analogSignal: { include: { engineeringUnit: { include: { plcDataTypeCatalog: true } }, inputType: true, plcDataTypeCatalog: true, alarms: true } },
@@ -135,7 +146,7 @@ export const signalRouter = createTRPCRouter({
       })
     ),
 
-  create: protectedProcedure.input(signalCreateInput).mutation(({ input }) => {
+  create: protectedProcedure.input(signalCreateInput).mutation(async ({ input }) => {
     const {
       projectId,
       signalType,
@@ -208,11 +219,15 @@ export const signalRouter = createTRPCRouter({
       sensorFailDelayMs,
     } = input;
 
+    // Tag with project's current revision
+    const { currentRevision } = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { currentRevision: true } });
+
     return db.signal.create({
       data: {
         projectId,
         signalType,
         origin,
+        revision: currentRevision,
         tag: tag ?? null,
         description: description ?? null,
         notes: notes ?? null,
@@ -408,9 +423,14 @@ export const signalRouter = createTRPCRouter({
           ? { analogSignal: { upsert: { create: analogFields, update: analogFields } } }
           : {};
 
+      // Auto-tag with project's current revision
+      const { projectId: sigProjectId } = await db.signal.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
+      const { currentRevision } = await db.project.findUniqueOrThrow({ where: { id: sigProjectId }, select: { currentRevision: true } });
+
       const updated = await db.signal.update({
         where: { id },
         data: {
+          revision: currentRevision,
           ...(origin !== undefined ? { origin } : {}),
           ...(tag !== undefined ? { tag: tag ?? null } : {}),
           ...(description !== undefined ? { description: description ?? null } : {}),
@@ -542,6 +562,23 @@ export const signalRouter = createTRPCRouter({
       return { count: ids.length };
     }),
 
+  /** Get project's current revision */
+  projectRevision: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .query(({ input }) =>
+      db.project.findUniqueOrThrow({ where: { id: input.projectId }, select: { currentRevision: true } })
+    ),
+
+  /** Bump the project revision (A→B, Z→AA, AZ→BA, ZZZ→AAAA) */
+  revisionBump: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .mutation(async ({ input }) => {
+      const project = await db.project.findUniqueOrThrow({ where: { id: input.projectId }, select: { currentRevision: true } });
+      const next = bumpRevision(project.currentRevision);
+      await db.project.update({ where: { id: input.projectId }, data: { currentRevision: next } });
+      return { revision: next };
+    }),
+
   bulkCreate: protectedProcedure
     .input(z.object({
       projectId: z.number().int(),
@@ -549,6 +586,7 @@ export const signalRouter = createTRPCRouter({
     }))
     .mutation(async ({ input }) => {
       const { projectId, signals: rows } = input;
+      const { currentRevision } = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { currentRevision: true } });
       let created = 0;
       let updated = 0;
 
@@ -587,7 +625,7 @@ export const signalRouter = createTRPCRouter({
             } = row;
 
             const signalData = {
-              projectId, signalType, origin,
+              projectId, signalType, origin, revision: currentRevision,
               tag: tag ?? null, description: description ?? null, notes: notes ?? null,
               ioCardId: ioCardId ?? null, channelPosition: channelPosition ?? null,
               direction: direction ?? null, systemId: systemId ?? null,

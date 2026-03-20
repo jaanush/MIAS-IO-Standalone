@@ -22,7 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SIGNAL_ORIGINS, SIGNAL_TYPES, SIGNAL_DIRECTIONS } from "@/lib/enums";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -109,19 +108,13 @@ const numericField = z.preprocess(
 );
 
 const formSchema = z.object({
-  tag: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-  signalType: z.enum(SIGNAL_TYPES),
-  origin: z.enum(SIGNAL_ORIGINS),
-  direction: z.enum(SIGNAL_DIRECTIONS).nullable().optional(),
   systemId: z.preprocess(
     (v) => (v === "" || v == null || v === "none" ? null : Number(v)),
     z.number().int().nullable().optional()
   ),
   componentTag: z.string().optional().nullable(),
-  drawingRef: z.string().optional().nullable(),
-  cabinetLocation: z.string().optional().nullable(),
   gvlId: z.preprocess(
     (v) => (v === "" || v == null || v === "none" ? null : Number(v)),
     z.number().int().nullable().optional()
@@ -212,10 +205,7 @@ export function AddEditSignalDialog({
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
-    defaultValues: {
-      signalType: "DISCRETE",
-      origin: "IEC",
-    },
+    defaultValues: {},
   });
 
   // Populate form when editing
@@ -223,16 +213,10 @@ export function AddEditSignalDialog({
     if (!open) return;
     if (signal) {
       reset({
-        tag: signal.tag ?? "",
         description: signal.description ?? "",
         notes: signal.notes ?? "",
-        signalType: signal.signalType,
-        origin: signal.origin as FormValues["origin"],
-        direction: (signal.direction as FormValues["direction"]) ?? null,
         systemId: signal.systemId ?? null,
         componentTag: signal.componentTag ?? "",
-        drawingRef: signal.drawingRef ?? "",
-        cabinetLocation: signal.cabinetLocation ?? "",
         gvlId: signal.gvlId ?? null,
         isRetain: signal.isRetain ?? false,
         isPersistent: signal.isPersistent ?? false,
@@ -242,16 +226,10 @@ export function AddEditSignalDialog({
       });
     } else {
       reset({
-        signalType: "DISCRETE",
-        origin: "IEC",
-        tag: "",
         description: "",
         notes: "",
-        direction: null,
         systemId: null,
         componentTag: "",
-        drawingRef: "",
-        cabinetLocation: "",
         gvlId: null,
         isRetain: false,
         isPersistent: false,
@@ -262,21 +240,12 @@ export function AddEditSignalDialog({
     }
   }, [signal, open, reset]);
 
-  const signalType = watch("signalType");
-  const origin = watch("origin");
-
   function onSubmit(values: FormValues) {
     const base = {
-      tag: values.tag || null,
       description: values.description || null,
       notes: values.notes || null,
-      origin: values.origin,
-      // classification
-      direction: values.direction ?? null,
       systemId: values.systemId ?? null,
       componentTag: values.componentTag || null,
-      drawingRef: values.drawingRef || null,
-      cabinetLocation: values.cabinetLocation || null,
       gvlId: values.gvlId ?? null,
       // code gen flags
       isRetain: values.isRetain ?? false,
@@ -286,15 +255,8 @@ export function AddEditSignalDialog({
       useShortName: values.useShortName ?? false,
     };
 
-    if (isEdit) {
-      update.mutate({ id: signal.id, ...base });
-    } else {
-      create.mutate({
-        projectId,
-        signalType: values.signalType,
-        ...base,
-      });
-    }
+    if (!signal) return;
+    update.mutate({ id: signal.id, ...base });
   }
 
   function handleDelete() {
@@ -316,95 +278,24 @@ export function AddEditSignalDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* ── Section 1: Basic ── */}
+          {/* ── Identification ── */}
           <section className="space-y-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Basic
+              Identification
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Tag" error={errors.tag?.message}>
-                <Input {...register("tag")} placeholder="e.g. TI-101" />
-              </Field>
               <Field label="Description" error={errors.description?.message}>
                 <Input {...register("description")} placeholder="Short description" />
               </Field>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {/* Signal Type: readonly in edit mode */}
-              <Field label="Signal Type" error={errors.signalType?.message}>
-                {isEdit ? (
-                  <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
-                    {signal.signalType === "DISCRETE" ? "Discrete" : "Analog"}
-                  </div>
-                ) : (
-                  <div className="flex gap-4 pt-1">
-                    {(["DISCRETE", "ANALOG"] as const).map((t) => (
-                      <label
-                        key={t}
-                        className="flex items-center gap-2 cursor-pointer text-sm"
-                      >
-                        <input
-                          type="radio"
-                          value={t}
-                          {...register("signalType")}
-                          className="h-4 w-4"
-                        />
-                        {t === "DISCRETE" ? "Discrete" : "Analog"}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </Field>
-
-              <Field label="Origin" error={errors.origin?.message}>
-                <Controller
-                  name="origin"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select origin" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SIGNAL_ORIGINS.map((o) => (
-                          <SelectItem key={o} value={o}>
-                            {o}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-            </div>
           </section>
 
-          {/* ── Section 2: Classification ── */}
+          {/* ── Classification ── */}
           <section className="space-y-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Classification
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Direction">
-                <Controller
-                  name="direction"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value ?? "none"}
-                      onValueChange={(v) => field.onChange(v === "none" ? null : v)}
-                    >
-                      <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">—</SelectItem>
-                        <SelectItem value="INPUT">Input</SelectItem>
-                        <SelectItem value="OUTPUT">Output</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
               <Field label="System">
                 <Controller
                   name="systemId"
@@ -429,12 +320,6 @@ export function AddEditSignalDialog({
               </Field>
               <Field label="Component Identifier">
                 <Input {...register("componentTag")} placeholder="e.g. 625-M01" />
-              </Field>
-              <Field label="Drawing Reference">
-                <Input {...register("drawingRef")} placeholder="e.g. 625-E01" />
-              </Field>
-              <Field label="Cabinet Location">
-                <Input {...register("cabinetLocation")} placeholder="e.g. A01" />
               </Field>
               <Field label="GVL">
                 <Controller

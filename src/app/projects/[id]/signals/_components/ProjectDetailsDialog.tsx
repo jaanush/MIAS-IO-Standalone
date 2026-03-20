@@ -75,6 +75,10 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
   const ds = signal.discreteSignal;
   const as = signal.analogSignal;
 
+  // Shared
+  const [tag, setTag] = useState((signal as any).tag ?? "");
+  const [direction, setDirection] = useState<string | null>((signal as any).direction ?? null);
+
   // Discrete
   const [trigger, setTrigger] = useState(ds?.trigger ?? "NO");
   const [filterTimeMs, setFilterTimeMs] = useState(num(ds?.filterTimeMs));
@@ -116,9 +120,11 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
   const update = trpc.signal.update.useMutation({ onSuccess: () => onSaved() });
 
   function handleSave() {
+    const shared = { tag: tag || null, direction: direction as any };
     if (isDisc) {
       update.mutate({
         id: signal.id,
+        ...shared,
         trigger: trigger as any,
         filterTimeMs,
         switchingType: switchingType as any,
@@ -128,6 +134,7 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
     } else {
       update.mutate({
         id: signal.id,
+        ...shared,
         inputTypeId,
         wireConfig: wireConfig as any,
         rawMin, rawMax, rawZero,
@@ -164,8 +171,23 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isDisc ? "Discrete" : "Analog"} Signal Details</DialogTitle>
+          <DialogTitle>{isDisc ? "Discrete" : "Analog"} Signal Config</DialogTitle>
         </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-1">
+            <Label>Tag</Label>
+            <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="e.g. TI-101" />
+          </div>
+          <div className="space-y-1">
+            <Label>IO Direction</Label>
+            <select className={sel} value={direction ?? NONE} onChange={(e) => setDirection(e.target.value === NONE ? null : e.target.value)}>
+              <option value={NONE}>— auto —</option>
+              <option value="INPUT">Input ({isDisc ? "DI" : "AI"})</option>
+              <option value="OUTPUT">Output ({isDisc ? "DO" : "AO"})</option>
+            </select>
+          </div>
+        </div>
 
         {isDisc ? (
           <div className="space-y-4 py-2">
