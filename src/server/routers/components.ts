@@ -234,6 +234,13 @@ export const componentsRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       const { componentId, registers } = input;
 
+      // Find the next available channelOffset
+      const maxOffset = await db.componentSignal.aggregate({
+        where: { componentId },
+        _max: { channelOffset: true },
+      });
+      const startOffset = (maxOffset._max.channelOffset ?? -1) + 1;
+
       // Map extracted registers to ComponentSignals
       let created = 0;
       for (let i = 0; i < registers.length; i++) {
@@ -262,7 +269,7 @@ export const componentsRouter = createTRPCRouter({
         await db.componentSignal.create({
           data: {
             componentId,
-            channelOffset: i,
+            channelOffset: startOffset + i,
             ioType: ioType as any,
             tagSuffix: reg.name,
             description: reg.description,
