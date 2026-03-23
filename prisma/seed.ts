@@ -15,8 +15,10 @@ async function main() {
 
   console.log("Running main data seed (seed_data.sql)...");
   const raw = fs.readFileSync(seedFile, "utf-8");
-  // Strip psql metacommands (\restrict, \connect, etc.) and pg_dump warnings
-  const sql = raw.split("\n").filter((l) => !l.startsWith("\\") && !l.startsWith("pg_dump:")).join("\n");
+  // Strip psql metacommands, pg_dump warnings, and setval calls (we reset sequences separately)
+  const sql = raw.split("\n").filter((l) =>
+    !l.startsWith("\\") && !l.startsWith("pg_dump:") && !l.includes("pg_catalog.setval")
+  ).join("\n");
 
   // Step 1: Truncate + insert data
   const dataSql = `
