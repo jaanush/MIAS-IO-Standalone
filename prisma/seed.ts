@@ -50,10 +50,14 @@ async function main() {
         JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
         WHERE s.relkind = 'S' AND t.relkind = 'r'
       LOOP
-        EXECUTE format(
-          'SELECT setval(%L, COALESCE((SELECT MAX(%I) FROM %I), 0) + 1, false)',
-          r.seq, r.col, r.tab
-        );
+        BEGIN
+          EXECUTE format(
+            'SELECT setval(%L, COALESCE((SELECT MAX(%I) FROM %I), 0) + 1, false)',
+            r.seq, r.col, r.tab
+          );
+        EXCEPTION WHEN OTHERS THEN
+          RAISE NOTICE 'Skipping sequence %: %', r.seq, SQLERRM;
+        END;
       END LOOP;
     END $$;
 
