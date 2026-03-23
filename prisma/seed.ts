@@ -14,7 +14,9 @@ async function main() {
   }
 
   console.log("Running main data seed (seed_data.sql)...");
-  const sql = fs.readFileSync(seedFile, "utf-8");
+  const raw = fs.readFileSync(seedFile, "utf-8");
+  // Strip psql metacommands (\restrict, \connect, etc.) and pg_dump warnings
+  const sql = raw.split("\n").filter((l) => !l.startsWith("\\") && !l.startsWith("pg_dump:")).join("\n");
 
   const wrappedSql = `
     BEGIN;
