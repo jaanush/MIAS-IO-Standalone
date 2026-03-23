@@ -18,8 +18,8 @@ async function main() {
   // Strip psql metacommands (\restrict, \connect, etc.) and pg_dump warnings
   const sql = raw.split("\n").filter((l) => !l.startsWith("\\") && !l.startsWith("pg_dump:")).join("\n");
 
-  const wrappedSql = `
-    BEGIN;
+  // Step 1: Truncate + insert data
+  const dataSql = `
     TRUNCATE
       analog_alarm, discrete_alarm,
       analog_signal, discrete_signal, bus_signal, signal,
@@ -37,34 +37,39 @@ async function main() {
     CASCADE;
 
     ${sql}
-
-    -- Reset all sequences to max(id)+1 so new inserts get correct IDs
-    DO $$
-    DECLARE r RECORD;
-    BEGIN
-      FOR r IN
-        SELECT s.relname AS seq, t.relname AS tab, a.attname AS col
-        FROM pg_class s
-        JOIN pg_depend d ON d.objid = s.oid
-        JOIN pg_class t ON t.oid = d.refobjid
-        JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
-        WHERE s.relkind = 'S' AND t.relkind = 'r'
-      LOOP
-        BEGIN
-          EXECUTE format(
-            'SELECT setval(%L, COALESCE((SELECT MAX(%I) FROM %I), 0) + 1, false)',
-            r.seq, r.col, r.tab
-          );
-        EXCEPTION WHEN OTHERS THEN
-          RAISE NOTICE 'Skipping sequence %: %', r.seq, SQLERRM;
-        END;
-      END LOOP;
-    END $$;
-
-    COMMIT;
   `;
 
-  await prisma.$executeRawUnsafe(wrappedSql);
+  await prisma.$executeRawUnsafe(dataSql);
+  console.log("Data inserted.");
+
+  // Step 2: Reset sequences (separate call, tolerant of missing sequences)
+  try {
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      DECLARE r RECORD;
+      BEGIN
+        FOR r IN
+          SELECT c.relname AS seq
+          FROM pg_class c
+          WHERE c.relkind = 'S'
+            AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+        LOOP
+          BEGIN
+            EXECUTE format(
+              'SELECT setval(''public.%I'', COALESCE((SELECT MAX(id) FROM %I), 0) + 1, false)',
+              r.seq, replace(r.seq, '_id_seq', '')
+            );
+          EXCEPTION WHEN OTHERS THEN
+            NULL;
+          END;
+        END LOOP;
+      END $$;
+    `);
+    console.log("Sequences reset.");
+  } catch (e) {
+    console.warn("Sequence reset failed (non-fatal):", (e as Error).message);
+  }
+
   console.log("Seed complete.");
 }
 
