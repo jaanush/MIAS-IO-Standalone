@@ -391,6 +391,30 @@ export function ProjectBusConfigDialog({ open, onClose, signal, networks, onSave
                   placeholder="0"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Bit Offset <span className="text-muted-foreground font-normal">(in register)</span></Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={15}
+                    value={state.bitOffset}
+                    onChange={(e) => patch("bitOffset", e.target.value)}
+                    placeholder="e.g. 0"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Bit Length</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={16}
+                    value={state.bitLength}
+                    onChange={(e) => patch("bitLength", e.target.value)}
+                    placeholder="e.g. 1"
+                  />
+                </div>
+              </div>
             </>
           )}
 

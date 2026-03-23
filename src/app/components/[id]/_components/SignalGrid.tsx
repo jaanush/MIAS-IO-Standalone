@@ -81,14 +81,51 @@ export type SignalRowState = {
   modbusRegisterType: "COIL" | "DISCRETE_INPUT" | "HOLDING_REGISTER" | "INPUT_REGISTER" | null;
   modbusRegisterOffset: number | null;
   timeoutMs: number | null;
+  // Discrete defaults
   defaultTrigger: "NO" | "NC" | null;
   defaultFilterTimeMs: number | null;
   defaultSwitchingType: "HIGH_SIDE" | "LOW_SIDE" | "BOTH" | null;
+  defaultSignalVoltage: string | null;
+  // Analog defaults
   defaultInputTypeId: number | null;
   defaultWireConfig: "TWO_WIRE" | "THREE_WIRE" | "FOUR_WIRE" | null;
   defaultScaleMin: number | null;
   defaultScaleMax: number | null;
+  defaultRawMin: number | null;
+  defaultRawMax: number | null;
+  defaultRawZero: number | null;
+  defaultClampLow: number | null;
+  defaultClampHigh: number | null;
+  defaultDeadband: number | null;
   defaultEuId: number | null;
+  defaultDetectWireBreak: boolean;
+  defaultDetectShortCircuit: boolean;
+  defaultDetectOutOfRange: boolean;
+  defaultNamurNe43: boolean;
+  defaultSensorFailRaw: number | null;
+  defaultSensorFailMargin: number | null;
+  defaultSensorFailBehavior: string | null;
+  defaultSensorFailDelayMs: number | null;
+  defaultDeadbandRawMin: number | null;
+  defaultDeadbandRawZero: number | null;
+  defaultDeadbandRawMax: number | null;
+  defaultUseTankLevel: boolean;
+  defaultScalingFbOverride: string | null;
+  // Alarm config defaults
+  defaultAlarmGroup: string | null;
+  defaultAlarmBlockMask: string | null;
+  defaultCommBlockMask: string | null;
+  defaultFatBlock: boolean;
+  defaultSuppressionSt: string | null;
+  defaultSpecialAlarmFb: string | null;
+  defaultSpecialAlarmInput: string | null;
+  defaultAnaToDigAlarm: boolean;
+  // Code gen defaults
+  defaultIsRetain: boolean;
+  defaultIsPersistent: boolean;
+  defaultLoggingEnabled: boolean;
+  defaultFbNameOverride: string | null;
+  defaultUseShortName: boolean;
   active: boolean;
   discreteAlarms: DiscreteAlarmRow[];
   analogAlarms: AnalogAlarmRow[];
@@ -122,12 +159,45 @@ type ServerSignal = {
   defaultTrigger: string | null;
   defaultFilterTimeMs: unknown;
   defaultSwitchingType: string | null;
+  defaultSignalVoltage: string | null;
   defaultInputTypeId: number | null;
   defaultInputType: { id: number; code: string; name: string } | null;
   defaultWireConfig: string | null;
   defaultScaleMin: unknown;
   defaultScaleMax: unknown;
+  defaultRawMin: unknown;
+  defaultRawMax: unknown;
+  defaultRawZero: unknown;
+  defaultClampLow: unknown;
+  defaultClampHigh: unknown;
+  defaultDeadband: unknown;
   defaultEuId: number | null;
+  defaultDetectWireBreak: boolean;
+  defaultDetectShortCircuit: boolean;
+  defaultDetectOutOfRange: boolean;
+  defaultNamurNe43: boolean;
+  defaultSensorFailRaw: unknown;
+  defaultSensorFailMargin: unknown;
+  defaultSensorFailBehavior: string | null;
+  defaultSensorFailDelayMs: number | null;
+  defaultDeadbandRawMin: unknown;
+  defaultDeadbandRawZero: unknown;
+  defaultDeadbandRawMax: unknown;
+  defaultUseTankLevel: boolean;
+  defaultScalingFbOverride: string | null;
+  defaultAlarmGroup: string | null;
+  defaultAlarmBlockMask: string | null;
+  defaultCommBlockMask: string | null;
+  defaultFatBlock: boolean;
+  defaultSuppressionSt: string | null;
+  defaultSpecialAlarmFb: string | null;
+  defaultSpecialAlarmInput: string | null;
+  defaultAnaToDigAlarm: boolean;
+  defaultIsRetain: boolean;
+  defaultIsPersistent: boolean;
+  defaultLoggingEnabled: boolean;
+  defaultFbNameOverride: string | null;
+  defaultUseShortName: boolean;
   discreteAlarms: {
     condition: string;
     severity: string;
@@ -173,11 +243,44 @@ function toRowState(s: ServerSignal): SignalRowState {
     defaultTrigger: (s.defaultTrigger as SignalRowState["defaultTrigger"]) ?? null,
     defaultFilterTimeMs: s.defaultFilterTimeMs != null ? Number(s.defaultFilterTimeMs) : null,
     defaultSwitchingType: (s.defaultSwitchingType as SignalRowState["defaultSwitchingType"]) ?? null,
+    defaultSignalVoltage: s.defaultSignalVoltage ?? null,
     defaultInputTypeId: s.defaultInputTypeId,
     defaultWireConfig: (s.defaultWireConfig as SignalRowState["defaultWireConfig"]) ?? null,
     defaultScaleMin: s.defaultScaleMin != null ? Number(s.defaultScaleMin) : null,
     defaultScaleMax: s.defaultScaleMax != null ? Number(s.defaultScaleMax) : null,
+    defaultRawMin: s.defaultRawMin != null ? Number(s.defaultRawMin) : null,
+    defaultRawMax: s.defaultRawMax != null ? Number(s.defaultRawMax) : null,
+    defaultRawZero: s.defaultRawZero != null ? Number(s.defaultRawZero) : null,
+    defaultClampLow: s.defaultClampLow != null ? Number(s.defaultClampLow) : null,
+    defaultClampHigh: s.defaultClampHigh != null ? Number(s.defaultClampHigh) : null,
+    defaultDeadband: s.defaultDeadband != null ? Number(s.defaultDeadband) : null,
     defaultEuId: s.defaultEuId,
+    defaultDetectWireBreak: s.defaultDetectWireBreak ?? false,
+    defaultDetectShortCircuit: s.defaultDetectShortCircuit ?? false,
+    defaultDetectOutOfRange: s.defaultDetectOutOfRange ?? false,
+    defaultNamurNe43: s.defaultNamurNe43 ?? false,
+    defaultSensorFailRaw: s.defaultSensorFailRaw != null ? Number(s.defaultSensorFailRaw) : null,
+    defaultSensorFailMargin: s.defaultSensorFailMargin != null ? Number(s.defaultSensorFailMargin) : null,
+    defaultSensorFailBehavior: s.defaultSensorFailBehavior ?? null,
+    defaultSensorFailDelayMs: s.defaultSensorFailDelayMs ?? null,
+    defaultDeadbandRawMin: s.defaultDeadbandRawMin != null ? Number(s.defaultDeadbandRawMin) : null,
+    defaultDeadbandRawZero: s.defaultDeadbandRawZero != null ? Number(s.defaultDeadbandRawZero) : null,
+    defaultDeadbandRawMax: s.defaultDeadbandRawMax != null ? Number(s.defaultDeadbandRawMax) : null,
+    defaultUseTankLevel: s.defaultUseTankLevel ?? false,
+    defaultScalingFbOverride: s.defaultScalingFbOverride ?? null,
+    defaultAlarmGroup: s.defaultAlarmGroup ?? null,
+    defaultAlarmBlockMask: s.defaultAlarmBlockMask ?? null,
+    defaultCommBlockMask: s.defaultCommBlockMask ?? null,
+    defaultFatBlock: s.defaultFatBlock ?? false,
+    defaultSuppressionSt: s.defaultSuppressionSt ?? null,
+    defaultSpecialAlarmFb: s.defaultSpecialAlarmFb ?? null,
+    defaultSpecialAlarmInput: s.defaultSpecialAlarmInput ?? null,
+    defaultAnaToDigAlarm: s.defaultAnaToDigAlarm ?? false,
+    defaultIsRetain: s.defaultIsRetain ?? false,
+    defaultIsPersistent: s.defaultIsPersistent ?? false,
+    defaultLoggingEnabled: s.defaultLoggingEnabled ?? false,
+    defaultFbNameOverride: s.defaultFbNameOverride ?? null,
+    defaultUseShortName: s.defaultUseShortName ?? false,
     active: s.active,
     discreteAlarms: s.discreteAlarms.map((a) => ({
       condition: a.condition as DiscreteAlarmRow["condition"],
@@ -226,11 +329,44 @@ function emptyRow(componentId: number, nextOffset: number): SignalRowState & { _
     defaultTrigger: null,
     defaultFilterTimeMs: null,
     defaultSwitchingType: null,
+    defaultSignalVoltage: null,
     defaultInputTypeId: null,
     defaultWireConfig: null,
     defaultScaleMin: null,
     defaultScaleMax: null,
+    defaultRawMin: null,
+    defaultRawMax: null,
+    defaultRawZero: null,
+    defaultClampLow: null,
+    defaultClampHigh: null,
+    defaultDeadband: null,
     defaultEuId: null,
+    defaultDetectWireBreak: false,
+    defaultDetectShortCircuit: false,
+    defaultDetectOutOfRange: false,
+    defaultNamurNe43: false,
+    defaultSensorFailRaw: null,
+    defaultSensorFailMargin: null,
+    defaultSensorFailBehavior: null,
+    defaultSensorFailDelayMs: null,
+    defaultDeadbandRawMin: null,
+    defaultDeadbandRawZero: null,
+    defaultDeadbandRawMax: null,
+    defaultUseTankLevel: false,
+    defaultScalingFbOverride: null,
+    defaultAlarmGroup: null,
+    defaultAlarmBlockMask: null,
+    defaultCommBlockMask: null,
+    defaultFatBlock: false,
+    defaultSuppressionSt: null,
+    defaultSpecialAlarmFb: null,
+    defaultSpecialAlarmInput: null,
+    defaultAnaToDigAlarm: false,
+    defaultIsRetain: false,
+    defaultIsPersistent: false,
+    defaultLoggingEnabled: false,
+    defaultFbNameOverride: null,
+    defaultUseShortName: false,
     discreteAlarms: [],
     analogAlarms: [],
   };
@@ -561,6 +697,7 @@ const SignalRow = memo(function SignalRow({
         row={local}
         engineeringUnits={engineeringUnits}
         inputTypes={inputTypes}
+        plcDataTypes={plcDataTypes}
         onChange={(patch) => onChange(patch)}
       />
       <AlarmsDialog
@@ -790,11 +927,44 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
         defaultTrigger: row.defaultTrigger as never,
         defaultFilterTimeMs: row.defaultFilterTimeMs,
         defaultSwitchingType: row.defaultSwitchingType as never,
+        defaultSignalVoltage: row.defaultSignalVoltage,
         defaultInputTypeId: row.defaultInputTypeId,
         defaultWireConfig: row.defaultWireConfig as never,
         defaultScaleMin: row.defaultScaleMin,
         defaultScaleMax: row.defaultScaleMax,
+        defaultRawMin: row.defaultRawMin,
+        defaultRawMax: row.defaultRawMax,
+        defaultRawZero: row.defaultRawZero,
+        defaultClampLow: row.defaultClampLow,
+        defaultClampHigh: row.defaultClampHigh,
+        defaultDeadband: row.defaultDeadband,
         defaultEuId: row.defaultEuId,
+        defaultDetectWireBreak: row.defaultDetectWireBreak,
+        defaultDetectShortCircuit: row.defaultDetectShortCircuit,
+        defaultDetectOutOfRange: row.defaultDetectOutOfRange,
+        defaultNamurNe43: row.defaultNamurNe43,
+        defaultSensorFailRaw: row.defaultSensorFailRaw,
+        defaultSensorFailMargin: row.defaultSensorFailMargin,
+        defaultSensorFailBehavior: row.defaultSensorFailBehavior,
+        defaultSensorFailDelayMs: row.defaultSensorFailDelayMs,
+        defaultDeadbandRawMin: row.defaultDeadbandRawMin,
+        defaultDeadbandRawZero: row.defaultDeadbandRawZero,
+        defaultDeadbandRawMax: row.defaultDeadbandRawMax,
+        defaultUseTankLevel: row.defaultUseTankLevel,
+        defaultScalingFbOverride: row.defaultScalingFbOverride,
+        defaultAlarmGroup: row.defaultAlarmGroup,
+        defaultAlarmBlockMask: row.defaultAlarmBlockMask,
+        defaultCommBlockMask: row.defaultCommBlockMask,
+        defaultFatBlock: row.defaultFatBlock,
+        defaultSuppressionSt: row.defaultSuppressionSt,
+        defaultSpecialAlarmFb: row.defaultSpecialAlarmFb,
+        defaultSpecialAlarmInput: row.defaultSpecialAlarmInput,
+        defaultAnaToDigAlarm: row.defaultAnaToDigAlarm,
+        defaultIsRetain: row.defaultIsRetain,
+        defaultIsPersistent: row.defaultIsPersistent,
+        defaultLoggingEnabled: row.defaultLoggingEnabled,
+        defaultFbNameOverride: row.defaultFbNameOverride,
+        defaultUseShortName: row.defaultUseShortName,
         discreteAlarms: row.discreteAlarms,
         analogAlarms: row.analogAlarms,
       });
