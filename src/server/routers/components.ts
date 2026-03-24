@@ -222,6 +222,171 @@ export const componentsRouter = createTRPCRouter({
     .input(z.object({ id: z.number().int() }))
     .mutation(({ input }) => db.hardwareComponent.delete({ where: { id: input.id } })),
 
+  // ── Group components ────────────────────────────────────────────────
+
+  /** Preview which signals are common across selected components */
+  previewGrouping: protectedProcedure
+    .input(z.object({ componentIds: z.array(z.number().int()).min(2) }))
+    .query(async ({ input }) => {
+      const { componentIds } = input;
+      const components = await db.hardwareComponent.findMany({
+        where: { id: { in: componentIds } },
+        select: { id: true, parentId: true, name: true },
+      });
+      const hasParent = components.filter((c) => c.parentId !== null);
+      if (hasParent.length > 0) {
+        throw new Error(`Components already have a parent: ${hasParent.map((c) => c.name).join(", ")}`);
+      }
+
+      const signals = await db.componentSignal.findMany({
+        where: { componentId: { in: componentIds }, active: true },
+        select: { componentId: true, tagSuffix: true, ioType: true, origin: true },
+      });
+
+      // Group by match key, track which componentIds have each key
+      const keyMap = new Map<string, { tagSuffix: string | null; ioType: string; origin: string | null; componentIds: Set<number> }>();
+      for (const s of signals) {
+        const key = `${s.tagSuffix ?? ""}|${s.ioType}|${s.origin ?? ""}`;
+        let entry = keyMap.get(key);
+        if (!entry) {
+          entry = { tagSuffix: s.tagSuffix, ioType: s.ioType, origin: s.origin, componentIds: new Set() };
+          keyMap.set(key, entry);
+        }
+        entry.componentIds.add(s.componentId);
+      }
+
+      // Keep only signals present in ALL selected components
+      const totalComponents = componentIds.length;
+      const commonSignals = [...keyMap.values()]
+        .filter((e) => e.componentIds.size === totalComponents)
+        .map((e) => ({ tagSuffix: e.tagSuffix, ioType: e.ioType, origin: e.origin }));
+
+      return { commonSignals, totalComponents };
+    }),
+
+  /** Create a parent component from common signals across children */
+  groupComponents: protectedProcedure
+    .input(z.object({
+      name: z.string().min(1),
+      manufacturer: z.string().optional().nullable(),
+      model: z.string().optional().nullable(),
+      version: z.string().optional().nullable(),
+      description: z.string().optional().nullable(),
+      componentIds: z.array(z.number().int()).min(2),
+    }))
+    .mutation(async ({ input }) => {
+      const { componentIds, ...parentData } = input;
+
+      return db.$transaction(async (tx) => {
+        // 1. Validate
+        const components = await tx.hardwareComponent.findMany({
+          where: { id: { in: componentIds } },
+          select: { id: true, parentId: true, name: true },
+        });
+        if (components.length < 2) throw new Error("Need at least 2 components");
+        const hasParent = components.filter((c) => c.parentId !== null);
+        if (hasParent.length > 0) {
+          throw new Error(`Components already have a parent: ${hasParent.map((c) => c.name).join(", ")}`);
+        }
+
+        // 2. Fetch all active signals with alarms
+        const allSignals = await tx.componentSignal.findMany({
+          where: { componentId: { in: componentIds }, active: true },
+          include: { discreteAlarms: true, analogAlarms: true },
+          orderBy: { channelOffset: "asc" },
+        });
+
+        // 3. Find common signals (present in all components)
+        type SigWithAlarms = typeof allSignals[number];
+        const keyMap = new Map<string, Map<number, SigWithAlarms>>();
+        for (const s of allSignals) {
+          const key = `${s.tagSuffix ?? ""}|${s.ioType}|${s.origin ?? ""}`;
+          let compMap = keyMap.get(key);
+          if (!compMap) { compMap = new Map(); keyMap.set(key, compMap); }
+          if (!compMap.has(s.componentId)) compMap.set(s.componentId, s);
+        }
+
+        const commonKeys = [...keyMap.entries()]
+          .filter(([, compMap]) => compMap.size === componentIds.length);
+
+        if (commonKeys.length === 0) throw new Error("No common signals found");
+
+        // Use first componentId in the array as the canonical source
+        const firstCompId = componentIds[0];
+
+        // 4. Create parent component
+        const parent = await tx.hardwareComponent.create({
+          data: { ...parentData, projectId: null, status: "DRAFT" },
+        });
+
+        // 5. Create signals on parent (copy from first component's version)
+        const EXCLUDE_FIELDS = new Set(["id", "componentId", "channelOffset", "discreteAlarms", "analogAlarms", "component", "defaultEu", "defaultInputType", "plcDataTypeCatalog", "pdoConfig", "instanceSignals"]);
+        let hasCanId = false;
+
+        for (let i = 0; i < commonKeys.length; i++) {
+          const [, compMap] = commonKeys[i];
+          const canonical = compMap.get(firstCompId)!;
+
+          // Build data object excluding relation/auto fields
+          const sigData: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(canonical)) {
+            if (!EXCLUDE_FIELDS.has(k)) sigData[k] = v;
+          }
+          sigData.componentId = parent.id;
+          sigData.channelOffset = i;
+
+          if (canonical.canId != null) hasCanId = true;
+
+          await tx.componentSignal.create({
+            data: {
+              ...sigData as any,
+              discreteAlarms: { create: canonical.discreteAlarms.map(({ id: _, componentSignalId: __, ...a }) => a) },
+              analogAlarms: { create: canonical.analogAlarms.map(({ id: _, componentSignalId: __, ...a }) => a) },
+            },
+          });
+        }
+
+        // 6. Delete common signals from children
+        const commonMatchKeys = new Set(commonKeys.map(([key]) => key));
+        for (const compId of componentIds) {
+          const compSignals = allSignals.filter((s) => s.componentId === compId);
+          for (const s of compSignals) {
+            const key = `${s.tagSuffix ?? ""}|${s.ioType}|${s.origin ?? ""}`;
+            if (!commonMatchKeys.has(key)) continue;
+            // Clean up instance signals referencing this component signal
+            await removeSignalFromInstances(s.id);
+            await tx.componentDiscreteAlarm.deleteMany({ where: { componentSignalId: s.id } });
+            await tx.componentAnalogAlarm.deleteMany({ where: { componentSignalId: s.id } });
+            await tx.componentSignal.delete({ where: { id: s.id } });
+          }
+        }
+
+        // 7. Reparent children
+        await tx.hardwareComponent.updateMany({
+          where: { id: { in: componentIds } },
+          data: { parentId: parent.id },
+        });
+
+        // 8. Refresh minCanIdOffset on parent
+        if (hasCanId) {
+          const agg = await tx.componentSignal.aggregate({
+            where: { componentId: parent.id, active: true, canId: { not: null } },
+            _min: { canId: true },
+            _max: { canId: true },
+          });
+          const span = agg._min.canId != null && agg._max.canId != null
+            ? agg._max.canId - agg._min.canId + 1
+            : null;
+          await tx.hardwareComponent.update({
+            where: { id: parent.id },
+            data: { minCanIdOffset: span },
+          });
+        }
+
+        return { parentId: parent.id };
+      });
+    }),
+
   // ── AI Modbus extraction ────────────────────────────────────────────
   modbusListSheets: protectedProcedure
     .input(z.object({

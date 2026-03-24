@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Plus, Search } from "lucide-react";
+import { Layers, Plus, Search } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +13,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import { GroupComponentsDialog } from "./_components/GroupComponentsDialog";
 
 export default function ComponentsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: components = [] } = trpc.components.componentList.useQuery();
   const [filter, setFilter] = useState("");
+  const [groupOpen, setGroupOpen] = useState(false);
 
   const idMatch = pathname.match(/^\/components\/(\d+)/);
   const activeId = idMatch ? Number(idMatch[1]) : null;
@@ -139,7 +141,7 @@ export default function ComponentsLayout({ children }: { children: React.ReactNo
           )}
         </div>
 
-        <div className="border-t p-2">
+        <div className="border-t p-2 space-y-1">
           <Button
             variant="ghost"
             size="sm"
@@ -149,6 +151,20 @@ export default function ComponentsLayout({ children }: { children: React.ReactNo
             <Plus className="h-4 w-4 mr-2" />
             New Component
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => setGroupOpen(true)}
+          >
+            <Layers className="h-4 w-4 mr-2" />
+            Group Components
+          </Button>
+          <GroupComponentsDialog
+            open={groupOpen}
+            onClose={() => setGroupOpen(false)}
+            onCreated={(id) => { setGroupOpen(false); router.push(`/components/${id}`); }}
+          />
         </div>
       </div>
 
