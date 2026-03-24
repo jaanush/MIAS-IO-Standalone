@@ -154,17 +154,22 @@ function ConnectedNodesSection({
   projectId: number;
   onRefresh: () => void;
 }) {
-  const upsertNode = trpc.projectHardware.busNodeUpsert.useMutation({ onSuccess: onRefresh });
+  const upsertNode = trpc.projectHardware.busNodeUpsert.useMutation();
   const deleteNode = trpc.projectHardware.busNodeDelete.useMutation({ onSuccess: onRefresh });
+  const instanceCreate = trpc.projectHardware.instanceCreate.useMutation();
   const instanceUpdate = trpc.projectHardware.instanceUpdate.useMutation({ onSuccess: onRefresh });
   const instanceDelete = trpc.projectHardware.instanceDelete.useMutation({ onSuccess: onRefresh });
+  const busUpdate = trpc.projectHardware.busUpdate.useMutation();
 
   // Fetch available PLCs and carriers for the "Add Node" dropdown
-  const { data: hwData } = trpc.projectHardware.getHardware.useQuery({ projectId });
+  const { data: hwData } = trpc.projectHardware.getHardware.useQuery(
+    { projectId },
+    { staleTime: 30_000 } // prevent refetch loops
+  );
   const plcs = hwData?.plcs ?? [];
-  const allCarriers = plcs.flatMap((p) => [
-    ...p.carriers,
-    ...p.buses.flatMap((n) => n.carriers),
+  const allCarriers = plcs.flatMap((p: any) => [
+    ...(p.carriers ?? []),
+    ...(p.buses ?? []).flatMap((b: any) => b.carriers ?? []),
   ]);
 
   // IDs already connected
@@ -173,19 +178,57 @@ function ConnectedNodesSection({
 
   const totalNodes = network.nodes.length + network.instances.length;
 
-  const [addType, setAddType] = useState<"plc" | "carrier" | null>(null);
+  // Available components for this bus protocol
+  const componentsForBus = trpc.projectHardware.componentsForNetwork.useQuery(
+    { protocol: network.protocol, projectId },
+    { enabled: true }
+  );
+  const availableComponents = (componentsForBus.data ?? []) as { id: number; name: string; _count: { signals: number } }[];
+
+  // All IO cards that provide network and match this bus protocol
+  const allIoCards = plcs.flatMap((p) => [
+    ...p.carriers.flatMap((c: any) => (c.cards ?? []).filter((card: any) =>
+      card.catalog?.providesNetwork && card.catalog?.protocols?.some((pr: any) => pr.protocol === network.protocol)
+    ).map((card: any) => ({ ...card, carrierId: c.id, carrierName: c.name }))),
+    ...p.buses.flatMap((b: any) => (b.carriers ?? []).flatMap((c: any) =>
+      (c.cards ?? []).filter((card: any) =>
+        card.catalog?.providesNetwork && card.catalog?.protocols?.some((pr: any) => pr.protocol === network.protocol)
+      ).map((card: any) => ({ ...card, carrierName: c.name }))
+    )),
+  ]);
+
+  const connectedInstanceIds = new Set(network.instances.map((i) => i.id));
+
+  const [addType, setAddType] = useState<"plc" | "carrier" | "component" | "module" | null>(null);
   const [addId, setAddId] = useState<string>("");
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!addId) return;
     const id = Number(addId);
     if (addType === "plc") {
-      upsertNode.mutate({ busId: network.id, plcId: id, role: "CLIENT" });
-    } else {
-      upsertNode.mutate({ busId: network.id, carrierId: id, role: "SERVER" });
+      await upsertNode.mutateAsync({ busId: network.id, plcId: id, role: "CLIENT" });
+    } else if (addType === "carrier") {
+      await upsertNode.mutateAsync({ busId: network.id, carrierId: id, role: "SERVER" });
+    } else if (addType === "component") {
+      const comp = availableComponents.find((c) => c.id === id);
+      if (comp) {
+        await instanceCreate.mutateAsync({
+          projectId,
+          componentId: id,
+          busId: network.id,
+          name: comp.name,
+        });
+      }
+    } else if (addType === "module") {
+      const card = allIoCards.find((c: any) => c.id === id);
+      await busUpdate.mutateAsync({ id: network.id, ioCardId: id });
+      if (card?.carrierId) {
+        await upsertNode.mutateAsync({ busId: network.id, carrierId: card.carrierId, role: "SERVER" });
+      }
     }
     setAddType(null);
     setAddId("");
+    onRefresh();
   }
 
   return (
@@ -351,6 +394,8 @@ function ConnectedNodesSection({
           <option value="">+ Add node...</option>
           <option value="plc">PLC</option>
           <option value="carrier">Carrier</option>
+          <option value="component">Component</option>
+          {allIoCards.length > 0 && <option value="module">Module (bus host)</option>}
         </select>
         {addType && (
           <>
@@ -360,16 +405,20 @@ function ConnectedNodesSection({
               onChange={(e) => setAddId(e.target.value)}
             >
               <option value="">Select {addType}...</option>
-              {addType === "plc"
-                ? plcs.filter((p) => !connectedPlcIds.has(p.id)).map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))
-                : allCarriers.filter((c) => !connectedCarrierIds.has(c.id)).map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))
-              }
+              {addType === "plc" && plcs.filter((p) => !connectedPlcIds.has(p.id)).map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+              {addType === "carrier" && allCarriers.filter((c: any) => !connectedCarrierIds.has(c.id)).map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+              {addType === "component" && availableComponents.map((c) => (
+                <option key={c.id} value={c.id}>{c.name} ({c._count.signals} signals)</option>
+              ))}
+              {addType === "module" && allIoCards.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.carrierName} / Slot {c.slotPosition + 1} — {c.catalog?.articleNumber}</option>
+              ))}
             </select>
-            <Button size="sm" className="h-8" disabled={!addId || upsertNode.isPending} onClick={handleAdd}>
+            <Button size="sm" className="h-8" disabled={!addId || upsertNode.isPending || instanceCreate.isPending} onClick={handleAdd}>
               <Plus className="h-3.5 w-3.5 mr-1" /> Add
             </Button>
           </>

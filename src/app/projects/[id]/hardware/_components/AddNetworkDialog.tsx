@@ -55,7 +55,7 @@ export function AddNetworkDialog({
 
   const { data: hwData } = trpc.projectHardware.getHardware.useQuery({ projectId }, { enabled: open });
   const plcs = hwData?.plcs ?? [];
-  const allCarriers = plcs.flatMap((p) => [...p.carriers, ...p.buses.flatMap((n) => n.carriers)]);
+  const allCarriers = plcs.flatMap((p) => [...p.carriers, ...p.buses.flatMap((n: any) => n.carriers)]);
 
   const createNetwork = trpc.projectHardware.busCreate.useMutation();
   const upsertNode = trpc.projectHardware.busNodeUpsert.useMutation();

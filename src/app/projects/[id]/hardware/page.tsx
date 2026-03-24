@@ -64,7 +64,7 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
     selected?.type === "carrier"
       ? plcs.flatMap((p) => [
           ...p.carriers,
-          ...p.buses.flatMap((n) => n.carriers),
+          ...p.buses.flatMap((n: any) => n.carriers),
         ]).find((c) => c.id === selected.id) ?? null
       : null;
 
@@ -77,7 +77,7 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
 
   const selectedInstance =
     selected?.type === "instance"
-      ? allNets.flatMap((n) => n.instances).find((i) => i.id === selected.id) ?? null
+      ? allNets.flatMap((n: any) => n.instances).find((i) => i.id === selected.id) ?? null
       : null;
 
   const selectedInstanceNetwork =
@@ -93,7 +93,7 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
   const addCarrierPlc = addCarrierForPlc != null ? plcs.find((p) => p.id === addCarrierForPlc) : null;
   // All networks across all PLCs + standalone project networks
   const allNetworks = [
-    ...plcs.flatMap((p) => p.buses.map((n) => ({ ...n, plcName: p.name }))),
+    ...plcs.flatMap((p) => p.buses.map((n: any) => ({ ...n, plcName: p.name }))),
     ...standaloneNetworks.map((n) => ({ ...n, plcName: "Project" })),
   ];
 

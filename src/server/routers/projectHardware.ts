@@ -153,34 +153,57 @@ export const projectHardwareRouter = createTRPCRouter({
         }),
       ]);
 
-      // Transform: build buses array from busNodes for each PLC
-      const plcs = rawPlcs.map((plc) => ({
-        ...plc,
-        buses: plc.busNodes
-          .filter((bn) => bn.bus)
-          .map((bn) => bn.bus!)
-          // Fetch full bus data with nodes/carriers/instances
-      }));
+      // Build PLC → bus mapping from BusNodes (both direct PLC nodes and carrier nodes)
+      // A bus belongs to a PLC if: BusNode.plcId = PLC, OR BusNode.carrierId → carrier.plcId = PLC
+      const allBusNodes = await db.busNode.findMany({
+        where: {
+          bus: { projectId: input.projectId },
+        },
+        select: {
+          busId: true,
+          plcId: true,
+          carrierId: true,
+          carrier: { select: { plcId: true } },
+        },
+      });
 
-      // Re-fetch the connected buses with full includes
-      const plcBusIds = new Set(rawPlcs.flatMap((p) => p.busNodes.filter((bn) => bn.bus).map((bn) => bn.bus!.id)));
-      const connectedBuses = plcBusIds.size > 0
+      // Map busId → Set of plcIds (direct + via carrier)
+      const busToPlcIds = new Map<number, Set<number>>();
+      for (const bn of allBusNodes) {
+        const plcId = bn.plcId ?? bn.carrier?.plcId;
+        if (!plcId) continue;
+        let set = busToPlcIds.get(bn.busId);
+        if (!set) { set = new Set(); busToPlcIds.set(bn.busId, set); }
+        set.add(plcId);
+      }
+
+      // Collect all bus IDs connected to any PLC
+      const allConnectedBusIds = [...busToPlcIds.keys()];
+      const connectedBuses = allConnectedBusIds.length > 0
         ? await db.bus.findMany({
-            where: { id: { in: [...plcBusIds] } },
+            where: { id: { in: allConnectedBusIds } },
             include: fullBusInclude,
           })
         : [];
       const busMap = new Map(connectedBuses.map((b) => [b.id, b]));
 
       const plcsWithBuses = rawPlcs.map((plc) => {
-        const { busNodes, ...rest } = plc;
-        const buses = busNodes
-          .map((bn) => bn.bus ? busMap.get(bn.bus.id) : undefined)
+        const { busNodes, buses: _legacyBuses, ...rest } = plc as any;
+        // Find buses connected to this PLC (direct or via carrier)
+        const plcBusIds = [...busToPlcIds.entries()]
+          .filter(([, plcIds]) => plcIds.has(plc.id))
+          .map(([busId]) => busId);
+        const buses = plcBusIds
+          .map((id) => busMap.get(id))
           .filter((b): b is NonNullable<typeof b> => b != null);
         return { ...rest, buses };
       });
 
-      return { plcs: plcsWithBuses, networks: standaloneBuses };
+      // Standalone = buses with no PLC connections at all
+      const connectedBusIdSet = new Set(allConnectedBusIds);
+      const actualStandalone = standaloneBuses.filter((b) => !connectedBusIdSet.has(b.id));
+
+      return { plcs: plcsWithBuses, networks: actualStandalone };
     }),
 
   // ── Project approvals (for module filter) ────────────────────────────────
@@ -335,6 +358,7 @@ export const projectHardwareRouter = createTRPCRouter({
         canSyncPeriodMs: z.coerce.number().int().optional().nullable(),
         cyclePeriodMs: z.coerce.number().int().optional().nullable(),
         ipNetworkId: z.number().int().optional().nullable(),
+        ioCardId: z.number().int().optional().nullable(),
       })
     )
     .mutation(({ input }) => {

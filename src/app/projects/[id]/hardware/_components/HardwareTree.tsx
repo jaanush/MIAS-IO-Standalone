@@ -233,26 +233,24 @@ export function HardwareTree({ plcs, standaloneNetworks = [], ipNetworks = [], s
 
   return (
     <div className="space-y-0.5">
-      {/* IP Networks */}
-      {ipNetworks.length > 0 && ipNetworks.map((net) => (
-        <TreeItem
-          key={`ipnet-${net.id}`}
-          icon={<Network className="h-3.5 w-3.5" />}
-          label={net.name ?? `Network #${net.id}`}
-          sublabel={net.buses.length > 0 ? net.buses.map((b) => b.protocol).join(", ") : undefined}
-          active={isSelected({ type: "ipNetwork", id: net.id })}
-          onClick={() => onSelect({ type: "ipNetwork", id: net.id })}
-        />
-      ))}
-
-      {/* Project-level shared buses (no PLC owner) */}
-      {standaloneNetworks.length > 0 && (
+      {/* Networks & unconnected buses */}
+      {(ipNetworks.length > 0 || standaloneNetworks.length > 0) && (
         <TreeItem
           icon={<Globe className="h-3.5 w-3.5" />}
-          label="Project Networks"
-          sublabel={String(standaloneNetworks.length)}
+          label="Networks & Buses"
+          sublabel={`${ipNetworks.length}N ${standaloneNetworks.length}B`}
           defaultOpen
         >
+          {ipNetworks.map((net) => (
+            <TreeItem
+              key={`ipnet-${net.id}`}
+              icon={<Network className="h-3.5 w-3.5" />}
+              label={net.name ?? `Network #${net.id}`}
+              sublabel={net.buses.length > 0 ? net.buses.map((b) => b.protocol).join(", ") : undefined}
+              active={isSelected({ type: "ipNetwork", id: net.id })}
+              onClick={() => onSelect({ type: "ipNetwork", id: net.id })}
+            />
+          ))}
           {standaloneNetworks.map((net) => (
             <NetworkSubtree key={net.id} net={net} isSelected={isSelected} onSelect={onSelect} onAddInstance={onAddInstance} />
           ))}
