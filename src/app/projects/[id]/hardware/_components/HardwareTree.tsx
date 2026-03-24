@@ -207,35 +207,28 @@ export function HardwareTree({ plcs, standaloneNetworks = [], ipNetworks = [], s
     return node.id === selected.id;
   }
 
-  // Build a set of network IDs that are directly owned by each PLC (plcId matches)
-  const plcOwnedNetIds = new Map<number, Set<number>>();
+  // Determine the primary PLC for each shared bus (lowest PLC ID among connected PLCs)
+  const busPrimaryPlc = new Map<number, number>(); // busId → primary plcId
   for (const plc of plcs) {
-    plcOwnedNetIds.set(plc.id, new Set(plc.buses.map((n) => n.id)));
+    for (const bus of plc.buses) {
+      const existing = busPrimaryPlc.get(bus.id);
+      if (existing === undefined || plc.id < existing) {
+        busPrimaryPlc.set(bus.id, plc.id);
+      }
+    }
   }
 
-  // Find networks this PLC is connected to via BusNode but doesn't own
-  // These are "linked" networks shown as dimmed references
-  function getLinkedNetworks(plcId: number): Bus[] {
-    const owned = plcOwnedNetIds.get(plcId) ?? new Set();
-    const linked: Bus[] = [];
-    // Check other PLCs' networks
-    for (const otherPlc of plcs) {
-      if (otherPlc.id === plcId) continue;
-      for (const net of otherPlc.buses) {
-        if (owned.has(net.id)) continue;
-        if (net.nodes.some((n) => n.plc?.id === plcId)) {
-          linked.push(net);
-        }
-      }
-    }
-    // Check standalone networks
-    for (const net of standaloneNetworks) {
-      if (owned.has(net.id)) continue;
-      if (net.nodes.some((n) => n.plc?.id === plcId)) {
-        linked.push(net);
-      }
-    }
-    return linked;
+  // For each PLC: primary buses (render fully) vs linked buses (dimmed reference)
+  function getPrimaryBuses(plcId: number): Bus[] {
+    const plc = plcs.find((p) => p.id === plcId);
+    if (!plc) return [];
+    return plc.buses.filter((b) => busPrimaryPlc.get(b.id) === plcId);
+  }
+
+  function getLinkedBuses(plcId: number): Bus[] {
+    const plc = plcs.find((p) => p.id === plcId);
+    if (!plc) return [];
+    return plc.buses.filter((b) => busPrimaryPlc.get(b.id) !== plcId);
   }
 
   return (
@@ -266,9 +259,10 @@ export function HardwareTree({ plcs, standaloneNetworks = [], ipNetworks = [], s
         </TreeItem>
       )}
 
-      {/* PLCs with their networks */}
+      {/* PLCs with their buses */}
       {plcs.map((plc) => {
-        const linkedNets = getLinkedNetworks(plc.id);
+        const primaryBuses = getPrimaryBuses(plc.id);
+        const linkedBuses = getLinkedBuses(plc.id);
         return (
           <TreeItem
             key={plc.id}
@@ -279,12 +273,12 @@ export function HardwareTree({ plcs, standaloneNetworks = [], ipNetworks = [], s
             onClick={() => onSelect({ type: "plc", id: plc.id })}
             defaultOpen
           >
-            {/* Owned networks — full rendering */}
-            {plc.buses.map((net) => (
+            {/* Primary buses — full rendering with carriers and instances */}
+            {primaryBuses.map((net) => (
               <NetworkSubtree key={net.id} net={net} plcName={plc.name} isSelected={isSelected} onSelect={onSelect} onAddInstance={onAddInstance} />
             ))}
-            {/* Linked networks — dimmed reference nodes */}
-            {linkedNets.map((net) => (
+            {/* Shared buses — dimmed link nodes */}
+            {linkedBuses.map((net) => (
               <TreeItem
                 key={`link-${net.id}`}
                 icon={<ArrowUpRight className="h-3.5 w-3.5 opacity-50" />}
