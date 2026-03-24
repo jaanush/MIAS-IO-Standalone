@@ -3,75 +3,12 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown, Cpu, Network, Server, Box, Plus, Globe, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type IoCard = {
-  id: number;
-  slotPosition: number;
-  cardType: string;
-  name: string | null;
-  catalog: { id: number; articleNumber: string; vendorName: string; cardType: string; maxInputChannels: number | null; maxOutputChannels: number | null; approvals: { approvalId: number }[] } | null;
-};
-
-type Carrier = {
-  id: number;
-  name: string;
-  busId: number | null;
-  cabinetNumber: number | null;
-  carrierNumber: number | null;
-  catalog: { id: number; articleNumber: string; vendorName: string; maxModules: number | null } | null;
-  cards: IoCard[];
-};
-
-type ComponentInstance = {
-  id: number;
-  name: string;
-  tag: string | null;
-  component: { id: number; name: string; manufacturer: string | null; model: string | null };
-};
-
-type BusNode = {
-  id: number;
-  plc: { id: number; name: string } | null;
-  carrier: { id: number; name: string } | null;
-};
-
-type Bus = {
-  id: number;
-  protocol: string;
-  role: string;
-  nodeAddress: number | null;
-  description: string | null;
-  ioCard: { slotPosition: number } | null;
-  nodes: BusNode[];
-  carriers: Carrier[];
-  instances: ComponentInstance[];
-};
-
-type Plc = {
-  id: number;
-  name: string;
-  catalog: { id: number; articleNumber: string; vendorName: string; maxModules: number | null; busPowerBudgetMa: number | null } | null;
-  buses: Bus[];
-  carriers: Carrier[];
-};
-
-type IpNetworkTreeItem = {
-  id: number;
-  name: string | null;
-  buses: { id: number; protocol: string; description: string | null }[];
-};
-
-type SelectedNode =
-  | { type: "plc"; id: number }
-  | { type: "network"; id: number; plcId?: number }
-  | { type: "ipNetwork"; id: number }
-  | { type: "carrier"; id: number }
-  | { type: "instance"; id: number };
+import type { Plc, Bus, Carrier, IpNetwork, SelectedNode } from "@/lib/types/hardware";
 
 type Props = {
   plcs: Plc[];
   standaloneNetworks?: Bus[];
-  ipNetworks?: IpNetworkTreeItem[];
+  ipNetworks?: IpNetwork[];
   selected: SelectedNode | null;
   onSelect: (node: SelectedNode | null) => void;
   onAddInstance: (networkId: number) => void;
@@ -157,7 +94,9 @@ function NetworkSubtree({ net, plcName, isSelected, onSelect, onAddInstance }: {
   onSelect: (n: SelectedNode) => void; onAddInstance: (id: number) => void;
 }) {
   const host = net.ioCard && plcName ? `${plcName}:${net.ioCard.slotPosition + 1}` : plcName ?? null;
-  const hasChildren = net.carriers.length > 0 || net.instances.length > 0;
+  const carriers = net.carriers ?? [];
+  const instances = net.instances ?? [];
+  const hasChildren = carriers.length > 0 || instances.length > 0;
   return (
     <TreeItem
       key={net.id}
@@ -171,7 +110,7 @@ function NetworkSubtree({ net, plcName, isSelected, onSelect, onAddInstance }: {
     >
       {hasChildren ? (
         <>
-          {net.carriers.map((carrier) => (
+          {carriers.map((carrier) => (
             <TreeItem
               key={carrier.id}
               icon={<Server className="h-3.5 w-3.5" />}
@@ -181,7 +120,7 @@ function NetworkSubtree({ net, plcName, isSelected, onSelect, onAddInstance }: {
               onClick={() => onSelect({ type: "carrier", id: carrier.id })}
             />
           ))}
-          {net.instances.map((inst) => (
+          {instances.map((inst) => (
             <TreeItem
               key={inst.id}
               icon={<Box className="h-3.5 w-3.5" />}
@@ -243,7 +182,7 @@ export function HardwareTree({ plcs, standaloneNetworks = [], ipNetworks = [], s
               key={`ipnet-${net.id}`}
               icon={<Network className="h-3.5 w-3.5" />}
               label={net.name ?? `Network #${net.id}`}
-              sublabel={net.buses.length > 0 ? net.buses.map((b) => b.protocol).join(", ") : undefined}
+              sublabel={net.buses && net.buses.length > 0 ? net.buses.map((b) => b.protocol).join(", ") : undefined}
               active={isSelected({ type: "ipNetwork", id: net.id })}
               onClick={() => onSelect({ type: "ipNetwork", id: net.id })}
             />

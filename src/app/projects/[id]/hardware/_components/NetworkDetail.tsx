@@ -8,61 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Cpu, Server, Box, Plus, Trash2 } from "lucide-react";
 import { CAN_MODES, CAN_ORIGIN_SET, ETHERNET_PROTOCOL_SET, SERIAL_PARITY, NETWORK_NODE_ROLES, type BusProtocol } from "@/lib/enums";
+import type { Bus, BusNode, ComponentInstance } from "@/lib/types/hardware";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Instance = {
-  id: number;
-  name: string;
-  tag: string | null;
-  notes: string | null;
-  busId: number | null;
-  nodeRole: string | null;
-  nodeAddress: number | null;
-  canIdOffset: number | null;
-  component: {
-    id: number;
-    name: string;
-    manufacturer: string | null;
-    model: string | null;
-  };
-};
-
-type BusNode = {
-  id: number;
-  role: string;
-  nodeAddress: number | null;
-  ipAddress: string | null;
-  description: string | null;
-  plc: { id: number; name: string } | null;
-  carrier: { id: number; name: string; cabinetNumber: number | null; carrierNumber: number | null } | null;
-};
-
-type Network = {
-  id: number;
-  protocol: string;
-  role: string;
-  nodeAddress: number | null;
-  description: string | null;
-  ipNetworkId: number | null;
-  ioCardId: number | null;
-  ioCard: { id: number; name: string | null; slotPosition: number } | null;
-  nodes: BusNode[];
-  instances: Instance[];
-  baudRateKbit: number | null;
-  baudRateBps: number | null;
-  serialParity: string | null;
-  serialStopBits: number | null;
-  ipAddress: string | null;
-  ipPort: number | null;
-  canMode: string | null;
-  canHeartbeatMs: number | null;
-  canSyncPeriodMs: number | null;
-  cyclePeriodMs: number | null;
-};
-
 type Props = {
-  network: Network;
+  network: Bus;
   projectId: number;
   onRefresh: () => void;
 };
@@ -93,7 +44,7 @@ export function NetworkDetail({ network, projectId, onRefresh }: Props) {
           <span className="text-sm font-medium">{network.description}</span>
         )}
         <span className="text-sm text-muted-foreground">
-          {network.nodes.length} node{network.nodes.length !== 1 ? "s" : ""}
+          {(network.nodes ?? []).length} node{(network.nodes ?? []).length !== 1 ? "s" : ""}
         </span>
       </div>
 
@@ -152,7 +103,7 @@ function ConnectedNodesSection({
   isCan,
   onRefresh,
 }: {
-  network: Network;
+  network: Bus;
   projectId: number;
   isCan: boolean;
   onRefresh: () => void;
@@ -176,10 +127,12 @@ function ConnectedNodesSection({
   ]);
 
   // IDs already connected
-  const connectedPlcIds = new Set(network.nodes.filter((n) => n.plc).map((n) => n.plc!.id));
-  const connectedCarrierIds = new Set(network.nodes.filter((n) => n.carrier).map((n) => n.carrier!.id));
+  const nodes = network.nodes ?? [];
+  const instances = network.instances ?? [];
+  const connectedPlcIds = new Set(nodes.filter((n) => n.plc).map((n) => n.plc!.id));
+  const connectedCarrierIds = new Set(nodes.filter((n) => n.carrier).map((n) => n.carrier!.id));
 
-  const totalNodes = network.nodes.length + network.instances.length;
+  const totalNodes = nodes.length + instances.length;
 
   // Available components for this bus protocol
   const componentsForBus = trpc.projectHardware.componentsForNetwork.useQuery(
@@ -200,7 +153,7 @@ function ConnectedNodesSection({
     )),
   ]);
 
-  const connectedInstanceIds = new Set(network.instances.map((i) => i.id));
+  const connectedInstanceIds = new Set(instances.map((i) => i.id));
 
   const [addType, setAddType] = useState<"plc" | "carrier" | "component" | "module" | null>(null);
   const [addId, setAddId] = useState<string>("");
@@ -253,7 +206,7 @@ function ConnectedNodesSection({
               </tr>
             </thead>
             <tbody>
-              {network.nodes.map((node) => {
+              {nodes.map((node) => {
                 const deviceName = node.plc?.name ?? (
                   node.carrier
                     ? (node.carrier.cabinetNumber != null && node.carrier.carrierNumber != null
@@ -327,7 +280,7 @@ function ConnectedNodesSection({
                 );
               })}
               {/* Component instances as nodes */}
-              {network.instances.map((inst) => (
+              {instances.map((inst) => (
                 <tr key={`inst-${inst.id}`} className="border-b last:border-0 hover:bg-muted/20">
                   <td className="px-3 py-1.5">
                     <span className="flex items-center gap-1.5">
@@ -468,7 +421,7 @@ function NetworkConfigForm({
   isEthernet,
   onSaved,
 }: {
-  network: Network;
+  network: Bus;
   isSerial: boolean;
   isCan: boolean;
   isEthernet: boolean;
@@ -678,7 +631,7 @@ function BusDevicesSection({
   isCan,
   onRefresh,
 }: {
-  instances: Instance[];
+  instances: ComponentInstance[];
   isCan: boolean;
   onRefresh: () => void;
 }) {
@@ -721,7 +674,7 @@ function InstanceRow({
   isCan,
   onRefresh,
 }: {
-  instance: Instance;
+  instance: ComponentInstance;
   isCan: boolean;
   onRefresh: () => void;
 }) {

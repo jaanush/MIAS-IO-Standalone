@@ -7,34 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET } from "@/lib/enums";
-
-type Instance = {
-  id: number;
-  name: string;
-  tag: string | null;
-  notes: string | null;
-  busId: number | null;
-  nodeRole: string | null;
-  nodeAddress: number | null;
-  canIdOffset: number | null;
-  functionBlockOverride: string | null;
-  component: {
-    id: number;
-    name: string;
-    manufacturer: string | null;
-    model: string | null;
-  };
-};
-
-type Bus = {
-  id: number;
-  protocol: string;
-  description: string | null;
-  ipNetworkId: number | null;
-};
+import type { ComponentInstance, Bus } from "@/lib/types/hardware";
 
 type Props = {
-  instance: Instance;
+  instance: ComponentInstance;
   network: Bus | null;
   onDeleted: () => void;
   onRefresh: () => void;

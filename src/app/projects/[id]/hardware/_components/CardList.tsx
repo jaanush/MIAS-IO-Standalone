@@ -8,31 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, ExternalLink, GripVertical, Zap, AlertTriangle } from "lucide-react";
 import { ModulePickerDialog } from "./ModulePickerDialog";
 import { cn, wagoDatasheetUrl } from "@/lib/utils";
-
-type CardData = {
-  id: number;
-  slotPosition: number;
-  cardType: string;
-  subgroup: string | null;
-  typeCode: string | null;
-  instanceNumber: number | null;
-  name: string | null;
-  catalog: {
-    id: number;
-    articleNumber: string;
-    vendorName: string;
-    cardType: string;
-    maxInputChannels: number | null;
-    maxOutputChannels: number | null;
-    busCurrentConsumptionMa: number | null;
-  } | null;
-};
+import type { IoCard } from "@/lib/types/hardware";
 
 type Props = {
   carrierId: number;
   projectId: number;
   maxSlots: number | null;
-  cards: CardData[];
+  cards: IoCard[];
   onRefresh: () => void;
 };
 
@@ -50,7 +32,7 @@ const CARD_TYPE_COLORS: Record<string, string> = {
   IO_LINK: "bg-cyan-50 border-cyan-200 text-cyan-800",
 };
 
-function SubgroupHeader({ sg, cards, onAddModule, onDrop }: { sg: string; cards: CardData[]; onAddModule: () => void; onDrop: () => void }) {
+function SubgroupHeader({ sg, cards, onAddModule, onDrop }: { sg: string; cards: IoCard[]; onAddModule: () => void; onDrop: () => void }) {
   const supplyCards = cards.filter((c) => c.cardType === "SUPPLY");
   const consumerCards = cards.filter((c) => c.cardType !== "SUPPLY");
 
@@ -118,7 +100,7 @@ export function CardList({ carrierId, projectId, maxSlots, cards, onRefresh }: P
 
   // Group cards by subgroup letter
   const subgroups = useMemo(() => {
-    const map = new Map<string, CardData[]>();
+    const map = new Map<string, IoCard[]>();
     for (const card of sortedCards) {
       const sg = card.subgroup ?? "A";
       const arr = map.get(sg);

@@ -13,90 +13,13 @@ import { Trash2, ExternalLink } from "lucide-react";
 import { CardList } from "./CardList";
 import { PortNetworkEditor } from "./PortNetworkEditor";
 import { wagoDatasheetUrl } from "@/lib/utils";
+import type { Plc, Bus, IoCard, Carrier, Port } from "@/lib/types/hardware";
 
 const schema = z.object({
   name: z.string().min(1, "Required"),
   notes: z.string().optional().nullable(),
 });
 type FormValues = z.infer<typeof schema>;
-
-type Network = {
-  id: number;
-  protocol: string;
-  role: string;
-  nodeAddress: number | null;
-  description: string | null;
-  ioCardId: number | null;
-  ioCard: { id: number; name: string | null; slotPosition: number } | null;
-  carriers: LocalCarrier[];
-  // protocol-specific params
-  baudRateKbit: number | null;
-  baudRateBps: number | null;
-  serialParity: string | null;
-  serialStopBits: number | null;
-  ipAddress: string | null;
-  ipPort: number | null;
-  canMode: string | null;
-  canHeartbeatMs: number | null;
-  canSyncPeriodMs: number | null;
-  cyclePeriodMs: number | null;
-};
-
-type Port = {
-  id: number;
-  portNumber: number;
-  label: string | null;
-  ipAddress: string | null;
-  ipNetworkId: number | null;
-};
-
-type IoCard = {
-  id: number;
-  slotPosition: number;
-  cardType: string;
-  subgroup: string | null;
-  typeCode: string | null;
-  instanceNumber: number | null;
-  name: string | null;
-  catalog: {
-    id: number;
-    articleNumber: string;
-    vendorName: string;
-    cardType: string;
-    maxInputChannels: number | null;
-    maxOutputChannels: number | null;
-    busCurrentConsumptionMa: number | null;
-    providesNetwork: boolean;
-    protocols: { protocol: string }[];
-    approvals: { approvalId: number }[];
-  } | null;
-};
-
-type LocalCarrier = {
-  id: number;
-  name: string;
-  catalog: { id: number; articleNumber: string; vendorName: string; maxModules: number | null } | null;
-  cards: IoCard[];
-};
-
-type Plc = {
-  id: number;
-  name: string;
-  ipAddress?: string | null;
-  notes?: string | null;
-  catalog: {
-    id: number;
-    articleNumber: string;
-    vendorName: string;
-    maxModules: number | null;
-    busPowerBudgetMa: number | null;
-    ethernetPorts: number | null;
-    protocols: { protocol: string }[];
-  } | null;
-  buses: Network[];
-  carriers: LocalCarrier[];
-  ports: Port[];
-};
 
 type Props = {
   plc: Plc;
@@ -204,7 +127,7 @@ export function PlcDetail({ plc, projectId, onRefresh }: Props) {
           </h3>
           <div className="space-y-2">
             {Array.from({ length: plc.catalog.ethernetPorts }, (_, i) => {
-              const port = plc.ports.find((p) => p.portNumber === i);
+              const port = (plc.ports ?? []).find((p) => p.portNumber === i);
               return (
                 <PortNetworkEditor
                   key={i}

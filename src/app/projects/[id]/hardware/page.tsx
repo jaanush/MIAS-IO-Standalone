@@ -18,13 +18,7 @@ import { AddPlcDialog } from "./_components/AddPlcDialog";
 import { AddCarrierDialog } from "./_components/AddCarrierDialog";
 import { AddComponentInstanceDialog } from "./_components/AddComponentInstanceDialog";
 import { AddNetworkDialog } from "./_components/AddNetworkDialog";
-
-type SelectedNode =
-  | { type: "plc"; id: number }
-  | { type: "network"; id: number; plcId?: number }
-  | { type: "ipNetwork"; id: number }
-  | { type: "carrier"; id: number }
-  | { type: "instance"; id: number };
+import type { SelectedNode } from "@/lib/types/hardware";
 
 export default function ProjectHardwarePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);

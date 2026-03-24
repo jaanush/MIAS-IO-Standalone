@@ -7,27 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Plus, Trash2, ExternalLink } from "lucide-react";
 import { ModulePickerDialog } from "./ModulePickerDialog";
 import { cn, wagoDatasheetUrl } from "@/lib/utils";
-
-type CardData = {
-  id: number;
-  slotPosition: number;
-  cardType: string;
-  name: string | null;
-  catalog: {
-    id: number;
-    articleNumber: string;
-    vendorName: string;
-    cardType: string;
-    maxInputChannels: number | null;
-    maxOutputChannels: number | null;
-  } | null;
-};
+import type { IoCard } from "@/lib/types/hardware";
 
 type Props = {
   carrierId: number;
   projectId: number;
   maxSlots: number | null;
-  cards: CardData[];
+  cards: IoCard[];
   onRefresh: () => void;
 };
 

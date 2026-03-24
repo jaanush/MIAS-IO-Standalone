@@ -20,25 +20,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import type { Bus } from "@/lib/types/hardware";
+
 // Protocol → SignalOrigin compatibility: names match, so direct compare
 function isCompatible(componentOrigins: string[], networkProtocol: string) {
   return componentOrigins.some((o) => o === networkProtocol);
 }
-
-type Network = {
-  id: number;
-  protocol: string;
-  role: string;
-  nodeAddress: number | null;
-  description: string | null;
-};
 
 type Props = {
   open: boolean;
   projectId: number;
   /** Pre-selected network (when user clicked "+ Add instance" on a specific network) */
   preselectedNetworkId: number | null;
-  networks: Network[];
+  networks: Bus[];
   onClose: () => void;
   onCreated: () => void;
 };
@@ -98,7 +92,7 @@ export function AddComponentInstanceDialog({
     if (!open) onClose();
   }
 
-  const networkLabel = (n: Network) => {
+  const networkLabel = (n: Bus) => {
     let label = n.protocol;
     if (n.nodeAddress != null) label += ` (Node ${n.nodeAddress})`;
     if (n.description) label += ` — ${n.description}`;

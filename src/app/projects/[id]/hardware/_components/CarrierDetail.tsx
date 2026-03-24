@@ -12,6 +12,7 @@ import { Trash2, ExternalLink } from "lucide-react";
 import { CardList } from "./CardList";
 import { PortNetworkEditor } from "./PortNetworkEditor";
 import { wagoDatasheetUrl } from "@/lib/utils";
+import type { Carrier } from "@/lib/types/hardware";
 
 const schema = z.object({
   name: z.string().min(1, "Required"),
@@ -23,54 +24,6 @@ const schema = z.object({
   notes: z.string().optional().nullable(),
 });
 type FormValues = z.infer<typeof schema>;
-
-type IoCard = {
-  id: number;
-  slotPosition: number;
-  cardType: string;
-  subgroup: string | null;
-  typeCode: string | null;
-  instanceNumber: number | null;
-  name: string | null;
-  catalog: {
-    id: number;
-    articleNumber: string;
-    vendorName: string;
-    cardType: string;
-    maxInputChannels: number | null;
-    maxOutputChannels: number | null;
-    busCurrentConsumptionMa: number | null;
-    approvals: { approvalId: number }[];
-  } | null;
-};
-
-type Port = {
-  id: number;
-  portNumber: number;
-  label: string | null;
-  ipAddress: string | null;
-  ipNetworkId: number | null;
-};
-
-type Carrier = {
-  id: number;
-  name: string;
-  cabinetNumber?: number | null;
-  carrierNumber?: number | null;
-  firmwareVersion?: string | null;
-  modbusInputBase?: number | null;
-  modbusOutputBase?: number | null;
-  notes?: string | null;
-  catalog: {
-    id: number;
-    articleNumber: string;
-    vendorName: string;
-    maxModules: number | null;
-    ethernetPorts: number | null;
-  } | null;
-  cards: IoCard[];
-  ports: Port[];
-};
 
 type Props = {
   carrier: Carrier;
@@ -194,7 +147,7 @@ export function CarrierDetail({ carrier, projectId, onRefresh }: Props) {
           </h3>
           <div className="space-y-2">
             {Array.from({ length: carrier.catalog.ethernetPorts }, (_, i) => {
-              const port = carrier.ports.find((p) => p.portNumber === i);
+              const port = (carrier.ports ?? []).find((p) => p.portNumber === i);
               return (
                 <PortNetworkEditor
                   key={i}

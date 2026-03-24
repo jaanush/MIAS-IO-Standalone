@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Settings2, Trash2 } from "lucide-react";
 import { BUS_PROTOCOLS, NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET } from "@/lib/enums";
+import type { IpNetwork } from "@/lib/types/hardware";
 
 type PortData = {
   ipAddress: string | null;
@@ -31,12 +32,6 @@ type Props = {
   carrierId?: number;
   onSave: (data: { label: string | null; ipAddress: string | null; ipNetworkId: number | null }) => void;
   saving?: boolean;
-};
-
-type IpNetworkInfo = {
-  id: number;
-  name: string | null;
-  buses: { id: number; protocol: string; description: string | null }[];
 };
 
 export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierId, onSave, saving }: Props) {
@@ -77,7 +72,7 @@ export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierI
     networkId !== String(port?.ipNetworkId ?? "");
 
   const assignedNetwork = port?.ipNetworkId
-    ? (ipNetworks as IpNetworkInfo[]).find((n) => n.id === port.ipNetworkId)
+    ? (ipNetworks as IpNetwork[]).find((n) => n.id === port.ipNetworkId)
     : null;
 
   // Find which buses on this network the device is already connected to
@@ -177,7 +172,7 @@ export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierI
               onChange={(e) => setNetworkId(e.target.value)}
             >
               <option value="">— None —</option>
-              {(ipNetworks as IpNetworkInfo[]).map((n) => (
+              {(ipNetworks as IpNetwork[]).map((n) => (
                 <option key={n.id} value={n.id}>{n.name ?? `Network #${n.id}`}</option>
               ))}
             </select>

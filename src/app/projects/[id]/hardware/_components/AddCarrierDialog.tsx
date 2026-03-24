@@ -11,13 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-type Network = { id: number; protocol: string; role: string; nodeAddress: number | null; description?: string | null; plcName?: string };
+import type { Bus } from "@/lib/types/hardware";
 
 type Props = {
   projectId: number;
   plcId: number;
-  networks: Network[];
+  networks: (Bus & { plcName?: string })[];
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
