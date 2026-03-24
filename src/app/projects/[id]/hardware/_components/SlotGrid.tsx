@@ -13,7 +13,6 @@ type CardData = {
   slotPosition: number;
   cardType: string;
   name: string | null;
-  deletedAt: Date | null;
   catalog: {
     id: number;
     articleNumber: string;

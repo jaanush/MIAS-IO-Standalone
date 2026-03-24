@@ -58,7 +58,6 @@ type IoCard = {
   typeCode: string | null;
   instanceNumber: number | null;
   name: string | null;
-  deletedAt: Date | null;
   catalog: {
     id: number;
     articleNumber: string;
@@ -76,7 +75,6 @@ type IoCard = {
 type LocalCarrier = {
   id: number;
   name: string;
-  deletedAt: Date | null;
   catalog: { id: number; articleNumber: string; vendorName: string; maxModules: number | null } | null;
   cards: IoCard[];
 };
@@ -86,7 +84,6 @@ type Plc = {
   name: string;
   ipAddress?: string | null;
   notes?: string | null;
-  deletedAt: Date | null;
   catalog: {
     id: number;
     articleNumber: string;

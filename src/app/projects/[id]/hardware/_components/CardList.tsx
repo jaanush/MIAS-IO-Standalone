@@ -17,7 +17,6 @@ type CardData = {
   typeCode: string | null;
   instanceNumber: number | null;
   name: string | null;
-  deletedAt: Date | null;
   catalog: {
     id: number;
     articleNumber: string;

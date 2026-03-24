@@ -32,7 +32,6 @@ type IoCard = {
   typeCode: string | null;
   instanceNumber: number | null;
   name: string | null;
-  deletedAt: Date | null;
   catalog: {
     id: number;
     articleNumber: string;
@@ -62,7 +61,6 @@ type Carrier = {
   modbusInputBase?: number | null;
   modbusOutputBase?: number | null;
   notes?: string | null;
-  deletedAt: Date | null;
   catalog: {
     id: number;
     articleNumber: string;

@@ -830,13 +830,11 @@ export const signalRouter = createTRPCRouter({
     .input(z.object({ projectId: z.number().int() }))
     .query(async ({ input }) => {
       const plcs = await db.plc.findMany({
-        where: { projectId: input.projectId, deletedAt: null },
+        where: { projectId: input.projectId },
         include: {
           carriers: {
-            where: { deletedAt: null },
             include: {
               cards: {
-                where: { deletedAt: null },
                 include: {
                   catalog: {
                     select: {

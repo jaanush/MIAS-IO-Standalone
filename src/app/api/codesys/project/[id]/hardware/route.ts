@@ -60,15 +60,12 @@ export async function POST(
     where: { id: projectId },
     include: {
       plcs: {
-        where: { deletedAt: null },
         include: {
           catalog: { select: { articleNumber: true } },
           carriers: {
-            where: { deletedAt: null },
             include: {
               catalog: { select: { articleNumber: true } },
               cards: {
-                where: { deletedAt: null },
                 select: {
                   id: true,
                   slotPosition: true,

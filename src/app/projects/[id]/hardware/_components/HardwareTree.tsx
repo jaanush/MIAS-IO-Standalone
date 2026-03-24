@@ -9,7 +9,6 @@ type IoCard = {
   slotPosition: number;
   cardType: string;
   name: string | null;
-  deletedAt: Date | null;
   catalog: { id: number; articleNumber: string; vendorName: string; cardType: string; maxInputChannels: number | null; maxOutputChannels: number | null; approvals: { approvalId: number }[] } | null;
 };
 
@@ -19,7 +18,6 @@ type Carrier = {
   busId: number | null;
   cabinetNumber: number | null;
   carrierNumber: number | null;
-  deletedAt: Date | null;
   catalog: { id: number; articleNumber: string; vendorName: string; maxModules: number | null } | null;
   cards: IoCard[];
 };
@@ -52,7 +50,6 @@ type Bus = {
 type Plc = {
   id: number;
   name: string;
-  deletedAt: Date | null;
   catalog: { id: number; articleNumber: string; vendorName: string; maxModules: number | null; busPowerBudgetMa: number | null } | null;
   buses: Bus[];
   carriers: Carrier[];

@@ -343,7 +343,7 @@ model EngineeringUnit {
   symbol          String  @unique @db.VarChar(20)
   description     String? @db.VarChar(100)
   plcDataTypeId   Int?    @map("plc_data_type_id")
-  plcDataTypeCatalog PlcDataTypeCatalog? @relation(fields: [plcDataTypeId], references: [id])
+  plcDataTypeCatalog PlcDataTypeCatalog? @relation(fields: [plcDataTypeId], references: [id], onDelete: SetNull)
 
   analogSignals   AnalogSignal[]
   componentSignals ComponentSignal[]
@@ -654,13 +654,12 @@ model Plc {
   model     String?   @db.VarChar(100)
   ipAddress String?   @db.VarChar(45) @map("ip_address")
   notes     String?
-  deletedAt DateTime? @map("deleted_at")
   createdBy String?   @db.Uuid @map("created_by")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
   project  Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  catalog  DeviceCatalog? @relation(fields: [catalogId], references: [id])
+  catalog  DeviceCatalog? @relation(fields: [catalogId], references: [id], onDelete: SetNull)
   creator  User?          @relation("PlcCreatedBy", fields: [createdBy], references: [id])
   buses    Bus[]
   carriers IoCarrier[]
@@ -754,6 +753,7 @@ model BusNode {
 
   @@unique([busId, plcId])
   @@unique([busId, carrierId])
+  @@index([busId])
   @@map("network_node")
 }
 
@@ -774,19 +774,19 @@ model IoCarrier {
   cabinetNumber    Int?      @db.SmallInt @map("cabinet_number")   // hardware identifier: cabinet (1-9)
   carrierNumber    Int?      @db.SmallInt @map("carrier_number")   // hardware identifier: carrier (01-99)
   notes            String?
-  deletedAt        DateTime? @map("deleted_at")
   createdBy        String?   @db.Uuid @map("created_by")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
   plc     Plc            @relation(fields: [plcId], references: [id], onDelete: Cascade)
   catalog DeviceCatalog? @relation(fields: [catalogId], references: [id])
-  bus     Bus?           @relation(fields: [busId], references: [id])
+  bus     Bus?           @relation(fields: [busId], references: [id], onDelete: SetNull)
   creator User?          @relation("IoCarrierCreatedBy", fields: [createdBy], references: [id])
   cards        IoCard[]
   ports        CarrierPort[]
   busNodes     BusNode[]
 
+  @@index([plcId])
   @@map("io_carrier")
 }
 
@@ -814,19 +814,19 @@ model IoCard {
   typeCode              String?    @db.Char(1) @map("type_code")          // card type letter (I, M, Q, T, U...)
   instanceNumber        Int?       @db.SmallInt @map("instance_number")   // instance within subgroup+type (01-99)
   notes                 String?
-  deletedAt             DateTime?  @map("deleted_at")
   createdBy             String?    @db.Uuid @map("created_by")
   createdAt             DateTime   @default(now()) @map("created_at")
   updatedAt             DateTime   @updatedAt @map("updated_at")
 
   carrier        IoCarrier      @relation(fields: [carrierId], references: [id], onDelete: Cascade)
-  catalog        ModuleCatalog? @relation(fields: [catalogId], references: [id])
+  catalog        ModuleCatalog? @relation(fields: [catalogId], references: [id], onDelete: SetNull)
   creator        User?          @relation("IoCardCreatedBy", fields: [createdBy], references: [id])
   signals        Signal[]
   hostedBuses    Bus[]          @relation("NetworkHostCard")
 
   @@unique([carrierId, slotPosition])
   @@unique([carrierId, subgroup, typeCode, instanceNumber])
+  @@index([carrierId])
   @@map("io_card")
 }
 
@@ -918,18 +918,21 @@ model Signal {
   updatedAt        DateTime     @updatedAt @map("updated_at")
 
   project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  instanceSignal InstanceSignal?  @relation(fields: [instanceSignalId], references: [id])
+  instanceSignal InstanceSignal?  @relation(fields: [instanceSignalId], references: [id], onDelete: SetNull)
   ioCard         IoCard?          @relation(fields: [ioCardId], references: [id], onDelete: SetNull)
   creator        User?            @relation("SignalCreatedBy", fields: [createdBy], references: [id])
   discreteSignal DiscreteSignal?
   analogSignal   AnalogSignal?
   busSignal      BusSignal?
-  system         SignalSystem?       @relation(fields: [systemId], references: [id])
-  gvl            GlobalVariableList? @relation(fields: [gvlId], references: [id])
+  system         SignalSystem?       @relation(fields: [systemId], references: [id], onDelete: SetNull)
+  gvl            GlobalVariableList? @relation(fields: [gvlId], references: [id], onDelete: SetNull)
   codesysVariables CodesysVariable[]
 
   // Unique per card channel when assigned — NULLs are allowed to repeat in PostgreSQL
   @@unique([ioCardId, channelPosition])
+  @@index([projectId])
+  @@index([ioCardId])
+  @@index([instanceSignalId])
   @@map("signal")
 }
 
@@ -967,6 +970,7 @@ model BusSignal {
   signal Signal @relation(fields: [signalId], references: [id], onDelete: Cascade)
   bus    Bus?   @relation(fields: [busId], references: [id], onDelete: SetNull)
 
+  @@index([busId])
   @@map("bus_signal")
 }
 
@@ -988,7 +992,7 @@ model DiscreteSignal {
 model AnalogSignal {
   signalId           Int             @id @map("signal_id")
   inputTypeId        Int?            @map("input_type_id")
-  inputType          AnalogInputType? @relation(fields: [inputTypeId], references: [id])
+  inputType          AnalogInputType? @relation(fields: [inputTypeId], references: [id], onDelete: SetNull)
   wireConfig         WireConfig?     @map("wire_config")
   rawMin             Decimal?        @db.Decimal(12, 4) @map("raw_min")
   rawMax             Decimal?        @db.Decimal(12, 4) @map("raw_max")
@@ -1018,8 +1022,8 @@ model AnalogSignal {
   sensorFailDelayMs  Int?            @map("sensor_fail_delay_ms")
 
   signal          Signal              @relation(fields: [signalId], references: [id], onDelete: Cascade)
-  engineeringUnit EngineeringUnit?    @relation(fields: [engineeringUnitId], references: [id])
-  plcDataTypeCatalog PlcDataTypeCatalog? @relation(fields: [plcDataTypeId], references: [id])
+  engineeringUnit EngineeringUnit?    @relation(fields: [engineeringUnitId], references: [id], onDelete: SetNull)
+  plcDataTypeCatalog PlcDataTypeCatalog? @relation(fields: [plcDataTypeId], references: [id], onDelete: SetNull)
   alarms          AnalogAlarm[]
 
   @@map("analog_signal")
@@ -1139,7 +1143,7 @@ model ComponentSignal {
   defaultSignalVoltage String?          @db.VarChar(20) @map("default_signal_voltage")
   // Analog defaults
   defaultInputTypeId   Int?             @map("default_input_type_id")
-  defaultInputType     AnalogInputType? @relation(fields: [defaultInputTypeId], references: [id])
+  defaultInputType     AnalogInputType? @relation(fields: [defaultInputTypeId], references: [id], onDelete: SetNull)
   defaultWireConfig    WireConfig?      @map("default_wire_config")
   defaultScaleMin      Decimal?         @db.Decimal(12, 4) @map("default_scale_min")
   defaultScaleMax      Decimal?         @db.Decimal(12, 4) @map("default_scale_max")
@@ -1187,7 +1191,7 @@ model ComponentSignal {
   pdoConfigId     Int?             @map("pdo_config_id")
 
   component       HardwareComponent        @relation(fields: [componentId], references: [id], onDelete: Cascade)
-  defaultEu       EngineeringUnit?         @relation(fields: [defaultEuId], references: [id])
+  defaultEu       EngineeringUnit?         @relation(fields: [defaultEuId], references: [id], onDelete: SetNull)
   plcDataTypeCatalog PlcDataTypeCatalog?   @relation(fields: [plcDataTypeId], references: [id])
   pdoConfig       PdoConfig?               @relation("SignalPdo", fields: [pdoConfigId], references: [id], onDelete: SetNull)
   discreteAlarms  ComponentDiscreteAlarm[]
@@ -1195,6 +1199,7 @@ model ComponentSignal {
   instanceSignals InstanceSignal[]
 
   @@unique([componentId, channelOffset])
+  @@index([componentId])
   @@map("component_signal")
 }
 
@@ -1246,12 +1251,15 @@ model ComponentInstance {
   updatedAt              DateTime   @updatedAt @map("updated_at")
 
   project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  component  HardwareComponent @relation(fields: [componentId], references: [id])
-  bus        Bus?              @relation(fields: [busId], references: [id])
+  component  HardwareComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  bus        Bus?              @relation(fields: [busId], references: [id], onDelete: SetNull)
   creator    User?             @relation("ComponentInstanceCreatedBy", fields: [createdBy], references: [id])
   signals    InstanceSignal[]
   codesysFbInstances CodesysFbInstance[]
 
+  @@index([projectId])
+  @@index([componentId])
+  @@index([busId])
   @@map("component_instance")
 }
 
@@ -1267,10 +1275,12 @@ model InstanceSignal {
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
   instance        ComponentInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  componentSignal ComponentSignal   @relation(fields: [componentSignalId], references: [id])
+  componentSignal ComponentSignal   @relation(fields: [componentSignalId], references: [id], onDelete: Cascade)
   signals         Signal[]          // one InstanceSignal → many Signals (supports redundant wiring)
 
   @@unique([instanceId, componentSignalId])
+  @@index([instanceId])
+  @@index([componentSignalId])
   @@map("instance_signal")
 }
 
@@ -1371,7 +1381,7 @@ model CodesysSession {
   createdAt       DateTime  @default(now()) @map("created_at")
 
   user    User?    @relation("CodesysSessionUser", fields: [userId], references: [id])
-  project Project? @relation(fields: [miasProjectId], references: [id])
+  project Project? @relation(fields: [miasProjectId], references: [id], onDelete: SetNull)
 
   @@map("codesys_session")
 }

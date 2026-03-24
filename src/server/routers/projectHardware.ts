@@ -540,7 +540,6 @@ export const projectHardwareRouter = createTRPCRouter({
         subgroup,
         typeCode,
         instanceNumber,
-        deletedAt: null,
       };
       return db.ioCard.upsert({
         where: { carrierId_slotPosition: { carrierId: input.carrierId, slotPosition: input.slotPosition } },
