@@ -3,7 +3,12 @@
 import { use, useState } from "react";
 import { trpc } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { useEffect } from "react";
+import { Plus, Cpu, Network, Server, Box, Workflow, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { HardwareTree } from "./_components/HardwareTree";
 import { PlcDetail } from "./_components/PlcDetail";
 import { CarrierDetail } from "./_components/CarrierDetail";
@@ -12,10 +17,12 @@ import { NetworkDetail } from "./_components/NetworkDetail";
 import { AddPlcDialog } from "./_components/AddPlcDialog";
 import { AddCarrierDialog } from "./_components/AddCarrierDialog";
 import { AddComponentInstanceDialog } from "./_components/AddComponentInstanceDialog";
+import { AddNetworkDialog } from "./_components/AddNetworkDialog";
 
 type SelectedNode =
   | { type: "plc"; id: number }
-  | { type: "network"; id: number; plcId: number }
+  | { type: "network"; id: number; plcId?: number }
+  | { type: "ipNetwork"; id: number }
   | { type: "carrier"; id: number }
   | { type: "instance"; id: number };
 
@@ -27,12 +34,22 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
   const [selected, setSelected] = useState<SelectedNode | null>(null);
   const [addPlcOpen, setAddPlcOpen] = useState(false);
   const [addCarrierForPlc, setAddCarrierForPlc] = useState<number | null>(null);
+  const [addBusOpen, setAddBusOpen] = useState(false);
   const [addInstanceOpen, setAddInstanceOpen] = useState(false);
+  const createIpNetwork = trpc.projectHardware.ipNetworkCreate.useMutation({
+    onSuccess: () => {
+      refresh();
+      utils.projectHardware.ipNetworkList.invalidate();
+    },
+  });
   const [addInstanceNetworkId, setAddInstanceNetworkId] = useState<number | null>(null);
 
-  const { data: plcs = [], isLoading, refetch } = trpc.projectHardware.getHardware.useQuery({
+  const { data: hwData, isLoading, refetch } = trpc.projectHardware.getHardware.useQuery({
     projectId,
   });
+  const plcs = hwData?.plcs ?? [];
+  const standaloneNetworks = hwData?.networks ?? [];
+  const { data: ipNetworks = [] } = trpc.projectHardware.ipNetworkList.useQuery({ projectId });
 
   function refresh() {
     refetch();
@@ -47,28 +64,38 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
     selected?.type === "carrier"
       ? plcs.flatMap((p) => [
           ...p.carriers,
-          ...p.networks.flatMap((n) => n.carriers),
+          ...p.buses.flatMap((n) => n.carriers),
         ]).find((c) => c.id === selected.id) ?? null
       : null;
 
   const selectedNetwork =
     selected?.type === "network"
-      ? plcs.flatMap((p) => p.networks).find((n) => n.id === selected.id) ?? null
+      ? [...plcs.flatMap((p) => p.buses), ...standaloneNetworks].find((n) => n.id === selected.id) ?? null
       : null;
+
+  const allNets = [...plcs.flatMap((p) => p.buses), ...standaloneNetworks];
 
   const selectedInstance =
     selected?.type === "instance"
-      ? plcs.flatMap((p) => p.networks.flatMap((n) => n.instances)).find((i) => i.id === selected.id) ?? null
+      ? allNets.flatMap((n) => n.instances).find((i) => i.id === selected.id) ?? null
       : null;
 
   const selectedInstanceNetwork =
-    selectedInstance?.plcNetworkId != null
-      ? plcs.flatMap((p) => p.networks).find((n) => n.id === selectedInstance.plcNetworkId) ?? null
+    selectedInstance?.busId != null
+      ? allNets.find((n) => n.id === selectedInstance.busId) ?? null
+      : null;
+
+  const selectedIpNetwork =
+    selected?.type === "ipNetwork"
+      ? ipNetworks.find((n) => n.id === selected.id) ?? null
       : null;
 
   const addCarrierPlc = addCarrierForPlc != null ? plcs.find((p) => p.id === addCarrierForPlc) : null;
-  // All networks across all PLCs — for carrier/instance assignment
-  const allNetworks = plcs.flatMap((p) => p.networks.map((n) => ({ ...n, plcName: p.name })));
+  // All networks across all PLCs + standalone project networks
+  const allNetworks = [
+    ...plcs.flatMap((p) => p.buses.map((n) => ({ ...n, plcName: p.name }))),
+    ...standaloneNetworks.map((n) => ({ ...n, plcName: "Project" })),
+  ];
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -84,6 +111,8 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
           ) : (
             <HardwareTree
               plcs={plcs}
+              standaloneNetworks={standaloneNetworks}
+              ipNetworks={ipNetworks}
               selected={selected}
               onSelect={setSelected}
               onAddInstance={(networkId) => { setAddInstanceNetworkId(networkId); setAddInstanceOpen(true); }}
@@ -91,45 +120,59 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
           )}
         </div>
 
-        <div className="border-t p-2 space-y-1">
-          <Button
-            size="sm"
-            className="w-full"
-            onClick={() => setAddPlcOpen(true)}
-          >
-            <Plus className="h-4 w-4 mr-1" /> Add PLC
-          </Button>
-          {(() => {
-            const plcWithBus = plcs.find((p) => p.networks.length > 0);
-            return (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full"
-                disabled={!plcWithBus}
-                title={!plcWithBus ? "No PLC with networks defined" : undefined}
-                onClick={() => {
-                  const target = selectedPlc?.networks.length ? selectedPlc : plcWithBus!;
-                  setAddCarrierForPlc(target.id);
-                }}
-              >
-                <Plus className="h-4 w-4 mr-1" /> Add Carrier
+        <div className="border-t p-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" className="w-full">
+                <Plus className="h-4 w-4 mr-1" /> Add...
               </Button>
-            );
-          })()}
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full"
-            disabled={allNetworks.length === 0}
-            title={allNetworks.length === 0 ? "No networks defined" : undefined}
-            onClick={() => {
-              setAddInstanceNetworkId(selected?.type === "network" ? selected.id : null);
-              setAddInstanceOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-1" /> Add Instance
-          </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="start" className="w-52 p-1">
+              <div className="space-y-0.5">
+                <button
+                  className="w-full flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent text-left"
+                  onClick={() => setAddPlcOpen(true)}
+                >
+                  <Cpu className="h-3.5 w-3.5 text-muted-foreground" /> PLC
+                </button>
+                <button
+                  className="w-full flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent text-left"
+                  onClick={() => createIpNetwork.mutate({ projectId, name: `Network ${Date.now() % 1000}` })}
+                >
+                  <Network className="h-3.5 w-3.5 text-muted-foreground" /> IP Network
+                </button>
+                <button
+                  className="w-full flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent text-left"
+                  onClick={() => setAddBusOpen(true)}
+                >
+                  <Workflow className="h-3.5 w-3.5 text-muted-foreground" /> Bus
+                </button>
+                <button
+                  className="w-full flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent text-left"
+                  onClick={() => {
+                    const plcWithBus = plcs.find((p) => p.buses.length > 0);
+                    if (plcWithBus) {
+                      const target = selectedPlc?.buses.length ? selectedPlc : plcWithBus;
+                      setAddCarrierForPlc(target.id);
+                    }
+                  }}
+                  disabled={!plcs.some((p) => p.buses.length > 0)}
+                >
+                  <Server className="h-3.5 w-3.5 text-muted-foreground" /> Carrier
+                </button>
+                <button
+                  className="w-full flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent text-left"
+                  onClick={() => {
+                    setAddInstanceNetworkId(selected?.type === "network" ? selected.id : null);
+                    setAddInstanceOpen(true);
+                  }}
+                  disabled={allNetworks.length === 0}
+                >
+                  <Box className="h-3.5 w-3.5 text-muted-foreground" /> Component Instance
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -153,15 +196,24 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
           <CarrierDetail
             carrier={selectedCarrier}
             projectId={projectId}
-            networks={allNetworks}
             onRefresh={refresh}
           />
         )}
 
-        {selectedNetwork && !selectedCarrier && !selectedPlc && !selectedInstance && (
+        {selectedIpNetwork && (
+          <IpNetworkDetail
+            network={selectedIpNetwork as any}
+            projectId={projectId}
+            onRefresh={() => { refresh(); utils.projectHardware.ipNetworkList.invalidate(); }}
+            onDeleted={() => { setSelected(null); refresh(); utils.projectHardware.ipNetworkList.invalidate(); }}
+          />
+        )}
+
+        {selectedNetwork && !selectedCarrier && !selectedPlc && !selectedInstance && !selectedIpNetwork && (
           <NetworkDetail
             key={selectedNetwork.id}
             network={selectedNetwork}
+            projectId={projectId}
             onRefresh={refresh}
           />
         )}
@@ -197,6 +249,17 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
         />
       )}
 
+      <AddNetworkDialog
+        open={addBusOpen}
+        onClose={() => setAddBusOpen(false)}
+        onSaved={(busId) => {
+          setAddBusOpen(false);
+          refresh();
+          setSelected({ type: "network", id: busId });
+        }}
+        projectId={projectId}
+      />
+
       {addInstanceOpen && (
         <AddComponentInstanceDialog
           open
@@ -207,6 +270,110 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
           onCreated={() => { setAddInstanceOpen(false); refresh(); }}
         />
       )}
+    </div>
+  );
+}
+
+function IpNetworkDetail({
+  network,
+  projectId,
+  onRefresh,
+  onDeleted,
+}: {
+  network: { id: number; name: string | null; subnet: string | null; gateway: string | null; dns: string | null; description: string | null; buses: { id: number; protocol: string; description: string | null }[] };
+  projectId: number;
+  onRefresh: () => void;
+  onDeleted: () => void;
+}) {
+  const update = trpc.projectHardware.ipNetworkUpdate.useMutation({ onSuccess: onRefresh });
+  const deleteNet = trpc.projectHardware.ipNetworkDelete.useMutation({ onSuccess: onDeleted });
+  const [name, setName] = useState(network.name ?? "");
+  const [subnet, setSubnet] = useState(network.subnet ?? "");
+  const [gateway, setGateway] = useState(network.gateway ?? "");
+  const [dns, setDns] = useState(network.dns ?? "");
+  const [description, setDescription] = useState(network.description ?? "");
+
+  useEffect(() => {
+    setName(network.name ?? "");
+    setSubnet(network.subnet ?? "");
+    setGateway(network.gateway ?? "");
+    setDns(network.dns ?? "");
+    setDescription(network.description ?? "");
+  }, [network]);
+
+  const isDirty =
+    name !== (network.name ?? "") ||
+    subnet !== (network.subnet ?? "") ||
+    gateway !== (network.gateway ?? "") ||
+    dns !== (network.dns ?? "") ||
+    description !== (network.description ?? "");
+
+  return (
+    <div className="space-y-6 max-w-lg">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">{network.name ?? `Network #${network.id}`}</h2>
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={() => { if (confirm("Delete this IP network?")) deleteNet.mutate({ id: network.id }); }}
+        >
+          <Trash2 className="h-4 w-4 mr-1" /> Delete
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Name</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Engine Room LAN" className="h-8 text-sm" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Subnet (CIDR)</Label>
+            <Input value={subnet} onChange={(e) => setSubnet(e.target.value)} placeholder="192.168.1.0/24" className="h-8 text-sm font-mono" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Gateway</Label>
+            <Input value={gateway} onChange={(e) => setGateway(e.target.value)} placeholder="192.168.1.1" className="h-8 text-sm font-mono" />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">DNS Servers</Label>
+          <Input value={dns} onChange={(e) => setDns(e.target.value)} placeholder="8.8.8.8, 8.8.4.4" className="h-8 text-sm font-mono" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Description</Label>
+          <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="h-8 text-sm" />
+        </div>
+        <Button size="sm" disabled={!isDirty || update.isPending} onClick={() => update.mutate({
+          id: network.id,
+          name: name || null,
+          subnet: subnet || null,
+          gateway: gateway || null,
+          dns: dns || null,
+          description: description || null,
+        })}>
+          {update.isPending ? "Saving…" : "Save"}
+        </Button>
+      </div>
+
+      {/* Buses on this network */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Buses on this network
+        </h3>
+        {network.buses.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No buses assigned to this network yet.</p>
+        ) : (
+          <div className="space-y-1">
+            {network.buses.map((b) => (
+              <div key={b.id} className="flex items-center gap-2 text-sm rounded-md border px-3 py-1.5">
+                <Badge variant="outline" className="text-xs font-mono">{b.protocol}</Badge>
+                <span className="text-muted-foreground">{b.description ?? ""}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

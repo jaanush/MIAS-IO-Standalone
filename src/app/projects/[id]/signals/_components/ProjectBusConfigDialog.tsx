@@ -30,7 +30,7 @@ const MODBUS_REG_TYPES = [
 ];
 
 type BusState = {
-  plcNetworkId: number | null;
+  busId: number | null;
   rawDataType: string;
   plcDataType: string;
   byteOrder: string;
@@ -51,7 +51,7 @@ type BusState = {
 function emptyState(signal: SignalRow): BusState {
   const b = signal.busSignal;
   return {
-    plcNetworkId: b?.plcNetworkId ?? null,
+    busId: b?.busId ?? null,
     rawDataType: b?.rawDataType ?? "WORD",
     plcDataType: b?.plcDataType ?? "INT",
     byteOrder: b?.byteOrder ?? "BIG_ENDIAN",
@@ -106,7 +106,7 @@ export function ProjectBusConfigDialog({ open, onClose, signal, networks, onSave
   }
 
   async function handleSave() {
-    if (!state.plcNetworkId) {
+    if (!state.busId) {
       setError("Please select a PLC network.");
       return;
     }
@@ -115,7 +115,7 @@ export function ProjectBusConfigDialog({ open, onClose, signal, networks, onSave
     try {
       await save.mutateAsync({
         signalId: signal.id,
-        plcNetworkId: state.plcNetworkId,
+        busId: state.busId,
         rawDataType: state.rawDataType as Parameters<typeof save.mutateAsync>[0]["rawDataType"],
         plcDataType: state.plcDataType as Parameters<typeof save.mutateAsync>[0]["plcDataType"],
         byteOrder: state.byteOrder as "BIG_ENDIAN" | "LITTLE_ENDIAN",
@@ -177,13 +177,13 @@ export function ProjectBusConfigDialog({ open, onClose, signal, networks, onSave
             <Label>PLC Network <span className="text-destructive">*</span></Label>
             <select
               className={sel}
-              value={state.plcNetworkId ?? NONE}
-              onChange={(e) => patch("plcNetworkId", e.target.value === NONE ? null : Number(e.target.value))}
+              value={state.busId ?? NONE}
+              onChange={(e) => patch("busId", e.target.value === NONE ? null : Number(e.target.value))}
             >
               <option value={NONE}>— select network —</option>
               {networks.map((n) => (
                 <option key={n.id} value={n.id}>
-                  {n.plc.name} / {n.protocol}{n.description ? ` (${n.description})` : ""}
+                  {n.plc?.name ?? "Project"} / {n.protocol}{n.description ? ` (${n.description})` : ""}
                 </option>
               ))}
             </select>

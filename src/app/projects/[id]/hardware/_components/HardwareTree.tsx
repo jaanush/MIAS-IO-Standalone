@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Cpu, Network, Server, Box, Plus } from "lucide-react";
+import { ChevronRight, ChevronDown, Cpu, Network, Server, Box, Plus, Globe, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type IoCard = {
@@ -16,7 +16,9 @@ type IoCard = {
 type Carrier = {
   id: number;
   name: string;
-  plcNetworkId: number | null;
+  busId: number | null;
+  cabinetNumber: number | null;
+  carrierNumber: number | null;
   deletedAt: Date | null;
   catalog: { id: number; articleNumber: string; vendorName: string; maxModules: number | null } | null;
   cards: IoCard[];
@@ -29,13 +31,20 @@ type ComponentInstance = {
   component: { id: number; name: string; manufacturer: string | null; model: string | null };
 };
 
-type PlcNetwork = {
+type BusNode = {
+  id: number;
+  plc: { id: number; name: string } | null;
+  carrier: { id: number; name: string } | null;
+};
+
+type Bus = {
   id: number;
   protocol: string;
   role: string;
   nodeAddress: number | null;
   description: string | null;
   ioCard: { slotPosition: number } | null;
+  nodes: BusNode[];
   carriers: Carrier[];
   instances: ComponentInstance[];
 };
@@ -45,18 +54,27 @@ type Plc = {
   name: string;
   deletedAt: Date | null;
   catalog: { id: number; articleNumber: string; vendorName: string; maxModules: number | null; busPowerBudgetMa: number | null } | null;
-  networks: PlcNetwork[];
+  buses: Bus[];
   carriers: Carrier[];
+};
+
+type IpNetworkTreeItem = {
+  id: number;
+  name: string | null;
+  buses: { id: number; protocol: string; description: string | null }[];
 };
 
 type SelectedNode =
   | { type: "plc"; id: number }
-  | { type: "network"; id: number; plcId: number }
+  | { type: "network"; id: number; plcId?: number }
+  | { type: "ipNetwork"; id: number }
   | { type: "carrier"; id: number }
   | { type: "instance"; id: number };
 
 type Props = {
   plcs: Plc[];
+  standaloneNetworks?: Bus[];
+  ipNetworks?: IpNetworkTreeItem[];
   selected: SelectedNode | null;
   onSelect: (node: SelectedNode | null) => void;
   onAddInstance: (networkId: number) => void;
@@ -130,80 +148,156 @@ function TreeItem({
   );
 }
 
-export function HardwareTree({ plcs, selected, onSelect, onAddInstance }: Props) {
+function carrierPrefix(c: Carrier): string {
+  if (c.cabinetNumber != null && c.carrierNumber != null) {
+    return `N${c.cabinetNumber}:D${String(c.carrierNumber).padStart(2, "0")} `;
+  }
+  return "";
+}
+
+function NetworkSubtree({ net, plcName, isSelected, onSelect, onAddInstance }: {
+  net: Bus; plcName?: string; isSelected: (n: SelectedNode) => boolean;
+  onSelect: (n: SelectedNode) => void; onAddInstance: (id: number) => void;
+}) {
+  const host = net.ioCard && plcName ? `${plcName}:${net.ioCard.slotPosition + 1}` : plcName ?? null;
+  const hasChildren = net.carriers.length > 0 || net.instances.length > 0;
+  return (
+    <TreeItem
+      key={net.id}
+      icon={<Network className="h-3.5 w-3.5" />}
+      label={net.protocol}
+      sublabel={net.description ?? host ?? undefined}
+      active={isSelected({ type: "network", id: net.id })}
+      onClick={() => onSelect({ type: "network", id: net.id })}
+      defaultOpen
+      onAdd={() => onAddInstance(net.id)}
+    >
+      {hasChildren ? (
+        <>
+          {net.carriers.map((carrier) => (
+            <TreeItem
+              key={carrier.id}
+              icon={<Server className="h-3.5 w-3.5" />}
+              label={`${carrierPrefix(carrier)}${carrier.name}`}
+              sublabel={carrier.catalog?.articleNumber}
+              active={isSelected({ type: "carrier", id: carrier.id })}
+              onClick={() => onSelect({ type: "carrier", id: carrier.id })}
+            />
+          ))}
+          {net.instances.map((inst) => (
+            <TreeItem
+              key={inst.id}
+              icon={<Box className="h-3.5 w-3.5" />}
+              label={inst.name}
+              sublabel={inst.tag ?? inst.component.name}
+              active={isSelected({ type: "instance", id: inst.id })}
+              onClick={() => onSelect({ type: "instance", id: inst.id })}
+            />
+          ))}
+        </>
+      ) : undefined}
+    </TreeItem>
+  );
+}
+
+export function HardwareTree({ plcs, standaloneNetworks = [], ipNetworks = [], selected, onSelect, onAddInstance }: Props) {
   function isSelected(node: SelectedNode) {
     if (!selected) return false;
     if (node.type !== selected.type) return false;
     return node.id === selected.id;
   }
 
+  // Build a set of network IDs that are directly owned by each PLC (plcId matches)
+  const plcOwnedNetIds = new Map<number, Set<number>>();
+  for (const plc of plcs) {
+    plcOwnedNetIds.set(plc.id, new Set(plc.buses.map((n) => n.id)));
+  }
+
+  // Find networks this PLC is connected to via BusNode but doesn't own
+  // These are "linked" networks shown as dimmed references
+  function getLinkedNetworks(plcId: number): Bus[] {
+    const owned = plcOwnedNetIds.get(plcId) ?? new Set();
+    const linked: Bus[] = [];
+    // Check other PLCs' networks
+    for (const otherPlc of plcs) {
+      if (otherPlc.id === plcId) continue;
+      for (const net of otherPlc.buses) {
+        if (owned.has(net.id)) continue;
+        if (net.nodes.some((n) => n.plc?.id === plcId)) {
+          linked.push(net);
+        }
+      }
+    }
+    // Check standalone networks
+    for (const net of standaloneNetworks) {
+      if (owned.has(net.id)) continue;
+      if (net.nodes.some((n) => n.plc?.id === plcId)) {
+        linked.push(net);
+      }
+    }
+    return linked;
+  }
+
   return (
     <div className="space-y-0.5">
-      {plcs.map((plc) => (
+      {/* IP Networks */}
+      {ipNetworks.length > 0 && ipNetworks.map((net) => (
         <TreeItem
-          key={plc.id}
-          icon={<Cpu className="h-3.5 w-3.5" />}
-          label={plc.name}
-          sublabel={plc.catalog?.articleNumber}
-          active={isSelected({ type: "plc", id: plc.id })}
-          onClick={() => onSelect({ type: "plc", id: plc.id })}
+          key={`ipnet-${net.id}`}
+          icon={<Network className="h-3.5 w-3.5" />}
+          label={net.name ?? `Network #${net.id}`}
+          sublabel={net.buses.length > 0 ? net.buses.map((b) => b.protocol).join(", ") : undefined}
+          active={isSelected({ type: "ipNetwork", id: net.id })}
+          onClick={() => onSelect({ type: "ipNetwork", id: net.id })}
+        />
+      ))}
+
+      {/* Project-level shared buses (no PLC owner) */}
+      {standaloneNetworks.length > 0 && (
+        <TreeItem
+          icon={<Globe className="h-3.5 w-3.5" />}
+          label="Project Networks"
+          sublabel={String(standaloneNetworks.length)}
           defaultOpen
         >
-          {plc.networks.map((net) => {
-            const host = net.ioCard
-              ? `${plc.name}:${net.ioCard.slotPosition + 1}`
-              : plc.name;
-            const hasNetChildren = net.carriers.length > 0 || net.instances.length > 0;
-            return (
-              <TreeItem
-                key={net.id}
-                icon={<Network className="h-3.5 w-3.5" />}
-                label={net.protocol}
-                sublabel={host}
-                active={isSelected({ type: "network", id: net.id, plcId: plc.id })}
-                onClick={() => onSelect({ type: "network", id: net.id, plcId: plc.id })}
-                defaultOpen
-                onAdd={() => onAddInstance(net.id)}
-              >
-                {hasNetChildren ? (
-                  <>
-                    {net.carriers.map((carrier) => (
-                      <TreeItem
-                        key={carrier.id}
-                        icon={<Server className="h-3.5 w-3.5" />}
-                        label={carrier.name}
-                        sublabel={carrier.catalog?.articleNumber}
-                        active={isSelected({ type: "carrier", id: carrier.id })}
-                        onClick={() => onSelect({ type: "carrier", id: carrier.id })}
-                      />
-                    ))}
-                    {net.instances.map((inst) => (
-                      <TreeItem
-                        key={inst.id}
-                        icon={<Box className="h-3.5 w-3.5" />}
-                        label={inst.name}
-                        sublabel={inst.tag ?? inst.component.name}
-                        active={isSelected({ type: "instance", id: inst.id })}
-                        onClick={() => onSelect({ type: "instance", id: inst.id })}
-                      />
-                    ))}
-                  </>
-                ) : undefined}
-              </TreeItem>
-            );
-          })}
-          {plc.carriers.map((carrier) => (
-            <TreeItem
-              key={carrier.id}
-              icon={<Server className="h-3.5 w-3.5" />}
-              label={carrier.name}
-              sublabel={carrier.catalog?.articleNumber}
-              active={isSelected({ type: "carrier", id: carrier.id })}
-              onClick={() => onSelect({ type: "carrier", id: carrier.id })}
-            />
+          {standaloneNetworks.map((net) => (
+            <NetworkSubtree key={net.id} net={net} isSelected={isSelected} onSelect={onSelect} onAddInstance={onAddInstance} />
           ))}
         </TreeItem>
-      ))}
+      )}
+
+      {/* PLCs with their networks */}
+      {plcs.map((plc) => {
+        const linkedNets = getLinkedNetworks(plc.id);
+        return (
+          <TreeItem
+            key={plc.id}
+            icon={<Cpu className="h-3.5 w-3.5" />}
+            label={plc.name}
+            sublabel={plc.catalog?.articleNumber}
+            active={isSelected({ type: "plc", id: plc.id })}
+            onClick={() => onSelect({ type: "plc", id: plc.id })}
+            defaultOpen
+          >
+            {/* Owned networks — full rendering */}
+            {plc.buses.map((net) => (
+              <NetworkSubtree key={net.id} net={net} plcName={plc.name} isSelected={isSelected} onSelect={onSelect} onAddInstance={onAddInstance} />
+            ))}
+            {/* Linked networks — dimmed reference nodes */}
+            {linkedNets.map((net) => (
+              <TreeItem
+                key={`link-${net.id}`}
+                icon={<ArrowUpRight className="h-3.5 w-3.5 opacity-50" />}
+                label={net.protocol}
+                sublabel={net.description ?? undefined}
+                active={isSelected({ type: "network", id: net.id })}
+                onClick={() => onSelect({ type: "network", id: net.id })}
+              />
+            ))}
+            {/* Local carriers are shown in PLC detail panel, not in tree */}
+          </TreeItem>
+        );
+      })}
     </div>
   );
 }

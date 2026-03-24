@@ -18,12 +18,13 @@ type Props = {
   projectId: number;
   carrierId: number;
   slotPosition: number;
+  subgroup?: string | null;
   open: boolean;
   onClose: () => void;
   onAssigned: () => void;
 };
 
-export function ModulePickerDialog({ projectId, carrierId, slotPosition, open, onClose, onAssigned }: Props) {
+export function ModulePickerDialog({ projectId, carrierId, slotPosition, subgroup, open, onClose, onAssigned }: Props) {
   const [search, setSearch] = useState("");
   const { data: modules = [], isLoading } = trpc.projectHardware.modulesForProject.useQuery(
     { projectId },
@@ -74,7 +75,7 @@ export function ModulePickerDialog({ projectId, carrierId, slotPosition, open, o
                   key={m.id}
                   type="button"
                   className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-accent/50 transition-colors"
-                  onClick={() => assign.mutate({ carrierId, slotPosition, catalogId: m.id })}
+                  onClick={() => assign.mutate({ carrierId, slotPosition, catalogId: m.id, subgroup: subgroup ?? undefined })}
                   disabled={assign.isPending}
                 >
                   <div className="min-w-0 flex-1">

@@ -676,9 +676,162 @@ function ApprovalsSection() {
   );
 }
 
+// ── Module Type Codes Section ─────────────────────────────────────────────────
+
+type ModuleTypeCodeRow = { id: number; cardType: string; code: string; groupName: string; description: string | null };
+
+const CARD_TYPE_OPTIONS = ["DI", "DO", "AI", "AO", "MIXED", "COUNTER", "PWM", "SERIAL", "IO_LINK", "SUPPLY", "RELAY"] as const;
+
+function ModuleTypeCodesSection() {
+  const utils = trpc.useUtils();
+  const { data: codes = [], isLoading } = trpc.hardware.moduleTypeCodeList.useQuery();
+  const upsert = trpc.hardware.moduleTypeCodeUpsert.useMutation({
+    onSuccess: () => {
+      utils.hardware.moduleTypeCodeList.invalidate();
+      setForm({ cardType: "DI", code: "", groupName: "", description: "" });
+      setEditing(null);
+    },
+  });
+  const deleteMut = trpc.hardware.moduleTypeCodeDelete.useMutation({
+    onSuccess: () => utils.hardware.moduleTypeCodeList.invalidate(),
+  });
+
+  const [editing, setEditing] = useState<ModuleTypeCodeRow | null>(null);
+  const [form, setForm] = useState({ cardType: "DI" as string, code: "", groupName: "", description: "" });
+  const [formError, setFormError] = useState<string | null>(null);
+
+  function startEdit(row: ModuleTypeCodeRow) {
+    setEditing(row);
+    setForm({ cardType: row.cardType, code: row.code, groupName: row.groupName, description: row.description ?? "" });
+    setFormError(null);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setForm({ cardType: "DI", code: "", groupName: "", description: "" });
+    setFormError(null);
+  }
+
+  function handleSave() {
+    if (!form.code.trim() || !form.groupName.trim()) { setFormError("Code and Group Name are required."); return; }
+    if (form.code.trim().length !== 1) { setFormError("Code must be a single character."); return; }
+    setFormError(null);
+    upsert.mutate({
+      id: editing?.id,
+      cardType: form.cardType as any,
+      code: form.code.trim().toUpperCase(),
+      groupName: form.groupName.trim(),
+      description: form.description.trim() || null,
+    });
+  }
+
+  // Group by cardType for display
+  const grouped = new Map<string, ModuleTypeCodeRow[]>();
+  for (const c of codes as ModuleTypeCodeRow[]) {
+    const arr = grouped.get(c.cardType);
+    if (arr) arr.push(c); else grouped.set(c.cardType, [c]);
+  }
+
+  return (
+    <div className="space-y-4">
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <div className="rounded-md border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40 text-left">
+                <th className="px-3 py-2 font-medium w-24">Card Type</th>
+                <th className="px-3 py-2 font-medium w-16">Code</th>
+                <th className="px-3 py-2 font-medium w-40">Group</th>
+                <th className="px-3 py-2 font-medium">Description</th>
+                <th className="px-3 py-2 font-medium w-24" />
+              </tr>
+            </thead>
+            <tbody>
+              {(codes as ModuleTypeCodeRow[]).length === 0 ? (
+                <tr><td colSpan={5} className="px-3 py-4 text-center text-muted-foreground">No type codes defined.</td></tr>
+              ) : (
+                [...grouped.entries()].map(([cardType, rows]) => (
+                  rows.map((row, idx) => (
+                    <tr key={row.id} className={cn("border-b last:border-0 hover:bg-muted/20", idx === 0 && "border-t-2 border-t-muted")}>
+                      {idx === 0 && (
+                        <td className="px-3 py-2 font-mono font-medium" rowSpan={rows.length}>{cardType}</td>
+                      )}
+                      <td className="px-3 py-2 font-mono font-bold text-center">{row.code}</td>
+                      <td className="px-3 py-2">{row.groupName}</td>
+                      <td className="px-3 py-2 text-muted-foreground text-xs">{row.description ?? "—"}</td>
+                      <td className="px-3 py-2 flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => startEdit(row)}>Edit</Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { if (confirm(`Delete code ${row.code} for ${row.cardType}?`)) deleteMut.mutate({ id: row.id }); }}>Del</Button>
+                      </td>
+                    </tr>
+                  ))
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="rounded-md border p-4 space-y-3 bg-muted/20">
+        <h4 className="text-sm font-medium">{editing ? "Edit Type Code" : "Add Type Code"}</h4>
+        <div className="grid grid-cols-4 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Card Type *</label>
+            <select
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={form.cardType}
+              onChange={(e) => setForm((f) => ({ ...f, cardType: e.target.value }))}
+              disabled={!!editing}
+            >
+              {CARD_TYPE_OPTIONS.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Code * (single char)</label>
+            <Input
+              value={form.code}
+              onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.slice(0, 1).toUpperCase() }))}
+              placeholder="e.g. I"
+              maxLength={1}
+              className="font-mono font-bold text-center"
+              disabled={!!editing}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Group Name *</label>
+            <Input
+              value={form.groupName}
+              onChange={(e) => setForm((f) => ({ ...f, groupName: e.target.value }))}
+              placeholder="e.g. DI Card"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Description</label>
+            <Input
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="Optional"
+            />
+          </div>
+        </div>
+        {formError && <p className="text-xs text-destructive">{formError}</p>}
+        {upsert.error && <p className="text-xs text-destructive">{upsert.error.message}</p>}
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSave} disabled={upsert.isPending}>{upsert.isPending ? "Saving…" : editing ? "Save Changes" : "Add"}</Button>
+          {editing && <Button size="sm" variant="outline" onClick={cancelEdit}>Cancel</Button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Simple tab bar ────────────────────────────────────────────────────────────
 
-type TabKey = "systems" | "gvls" | "eu" | "inputtypes" | "plcdatatypes" | "approvals";
+type TabKey = "systems" | "gvls" | "eu" | "inputtypes" | "plcdatatypes" | "approvals" | "typecodes";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "systems", label: "Signal Systems" },
@@ -687,6 +840,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "inputtypes", label: "Analog Input Types" },
   { key: "plcdatatypes", label: "PLC Data Types" },
   { key: "approvals", label: "Approvals" },
+  { key: "typecodes", label: "Module Type Codes" },
 ];
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -731,6 +885,7 @@ export default function MiscPage() {
           {activeTab === "inputtypes" && <AnalogInputTypesSection />}
           {activeTab === "plcdatatypes" && <PlcDataTypesSection />}
           {activeTab === "approvals" && <ApprovalsSection />}
+          {activeTab === "typecodes" && <ModuleTypeCodesSection />}
         </div>
       </div>
     </div>

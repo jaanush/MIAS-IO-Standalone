@@ -249,7 +249,7 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
   const gvlUpsert = trpc.signal.gvlUpsert.useMutation();
   const createPlc = trpc.projectHardware.plcCreate.useMutation();
   const createCarrier = trpc.projectHardware.carrierCreate.useMutation();
-  const createNetwork = trpc.projectHardware.networkCreate.useMutation();
+  const createNetwork = trpc.projectHardware.busCreate.useMutation();
   const assignCard = trpc.projectHardware.cardAssign.useMutation();
 
   // Auto-detect matched protocols from selected PLC + coupler catalog entries
@@ -345,20 +345,14 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
           notes: parsedPlc.location ? `Location: ${parsedPlc.location}` : null,
         });
 
-        // Create a local carrier for the PLC's own IO bus
-        setImportStatus(`Creating local carrier for ${parsedPlc.name}…`);
-        await createCarrier.mutateAsync({
-          plcId: plc.id,
-          name: `${parsedPlc.name}-LOCAL`,
-          catalogId: selectedPlcCatalogId ?? null,
-          plcNetworkId: null,
-        });
+        // plcCreate auto-creates a local carrier — no need to create another
 
         // Create one network for all carrier groups on this PLC (if protocol known)
         let networkId: number | null = null;
         if (effectiveProtocol && parsedPlc.carriers.length > 0) {
           setImportStatus(`Creating ${effectiveProtocol} network on ${parsedPlc.name}…`);
           const network = await createNetwork.mutateAsync({
+            projectId,
             plcId: plc.id,
             protocol: effectiveProtocol,
             role: "MASTER",
@@ -374,7 +368,7 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
             plcId: plc.id,
             name: parsedCarrier.name,
             catalogId: selectedCouplerCatalogId ?? null,
-            plcNetworkId: networkId,
+            busId: networkId,
           });
 
           for (const parsedSlot of parsedCarrier.slots) {

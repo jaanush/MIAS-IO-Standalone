@@ -3,7 +3,7 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { db } from "@/lib/db";
 import type { SignalOrigin, PlcDataType } from "../../../prisma/generated/prisma/client/client";
-import { BUS_PROTOCOLS, NETWORK_ROLES, SERIAL_PARITY, CAN_MODES, SIGNAL_ORIGINS } from "@/lib/enums";
+import { BUS_PROTOCOLS, NETWORK_ROLES, NETWORK_NODE_ROLES, SERIAL_PARITY, CAN_MODES, SIGNAL_ORIGINS } from "@/lib/enums";
 
 // ── Shared include shapes ─────────────────────────────────────────────────────
 
@@ -17,6 +17,7 @@ const cardInclude = {
       maxInputChannels: true,
       maxOutputChannels: true,
       providesNetwork: true,
+      busCurrentConsumptionMa: true,
       protocols: { select: { protocol: true } },
       approvals: { select: { approvalId: true } },
     },
@@ -37,13 +38,12 @@ const carrierInclude = {
   ports: { orderBy: { portNumber: "asc" as const } },
 };
 
-const networkInclude = {
+const busInclude = {
   carriers: {
     include: carrierInclude,
     orderBy: { name: "asc" as const },
   },
   ioCard: { select: { id: true, name: true, slotPosition: true } },
-  plcPorts: { select: { id: true, portNumber: true, label: true } },
   instances: {
     include: {
       component: { select: { id: true, name: true, manufacturer: true, model: true } },
@@ -64,9 +64,9 @@ const plcInclude = {
       protocols: { select: { protocol: true } },
     },
   },
-  networks: { include: networkInclude, orderBy: { protocol: "asc" as const } },
+  buses: { include: busInclude, orderBy: { protocol: "asc" as const } },
   carriers: {
-    where: { plcNetworkId: null },
+    where: { busId: null },
     include: carrierInclude,
     orderBy: { name: "asc" as const },
   },
@@ -98,42 +98,55 @@ export const projectHardwareRouter = createTRPCRouter({
   // ── Full hardware tree ────────────────────────────────────────────────────
   getHardware: protectedProcedure
     .input(z.object({ projectId: z.number().int() }))
-    .query(({ input }) => {
-      return db.plc.findMany({
-        where: { projectId: input.projectId },
-        include: {
-          ...plcInclude,
-          networks: {
-            include: {
-              ...networkInclude,
-              carriers: {
-                include: {
-                  ...carrierInclude,
-                  cards: {
-                    include: cardInclude,
-                    orderBy: { slotPosition: "asc" },
-                  },
-                },
-                orderBy: { name: "asc" },
-              },
-            },
-            orderBy: { protocol: "asc" },
+    .query(async ({ input }) => {
+      const fullBusInclude = {
+        ...busInclude,
+        nodes: {
+          include: {
+            plc: { select: { id: true, name: true } },
+            carrier: { select: { id: true, name: true, cabinetNumber: true, carrierNumber: true } },
           },
-          carriers: {
-            where: { plcNetworkId: null },
-            include: {
-              ...carrierInclude,
-              cards: {
-                include: cardInclude,
-                orderBy: { slotPosition: "asc" },
-              },
-            },
-            orderBy: { name: "asc" },
-          },
-          ports: { orderBy: { portNumber: "asc" } },
+          orderBy: { createdAt: "asc" as const },
         },
-        orderBy: { name: "asc" },
-      });
+        carriers: {
+          include: {
+            ...carrierInclude,
+            cards: {
+              include: cardInclude,
+              orderBy: { slotPosition: "asc" as const },
+            },
+          },
+          orderBy: { name: "asc" as const },
+        },
+      };
+
+      const [plcs, networks] = await Promise.all([
+        db.plc.findMany({
+          where: { projectId: input.projectId },
+          include: {
+            ...plcInclude,
+            buses: { include: fullBusInclude, orderBy: { protocol: "asc" } },
+            carriers: {
+              where: { busId: null },
+              include: {
+                ...carrierInclude,
+                cards: { include: cardInclude, orderBy: { slotPosition: "asc" } },
+              },
+              orderBy: { name: "asc" },
+            },
+            ports: { orderBy: { portNumber: "asc" } },
+          },
+          orderBy: { name: "asc" },
+        }),
+        // Project-level networks not owned by any PLC
+        db.bus.findMany({
+          where: { projectId: input.projectId, plcId: null },
+          include: fullBusInclude,
+          orderBy: { protocol: "asc" },
+        }),
+      ]);
+
+      return { plcs, networks };
     }),
 
   // ── Project approvals (for module filter) ────────────────────────────────
@@ -244,11 +257,13 @@ export const projectHardwareRouter = createTRPCRouter({
     .mutation(({ input }) => db.plc.delete({ where: { id: input.id } })),
 
   // ── Network CRUD ──────────────────────────────────────────────────────────
-  networkCreate: protectedProcedure
+  busCreate: protectedProcedure
     .input(
       z.object({
-        plcId: z.number().int(),
+        projectId: z.number().int(),
+        plcId: z.number().int().optional().nullable(),
         ioCardId: z.number().int().optional().nullable(),
+        ipNetworkId: z.number().int().optional().nullable(),
         protocol: z.enum(BUS_PROTOCOLS),
         role: z.enum(NETWORK_ROLES),
         nodeAddress: z.coerce.number().int().optional().nullable(),
@@ -265,9 +280,9 @@ export const projectHardwareRouter = createTRPCRouter({
         cyclePeriodMs: z.coerce.number().int().optional().nullable(),
       })
     )
-    .mutation(({ input }) => db.plcNetwork.create({ data: input, include: networkInclude })),
+    .mutation(({ input }) => db.bus.create({ data: input, include: busInclude })),
 
-  networkUpdate: protectedProcedure
+  busUpdate: protectedProcedure
     .input(
       z.object({
         id: z.number().int(),
@@ -285,16 +300,64 @@ export const projectHardwareRouter = createTRPCRouter({
         canHeartbeatMs: z.coerce.number().int().optional().nullable(),
         canSyncPeriodMs: z.coerce.number().int().optional().nullable(),
         cyclePeriodMs: z.coerce.number().int().optional().nullable(),
+        ipNetworkId: z.number().int().optional().nullable(),
       })
     )
     .mutation(({ input }) => {
       const { id, ...data } = input;
-      return db.plcNetwork.update({ where: { id }, data });
+      return db.bus.update({ where: { id }, data });
     }),
 
-  networkDelete: protectedProcedure
+  busDelete: protectedProcedure
     .input(z.object({ id: z.number().int() }))
-    .mutation(({ input }) => db.plcNetwork.delete({ where: { id: input.id } })),
+    .mutation(({ input }) => db.bus.delete({ where: { id: input.id } })),
+
+  // ── Network node (device ↔ network membership) ─────────────────────────────
+  busNodeUpsert: protectedProcedure
+    .input(z.object({
+      busId: z.number().int(),
+      plcId: z.number().int().optional().nullable(),
+      carrierId: z.number().int().optional().nullable(),
+      role: z.enum(NETWORK_NODE_ROLES).default("CLIENT"),
+      nodeAddress: z.coerce.number().int().optional().nullable(),
+      ipAddress: z.string().optional().nullable(),
+      description: z.string().optional().nullable(),
+    }))
+    .mutation(async ({ input }) => {
+      const data = { role: input.role, nodeAddress: input.nodeAddress, ipAddress: input.ipAddress, description: input.description };
+      if (input.plcId) {
+        return db.busNode.upsert({
+          where: { busId_plcId: { busId: input.busId, plcId: input.plcId } },
+          create: { busId: input.busId, plcId: input.plcId, ...data },
+          update: data,
+        });
+      }
+      if (input.carrierId) {
+        return db.busNode.upsert({
+          where: { busId_carrierId: { busId: input.busId, carrierId: input.carrierId } },
+          create: { busId: input.busId, carrierId: input.carrierId, ...data },
+          update: data,
+        });
+      }
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Either plcId or carrierId is required" });
+    }),
+
+  busNodeDelete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(({ input }) => db.busNode.delete({ where: { id: input.id } })),
+
+  busNodes: protectedProcedure
+    .input(z.object({ busId: z.number().int() }))
+    .query(({ input }) =>
+      db.busNode.findMany({
+        where: { busId: input.busId },
+        include: {
+          plc: { select: { id: true, name: true } },
+          carrier: { select: { id: true, name: true, cabinetNumber: true, carrierNumber: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      })
+    ),
 
   // ── Carrier CRUD ──────────────────────────────────────────────────────────
   carrierCreate: protectedProcedure
@@ -302,13 +365,15 @@ export const projectHardwareRouter = createTRPCRouter({
       z.object({
         plcId: z.number().int(),
         catalogId: z.number().int().optional().nullable(),
-        plcNetworkId: z.number().int().optional().nullable(),
+        busId: z.number().int().optional().nullable(),
         name: z.string().min(1),
         ipAddress: z.string().optional().nullable(),
         nodeAddress: z.coerce.number().int().optional().nullable(),
         firmwareVersion: z.string().optional().nullable(),
         modbusInputBase: z.coerce.number().int().optional().nullable(),
         modbusOutputBase: z.coerce.number().int().optional().nullable(),
+        cabinetNumber: z.coerce.number().int().min(1).max(9).optional().nullable(),
+        carrierNumber: z.coerce.number().int().min(1).max(99).optional().nullable(),
         notes: z.string().optional().nullable(),
       })
     )
@@ -321,19 +386,37 @@ export const projectHardwareRouter = createTRPCRouter({
       z.object({
         id: z.number().int(),
         catalogId: z.number().int().optional().nullable(),
-        plcNetworkId: z.number().int().optional().nullable(),
+        busId: z.number().int().optional().nullable(),
         name: z.string().min(1).optional(),
         ipAddress: z.string().optional().nullable(),
         nodeAddress: z.coerce.number().int().optional().nullable(),
         firmwareVersion: z.string().optional().nullable(),
         modbusInputBase: z.coerce.number().int().optional().nullable(),
         modbusOutputBase: z.coerce.number().int().optional().nullable(),
+        cabinetNumber: z.coerce.number().int().min(1).max(9).optional().nullable(),
+        carrierNumber: z.coerce.number().int().min(1).max(99).optional().nullable(),
         notes: z.string().optional().nullable(),
       })
     )
-    .mutation(({ input }) => {
+    .mutation(async ({ input }) => {
       const { id, ...data } = input;
-      return db.ioCarrier.update({ where: { id }, data });
+      const carrier = await db.ioCarrier.update({ where: { id }, data });
+
+      // Cascade cabinetNumber/carrierNumber changes to bound signals
+      if (data.cabinetNumber !== undefined || data.carrierNumber !== undefined) {
+        const cardIds = (await db.ioCard.findMany({ where: { carrierId: id }, select: { id: true } })).map((c) => c.id);
+        if (cardIds.length > 0) {
+          const sigUpdate: Record<string, unknown> = {};
+          if (data.cabinetNumber !== undefined) sigUpdate.hwCabinet = data.cabinetNumber;
+          if (data.carrierNumber !== undefined) sigUpdate.hwCarrier = data.carrierNumber;
+          await db.signal.updateMany({
+            where: { ioCardId: { in: cardIds }, hwCabinet: { not: null } },
+            data: sigUpdate,
+          });
+        }
+      }
+
+      return carrier;
     }),
 
   carrierDelete: protectedProcedure
@@ -347,12 +430,40 @@ export const projectHardwareRouter = createTRPCRouter({
         carrierId: z.number().int(),
         slotPosition: z.number().int(),
         catalogId: z.number().int(),
+        subgroup: z.string().length(1).optional().nullable(),
+        typeCode: z.string().length(1).optional().nullable(),
+        instanceNumber: z.coerce.number().int().min(1).max(99).optional().nullable(),
       })
     )
     .mutation(async ({ input }) => {
       const catalog = await db.moduleCatalog.findUniqueOrThrow({
         where: { id: input.catalogId },
       });
+
+      const subgroup = input.subgroup ?? "A";
+
+      // Use explicit typeCode/instanceNumber if provided, otherwise auto-assign from ModuleTypeCode
+      let typeCode = input.typeCode ?? null;
+      let instanceNumber = input.instanceNumber ?? null;
+
+      if (!typeCode) {
+        const typeCodes = await db.moduleTypeCode.findMany({
+          where: { cardType: catalog.cardType },
+          orderBy: { code: "asc" },
+          select: { code: true },
+        });
+        if (typeCodes.length > 0) typeCode = typeCodes[0].code;
+      }
+
+      if (typeCode && !instanceNumber) {
+        const existingCards = await db.ioCard.findMany({
+          where: { carrierId: input.carrierId, subgroup, typeCode },
+          select: { instanceNumber: true },
+        });
+        const usedInstances = existingCards.map((c) => c.instanceNumber ?? 0);
+        instanceNumber = usedInstances.length > 0 ? Math.max(...usedInstances) + 1 : 1;
+      }
+
       const cardData = {
         catalogId: input.catalogId,
         cardType: catalog.cardType,
@@ -368,6 +479,9 @@ export const projectHardwareRouter = createTRPCRouter({
         tempMaxC: catalog.tempMaxC,
         maxChannelCurrentMa: catalog.maxChannelCurrentMa,
         shortCircuitProtected: catalog.shortCircuitProtected,
+        subgroup,
+        typeCode,
+        instanceNumber,
         deletedAt: null,
       };
       return db.ioCard.upsert({
@@ -383,17 +497,170 @@ export const projectHardwareRouter = createTRPCRouter({
       z.object({
         id: z.number().int(),
         name: z.string().optional().nullable(),
+        subgroup: z.string().length(1).optional().nullable(),
+        typeCode: z.string().length(1).optional().nullable(),
+        instanceNumber: z.coerce.number().int().min(1).max(99).optional().nullable(),
         notes: z.string().optional().nullable(),
       })
     )
-    .mutation(({ input }) => {
+    .mutation(async ({ input }) => {
       const { id, ...data } = input;
-      return db.ioCard.update({ where: { id }, data });
+
+      // If typeCode is changing, validate it belongs to the same cardType group
+      if (data.typeCode !== undefined && data.typeCode !== null) {
+        const card = await db.ioCard.findUniqueOrThrow({ where: { id }, select: { cardType: true } });
+        const valid = await db.moduleTypeCode.findUnique({
+          where: { cardType_code: { cardType: card.cardType, code: data.typeCode } },
+        });
+        if (!valid) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Type code '${data.typeCode}' is not valid for card type ${card.cardType}`,
+          });
+        }
+      }
+
+      const updated = await db.ioCard.update({ where: { id }, data });
+
+      // Cascade subgroup/typeCode/instanceNumber changes to bound signals
+      const needsCascade = data.subgroup !== undefined || data.typeCode !== undefined || data.instanceNumber !== undefined;
+      if (needsCascade) {
+        const card = await db.ioCard.findUniqueOrThrow({ where: { id }, select: { subgroup: true, typeCode: true, instanceNumber: true } });
+        const hwTypeCode = card.typeCode ? `${card.subgroup ?? "A"}${card.typeCode}` : null;
+        await db.signal.updateMany({
+          where: { ioCardId: id, hwTypeCode: { not: null } },
+          data: { hwTypeCode, hwInstance: card.instanceNumber },
+        });
+      }
+
+      return updated;
+    }),
+
+  cardReorder: protectedProcedure
+    .input(z.object({
+      carrierId: z.number().int(),
+      cardOrder: z.array(z.object({ id: z.number().int(), slotPosition: z.number().int() })),
+    }))
+    .mutation(async ({ input }) => {
+      // Temporarily set all to negative to avoid unique constraint conflicts during reorder
+      await db.$transaction(async (tx) => {
+        for (const { id, slotPosition } of input.cardOrder) {
+          await tx.ioCard.update({ where: { id }, data: { slotPosition: -(slotPosition + 1000) } });
+        }
+        for (const { id, slotPosition } of input.cardOrder) {
+          await tx.ioCard.update({ where: { id }, data: { slotPosition } });
+        }
+      });
+      return { reordered: input.cardOrder.length };
+    }),
+
+  /** Move a card to a different subgroup — reassigns instance numbers in both source and target */
+  cardMoveSubgroup: protectedProcedure
+    .input(z.object({
+      id: z.number().int(),
+      targetSubgroup: z.string().length(1),
+    }))
+    .mutation(async ({ input }) => {
+      const card = await db.ioCard.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { id: true, carrierId: true, subgroup: true, typeCode: true, cardType: true },
+      });
+      const fromSg = card.subgroup ?? "A";
+      const toSg = input.targetSubgroup;
+      if (fromSg === toSg) return card;
+
+      const tc = card.typeCode;
+
+      await db.$transaction(async (tx) => {
+        // 1. Assign next available instance number in target subgroup
+        let newInstance: number | null = null;
+        if (tc) {
+          const existing = await tx.ioCard.findMany({
+            where: { carrierId: card.carrierId, subgroup: toSg, typeCode: tc },
+            select: { instanceNumber: true },
+          });
+          const used = existing.map((c) => c.instanceNumber ?? 0);
+          newInstance = used.length > 0 ? Math.max(...used) + 1 : 1;
+        }
+
+        // 2. Move card to target subgroup
+        await tx.ioCard.update({
+          where: { id: card.id },
+          data: { subgroup: toSg, instanceNumber: newInstance },
+        });
+
+        // 3. Repack instance numbers in source subgroup (close gaps)
+        if (tc) {
+          const sourceCards = await tx.ioCard.findMany({
+            where: { carrierId: card.carrierId, subgroup: fromSg, typeCode: tc, id: { not: card.id } },
+            orderBy: { instanceNumber: "asc" },
+            select: { id: true },
+          });
+          for (let i = 0; i < sourceCards.length; i++) {
+            await tx.ioCard.update({ where: { id: sourceCards[i].id }, data: { instanceNumber: i + 1 } });
+          }
+
+          // 4. Cascade hw* fields to signals on all affected cards
+          const allAffected = [...sourceCards.map((c) => c.id), card.id];
+          for (const cardId of allAffected) {
+            const c = await tx.ioCard.findUnique({ where: { id: cardId }, select: { subgroup: true, typeCode: true, instanceNumber: true } });
+            if (!c?.typeCode) continue;
+            const hwTypeCode = `${c.subgroup ?? "A"}${c.typeCode}`;
+            await tx.signal.updateMany({
+              where: { ioCardId: cardId, hwTypeCode: { not: null } },
+              data: { hwTypeCode, hwInstance: c.instanceNumber },
+            });
+          }
+        }
+      });
+
+      return { moved: true };
     }),
 
   cardDelete: protectedProcedure
     .input(z.object({ id: z.number().int() }))
     .mutation(({ input }) => db.ioCard.delete({ where: { id: input.id } })),
+
+  // ── Per-port IP / network assignment ──────────────────────────────────────
+  // ── IP Network CRUD ──────────────────────────────────────────────────────
+  ipNetworkCreate: protectedProcedure
+    .input(z.object({
+      projectId: z.number().int(),
+      name: z.string().optional().nullable(),
+      subnet: z.string().optional().nullable(),
+      gateway: z.string().optional().nullable(),
+      dns: z.string().optional().nullable(),
+      description: z.string().optional().nullable(),
+    }))
+    .mutation(({ input }) => db.ipNetwork.create({ data: input })),
+
+  ipNetworkUpdate: protectedProcedure
+    .input(z.object({
+      id: z.number().int(),
+      name: z.string().optional().nullable(),
+      subnet: z.string().optional().nullable(),
+      gateway: z.string().optional().nullable(),
+      dns: z.string().optional().nullable(),
+      description: z.string().optional().nullable(),
+    }))
+    .mutation(({ input }) => {
+      const { id, ...data } = input;
+      return db.ipNetwork.update({ where: { id }, data });
+    }),
+
+  ipNetworkDelete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(({ input }) => db.ipNetwork.delete({ where: { id: input.id } })),
+
+  ipNetworkList: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .query(({ input }) =>
+      db.ipNetwork.findMany({
+        where: { projectId: input.projectId },
+        include: { buses: { select: { id: true, protocol: true, description: true } } },
+        orderBy: { name: "asc" },
+      })
+    ),
 
   // ── Per-port IP / network assignment ──────────────────────────────────────
   plcPortSave: protectedProcedure
@@ -403,7 +670,7 @@ export const projectHardwareRouter = createTRPCRouter({
         portNumber: z.number().int(),
         label: z.string().optional().nullable(),
         ipAddress: z.string().optional().nullable(),
-        plcNetworkId: z.number().int().optional().nullable(),
+        ipNetworkId: z.number().int().optional().nullable(),
       })
     )
     .mutation(({ input }) =>
@@ -413,7 +680,7 @@ export const projectHardwareRouter = createTRPCRouter({
         update: {
           label: input.label,
           ipAddress: input.ipAddress,
-          plcNetworkId: input.plcNetworkId,
+          ipNetworkId: input.ipNetworkId,
         },
       })
     ),
@@ -425,7 +692,7 @@ export const projectHardwareRouter = createTRPCRouter({
         portNumber: z.number().int(),
         label: z.string().optional().nullable(),
         ipAddress: z.string().optional().nullable(),
-        plcNetworkId: z.number().int().optional().nullable(),
+        ipNetworkId: z.number().int().optional().nullable(),
       })
     )
     .mutation(({ input }) =>
@@ -435,7 +702,7 @@ export const projectHardwareRouter = createTRPCRouter({
         update: {
           label: input.label,
           ipAddress: input.ipAddress,
-          plcNetworkId: input.plcNetworkId,
+          ipNetworkId: input.ipNetworkId,
         },
       })
     ),
@@ -470,7 +737,7 @@ export const projectHardwareRouter = createTRPCRouter({
     .input(z.object({
       projectId: z.number().int(),
       componentId: z.number().int(),
-      plcNetworkId: z.number().int(),
+      busId: z.number().int(),
       name: z.string().min(1),
       tag: z.string().optional().nullable(),
       notes: z.string().optional().nullable(),
@@ -495,8 +762,8 @@ export const projectHardwareRouter = createTRPCRouter({
       });
 
       // Get network protocol to use as signal origin
-      const network = await db.plcNetwork.findUniqueOrThrow({
-        where: { id: input.plcNetworkId },
+      const network = await db.bus.findUniqueOrThrow({
+        where: { id: input.busId },
         select: { protocol: true },
       });
 
@@ -517,7 +784,7 @@ export const projectHardwareRouter = createTRPCRouter({
       const existingCount = await db.componentInstance.count({
         where: {
           componentId: input.componentId,
-          plcNetworkId: input.plcNetworkId,
+          busId: input.busId,
         },
       });
       const canOffset = (component.minCanIdOffset ?? 0) * existingCount;
@@ -528,7 +795,7 @@ export const projectHardwareRouter = createTRPCRouter({
           data: {
             projectId: input.projectId,
             componentId: input.componentId,
-            plcNetworkId: input.plcNetworkId,
+            busId: input.busId,
             name: input.name,
             tag: input.tag ?? null,
             notes: input.notes ?? null,
@@ -559,7 +826,7 @@ export const projectHardwareRouter = createTRPCRouter({
               description: cs.description,
               busSignal: {
                 create: {
-                  plcNetworkId: input.plcNetworkId,
+                  busId: input.busId,
                   // Data representation (template overrides defaults)
                   rawDataType: cs.rawDataType ?? (isDiscrete ? "BOOL" : "WORD"),
                   plcDataType: (cs.plcDataTypeCatalog?.code ?? (isDiscrete ? "BOOL" : "INT")) as PlcDataType,
@@ -654,6 +921,8 @@ export const projectHardwareRouter = createTRPCRouter({
       name: z.string().min(1),
       tag: z.string().optional().nullable(),
       notes: z.string().optional().nullable(),
+      nodeRole: z.enum(NETWORK_NODE_ROLES).optional().nullable(),
+      nodeAddress: z.coerce.number().int().optional().nullable(),
       canIdOffset: z.number().int().optional().nullable(),
       functionBlockOverride: z.string().max(100).optional().nullable(),
     }))
@@ -663,11 +932,11 @@ export const projectHardwareRouter = createTRPCRouter({
     }),
 
   // Returns per-instance CAN ID data for span calculation
-  networkCanIds: protectedProcedure
-    .input(z.object({ networkId: z.number().int() }))
+  busCanIds: protectedProcedure
+    .input(z.object({ busId: z.number().int() }))
     .query(({ input }) =>
       db.componentInstance.findMany({
-        where: { plcNetworkId: input.networkId },
+        where: { busId: input.busId },
         select: {
           id: true,
           name: true,
@@ -698,5 +967,59 @@ export const projectHardwareRouter = createTRPCRouter({
       await db.signal.deleteMany({ where: { instanceSignalId: { in: instanceSignalIds } } });
       // InstanceSignal rows cascade-delete with the instance
       await db.componentInstance.delete({ where: { id: input.id } });
+    }),
+
+  // ── Hardware identifier rebinding ───────────────────────────────────────
+  /** Match unbound signals (ioCardId=NULL but hw* fields set) to existing hardware */
+  rebindSignals: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .mutation(async ({ input }) => {
+      // Find unbound signals that have hw identifier fields
+      const unbound = await db.signal.findMany({
+        where: {
+          projectId: input.projectId,
+          ioCardId: null,
+          hwCabinet: { not: null },
+          hwCarrier: { not: null },
+          hwTypeCode: { not: null },
+          hwInstance: { not: null },
+        },
+        select: { id: true, hwCabinet: true, hwCarrier: true, hwTypeCode: true, hwInstance: true },
+      });
+
+      if (unbound.length === 0) return { rebound: 0, unmatched: [] as string[] };
+
+      // Build carrier lookup: projectId → plcId → carrier(cabinetNumber, carrierNumber)
+      const carriers = await db.ioCarrier.findMany({
+        where: { plc: { projectId: input.projectId }, cabinetNumber: { not: null }, carrierNumber: { not: null } },
+        select: { id: true, cabinetNumber: true, carrierNumber: true, cards: { select: { id: true, subgroup: true, typeCode: true, instanceNumber: true } } },
+      });
+
+      // Map: "cabinet:carrier:hwTypeCode:instance" → ioCardId (hwTypeCode = subgroup+typeCode)
+      const cardLookup = new Map<string, number>();
+      for (const c of carriers) {
+        for (const card of c.cards) {
+          const tc = card.typeCode ? `${card.subgroup ?? "A"}${card.typeCode}` : null;
+          if (tc && card.instanceNumber != null) {
+            cardLookup.set(`${c.cabinetNumber}:${c.carrierNumber}:${tc}:${card.instanceNumber}`, card.id);
+          }
+        }
+      }
+
+      let rebound = 0;
+      const unmatched: string[] = [];
+      for (const sig of unbound) {
+        const key = `${sig.hwCabinet}:${sig.hwCarrier}:${sig.hwTypeCode}:${sig.hwInstance}`;
+        const cardId = cardLookup.get(key);
+        if (cardId) {
+          await db.signal.update({ where: { id: sig.id }, data: { ioCardId: cardId } });
+          rebound++;
+        } else {
+          const hwId = `N${sig.hwCabinet}:D${String(sig.hwCarrier).padStart(2, "0")}:${sig.hwTypeCode}${String(sig.hwInstance).padStart(2, "0")}`;
+          if (!unmatched.includes(hwId)) unmatched.push(hwId);
+        }
+      }
+
+      return { rebound, unmatched };
     }),
 });

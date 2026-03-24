@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -191,14 +192,17 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
         )}
       </section>
 
-      <PurgeSection projectId={projectId} projectName={project?.name} />
+      <DangerZone projectId={projectId} projectName={project?.name} />
     </div>
   );
 }
 
-function PurgeSection({ projectId, projectName }: { projectId: number; projectName?: string }) {
-  const [open, setOpen] = useState(false);
+function DangerZone({ projectId, projectName }: { projectId: number; projectName?: string }) {
+  const router = useRouter();
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [result, setResult] = useState<Record<string, number> | null>(null);
   const utils = trpc.useUtils();
 
@@ -210,28 +214,60 @@ function PurgeSection({ projectId, projectName }: { projectId: number; projectNa
     },
   });
 
-  function handleClose() {
+  const deleteProject = trpc.project.delete.useMutation({
+    onSuccess: () => {
+      utils.project.list.invalidate();
+      router.push("/projects");
+    },
+  });
+
+  function handlePurgeClose() {
     if (purge.isPending) return;
-    setOpen(false);
+    setPurgeOpen(false);
     setConfirmText("");
     setResult(null);
   }
 
-  const expected = "PURGE";
+  function handleDeleteClose() {
+    if (deleteProject.isPending) return;
+    setDeleteOpen(false);
+    setDeleteConfirmText("");
+  }
 
   return (
     <section className="space-y-3 rounded-md border border-destructive/30 bg-destructive/5 p-6">
       <h2 className="text-lg font-semibold text-destructive">Danger Zone</h2>
-      <p className="text-sm text-muted-foreground">
-        Permanently delete all signals, hardware, components, and import data for this project.
-        The project itself and its settings will be kept.
-      </p>
-      <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
-        <Trash2 className="h-4 w-4 mr-1.5" />
-        Purge All Data
-      </Button>
 
-      <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+      <div className="space-y-4">
+        {/* Purge data */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Purge All Data</p>
+            <p className="text-xs text-muted-foreground">
+              Delete all signals, hardware, components, and import data. The project itself is kept.
+            </p>
+          </div>
+          <Button variant="destructive" size="sm" className="shrink-0" onClick={() => setPurgeOpen(true)}>
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Purge
+          </Button>
+        </div>
+
+        {/* Delete project */}
+        <div className="flex items-start justify-between gap-4 border-t border-destructive/20 pt-4">
+          <div>
+            <p className="text-sm font-medium">Delete Project</p>
+            <p className="text-xs text-muted-foreground">
+              Permanently delete this project and all its data. This cannot be undone.
+            </p>
+          </div>
+          <Button variant="destructive" size="sm" className="shrink-0" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+          </Button>
+        </div>
+      </div>
+
+      {/* Purge dialog */}
+      <Dialog open={purgeOpen} onOpenChange={(o) => !o && handlePurgeClose()}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-destructive">Purge All Project Data</DialogTitle>
@@ -239,7 +275,6 @@ function PurgeSection({ projectId, projectName }: { projectId: number; projectNa
               This will permanently delete all signals, PLCs, carriers, IO cards,
               component instances, and import data for{" "}
               <span className="font-semibold text-foreground">{projectName ?? `project #${projectId}`}</span>.
-              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
@@ -255,43 +290,73 @@ function PurgeSection({ projectId, projectName }: { projectId: number; projectNa
                 <div>Wiring recipes: {result.recipes}</div>
               </div>
               <div className="flex justify-end">
-                <Button onClick={handleClose}>Close</Button>
+                <Button onClick={handlePurgeClose}>Close</Button>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">
-                  Type <span className="font-mono font-bold">{expected}</span> to confirm
+                  Type <span className="font-mono font-bold">PURGE</span> to confirm
                 </Label>
                 <Input
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
-                  placeholder={expected}
+                  placeholder="PURGE"
                   autoFocus
                 />
               </div>
-
               {purge.error && (
                 <p className="rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-xs text-destructive">
                   {purge.error.message}
                 </p>
               )}
-
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={handleClose} disabled={purge.isPending}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  disabled={confirmText !== expected || purge.isPending}
-                  onClick={() => purge.mutate({ projectId })}
-                >
+                <Button variant="outline" onClick={handlePurgeClose} disabled={purge.isPending}>Cancel</Button>
+                <Button variant="destructive" disabled={confirmText !== "PURGE" || purge.isPending} onClick={() => purge.mutate({ projectId })}>
                   {purge.isPending ? "Purging..." : "Purge All Data"}
                 </Button>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete project dialog */}
+      <Dialog open={deleteOpen} onOpenChange={(o) => !o && handleDeleteClose()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete Project</DialogTitle>
+            <DialogDescription>
+              This will permanently delete{" "}
+              <span className="font-semibold text-foreground">{projectName ?? `project #${projectId}`}</span>{" "}
+              and all its data. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                Type <span className="font-mono font-bold">DELETE</span> to confirm
+              </Label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                autoFocus
+              />
+            </div>
+            {deleteProject.error && (
+              <p className="rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {deleteProject.error.message}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleDeleteClose} disabled={deleteProject.isPending}>Cancel</Button>
+              <Button variant="destructive" disabled={deleteConfirmText !== "DELETE" || deleteProject.isPending} onClick={() => deleteProject.mutate({ id: projectId })}>
+                {deleteProject.isPending ? "Deleting..." : "Delete Project"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </section>

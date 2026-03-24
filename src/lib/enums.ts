@@ -26,6 +26,9 @@ export const BUS_PROTOCOLS = [
 ] as const;
 export type BusProtocol = (typeof BUS_PROTOCOLS)[number];
 
+export const NETWORK_NODE_ROLES = ["CLIENT", "SERVER"] as const;
+export type NetworkNodeRole = (typeof NETWORK_NODE_ROLES)[number];
+
 /** Protocols that run over Ethernet (host = a network port). */
 export const ETHERNET_PROTOCOL_SET = new Set<string>([
   "MODBUS_TCP",

@@ -69,7 +69,7 @@ export async function GET(
       },
       busSignal: {
         select: {
-          plcNetwork: { select: { protocol: true } },
+          bus: { select: { protocol: true } },
           plcDataType: true,
           unitId: true,
           registerType: true,
@@ -183,7 +183,7 @@ function generateFlatVars(
     analogSignal: { plcDataTypeCatalog: { code: string } | null; engineeringUnit: { symbol: string } | null } | null;
     discreteSignal: { plcDataType: { code: string } | null } | null;
     busSignal: {
-      plcNetwork: { protocol: string } | null;
+      bus: { protocol: string } | null;
       plcDataType: string | null;
       unitId: number | null;
       registerType: string | null;
@@ -224,7 +224,7 @@ function generateFlatVars(
     if (s.description) parts.push(s.description);
     if (s.analogSignal?.engineeringUnit?.symbol) parts.push(`[${s.analogSignal.engineeringUnit.symbol}]`);
     if (s.busSignal) {
-      const proto = s.busSignal.plcNetwork?.protocol ?? "";
+      const proto = s.busSignal.bus?.protocol ?? "";
       if (s.busSignal.unitId != null) parts.push(`${proto} unit:${s.busSignal.unitId}`);
       if (s.busSignal.registerType && s.busSignal.registerOffset != null)
         parts.push(`${s.busSignal.registerType}:${s.busSignal.registerOffset}`);

@@ -83,7 +83,7 @@ export function AddComponentInstanceDialog({
       await create.mutateAsync({
         projectId,
         componentId: Number(componentId),
-        plcNetworkId: Number(networkId),
+        busId: Number(networkId),
         name: name.trim(),
         tag: tag.trim() || null,
       });

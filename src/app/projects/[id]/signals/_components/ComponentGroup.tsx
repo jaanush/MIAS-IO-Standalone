@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight, Unlink, RotateCcw, ExternalLink, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type NetworkOption = { id: number; protocol: string; description: string | null; plc: { name: string } };
+type NetworkOption = { id: number; protocol: string; description: string | null; plc: { name: string } | null };
 
 type ComponentGroupProps = {
   instanceId: number | null;
@@ -17,7 +17,7 @@ type ComponentGroupProps = {
   functionBlock: string | null;
   functionBlockOverride: string | null;
   busProtocol: string | null;
-  plcNetworkId: number | null;
+  busId: number | null;
   networkLabel: string | null;
   networks: NetworkOption[];
   anyDirty: boolean;
@@ -30,7 +30,7 @@ type ComponentGroupProps = {
   onRename: (newName: string) => void;
   onUpdateOffset: (offset: number | null) => void;
   onUpdateFbOverride: (fb: string | null) => void;
-  onUpdateNetwork: (plcNetworkId: number | null) => void;
+  onUpdateNetwork: (busId: number | null) => void;
   onRevert: () => void;
   onDisconnect: () => void;
   isRenamePending: boolean;
@@ -50,7 +50,7 @@ export function ComponentGroup({
   functionBlock,
   functionBlockOverride,
   busProtocol,
-  plcNetworkId,
+  busId,
   networkLabel,
   networks,
   anyDirty,
@@ -303,7 +303,7 @@ export function ComponentGroup({
                   ) : (
                     <select
                       className="bg-background border border-input rounded px-1 py-0 h-5 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring max-w-48"
-                      value={plcNetworkId ?? ""}
+                      value={busId ?? ""}
                       onChange={(e) => {
                         const val = e.target.value;
                         onUpdateNetwork(val === "" ? null : Number(val));
@@ -312,7 +312,7 @@ export function ComponentGroup({
                       <option value="">None</option>
                       {networks.map((n) => (
                         <option key={n.id} value={n.id}>
-                          {n.plc.name} — {n.description ?? n.protocol}
+                          {n.plc?.name ?? "Project"} — {n.description ?? n.protocol}
                         </option>
                       ))}
                     </select>

@@ -284,4 +284,27 @@ export const hardwareRouter = createTRPCRouter({
   couplerCatalogDelete: protectedProcedure
     .input(z.object({ id: z.number().int() }))
     .mutation(({ input }) => db.deviceCatalog.delete({ where: { id: input.id } })),
+
+  // ── Module Type Codes ───────────────────────────────────────────
+  moduleTypeCodeList: protectedProcedure.query(() =>
+    db.moduleTypeCode.findMany({ orderBy: [{ cardType: "asc" }, { code: "asc" }] })
+  ),
+
+  moduleTypeCodeUpsert: protectedProcedure
+    .input(z.object({
+      id: z.number().int().optional(),
+      cardType: z.enum(CARD_TYPES),
+      code: z.string().length(1),
+      groupName: z.string().min(1),
+      description: z.string().optional().nullable(),
+    }))
+    .mutation(({ input }) => {
+      const { id, ...data } = input;
+      if (id) return db.moduleTypeCode.update({ where: { id }, data });
+      return db.moduleTypeCode.create({ data });
+    }),
+
+  moduleTypeCodeDelete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(({ input }) => db.moduleTypeCode.delete({ where: { id: input.id } })),
 });

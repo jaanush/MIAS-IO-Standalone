@@ -95,6 +95,8 @@ and derive everything they need from it.
           "id": 30,
           "name": "Local Bus",
           "networkId": null,
+          "cabinetNumber": 3,
+          "carrierNumber": 1,
           "catalog": {
             "articleNumber": "750-8212",
             "codesysDeviceId": "0000 0750 0000 0000"
@@ -104,6 +106,8 @@ and derive everything they need from it.
               "id": 40,
               "slotPosition": 0,
               "cardType": "DI",
+              "typeCode": "I",
+              "instanceNumber": 1,
               "catalog": {
                 "articleNumber": "750-1405",
                 "codesysModuleId": "0000 0750 0000 0000",
@@ -133,6 +137,7 @@ and derive everything they need from it.
       "direction": "INPUT",
       "gvlId": 1,
       "gvlName": "GVL_IO",
+      "hwId": "N3:D01:I01",
       "ioCard": {
         "id": 40,
         "slotPosition": 0,
@@ -202,6 +207,7 @@ and derive everything they need from it.
       "direction": "INPUT",
       "gvlId": 1,
       "gvlName": "GVL_IO",
+      "hwId": null,
       "ioCard": null,
       "instance": null,
       "channelPosition": null,

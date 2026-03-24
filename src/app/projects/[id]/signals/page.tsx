@@ -444,9 +444,15 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
   const isAnlg = signal.signalType === "ANALOG";
   const bs = signal.busSignal;
 
-  const hardware = signal.ioCard
-    ? `${signal.ioCard.carrier.plc.name} / ${signal.ioCard.carrier.name} / Slot ${signal.ioCard.slotPosition + 1}`
+  // Hardware identifier: prefer hw* fields, fallback to ioCard path
+  const hwId = signal.hwCabinet != null && signal.hwCarrier != null && signal.hwTypeCode && signal.hwInstance != null
+    ? `N${signal.hwCabinet}:D${String(signal.hwCarrier).padStart(2, "0")}:${signal.hwTypeCode}${String(signal.hwInstance).padStart(2, "0")}`
     : null;
+  const hardware = hwId
+    ?? (signal.ioCard
+      ? `${signal.ioCard.carrier.plc.name} / ${signal.ioCard.carrier.name}`
+      : null);
+  const hwUnbound = hwId != null && signal.ioCardId == null;
 
   const dash = <span className="text-xs text-muted-foreground/25">—</span>;
   const num = (v: unknown) => v != null ? <span className="text-xs font-mono tabular-nums">{Number(v)}</span> : dash;
@@ -459,12 +465,12 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
       case "component": return <Td key={key}><span className="text-xs text-muted-foreground truncate block">{signal.componentTag ?? "—"}</span></Td>;
       case "desc": return <Td key={key}><span className="block truncate text-sm" title={signal.description ?? undefined}>{signal.description ?? ""}</span></Td>;
       case "tag": return <Td key={key}>{signal.tag ? <span className="font-mono text-xs truncate block">{signal.tag}</span> : <span className="text-muted-foreground/40 text-xs italic">—</span>}</Td>;
-      case "card": return <Td key={key}>{signal.origin === "IEC" ? (hardware ? <span className="text-xs block truncate">{hardware}</span> : <span className="text-xs text-muted-foreground/40">—</span>) : <span className="text-xs text-muted-foreground italic">Via network</span>}</Td>;
+      case "card": return <Td key={key}>{signal.origin === "IEC" ? (hardware ? <span className={cn("text-xs block truncate", hwUnbound && "text-amber-600 dark:text-amber-400")} title={hwUnbound ? "Hardware disconnected — rebind needed" : undefined}>{hardware}{hwUnbound ? " ⚠" : ""}</span> : <span className="text-xs text-muted-foreground/40">—</span>) : <span className="text-xs text-muted-foreground italic">Via network</span>}</Td>;
       case "ch": return <Td key={key} className="text-center"><span className="text-xs tabular-nums">{signal.origin === "IEC" && signal.channelPosition != null ? signal.channelPosition : ""}</span></Td>;
       case "io": return <Td key={key}><Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-medium", typeColor)}>{ioCode}</Badge></Td>;
       case "origin": return <Td key={key}><span className="text-xs text-muted-foreground truncate block">{signal.origin}</span></Td>;
       case "network": {
-        const net = bs?.plcNetwork ?? signal.instanceSignal?.instance?.network;
+        const net = bs?.bus ?? signal.instanceSignal?.instance?.bus;
         return <Td key={key}>{net ? <span className="text-xs truncate block" title={net.description ?? undefined}>{net.protocol}{net.description ? ` — ${net.description}` : ""}</span> : dash}</Td>;
       }
       case "bus": return <Td key={key} className="text-center">{signal.origin !== "IEC" && signal.origin !== "INTERNAL" ? <button type="button" title={bs ? "Edit bus config" : "Add bus config"} className={cn("rounded p-0.5 transition-colors", bs ? "text-blue-600 hover:bg-blue-50" : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent")} onClick={(e) => { e.stopPropagation(); onBusConfig(); }}><Network className="h-3.5 w-3.5" /></button> : dash}</Td>;
@@ -770,12 +776,17 @@ const SIGNAL_COLUMNS = [
   columnHelper.accessor((r) => r.componentTag ?? "", { id: "component", filterFn: emptyAwareText }),
   columnHelper.accessor((r) => r.description ?? "", { id: "desc", filterFn: emptyAwareText }),
   columnHelper.accessor((r) => r.tag ?? "", { id: "tag", filterFn: emptyAwareText }),
-  columnHelper.accessor((r) => r.ioCard ? `${r.ioCard.carrier.plc.name}/${r.ioCard.carrier.name}` : "", { id: "card", filterFn: emptyAwareText }),
+  columnHelper.accessor((r) => {
+    if (r.hwCabinet != null && r.hwCarrier != null && r.hwTypeCode && r.hwInstance != null) {
+      return `N${r.hwCabinet}:D${String(r.hwCarrier).padStart(2, "0")}:${r.hwTypeCode}${String(r.hwInstance).padStart(2, "0")}`;
+    }
+    return r.ioCard ? `${r.ioCard.carrier.plc.name}/${r.ioCard.carrier.name}` : "";
+  }, { id: "card", filterFn: emptyAwareText }),
   columnHelper.accessor((r) => r.channelPosition ?? null, { id: "ch", enableColumnFilter: false }),
   columnHelper.accessor((r) => getSignalIoCode(r), { id: "io", filterFn: emptyAwareFacet }),
   columnHelper.accessor((r) => r.origin, { id: "origin", filterFn: emptyAwareFacet }),
   columnHelper.accessor((r) => {
-    const net = r.busSignal?.plcNetwork ?? r.instanceSignal?.instance?.network;
+    const net = r.busSignal?.bus ?? r.instanceSignal?.instance?.bus;
     if (!net) return "";
     const parts: string[] = [net.protocol];
     if (net.description) parts.push(net.description);
@@ -1070,7 +1081,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   });
 
   type SignalGroup =
-    | { type: "instance"; instanceId: number; instanceName: string; componentId: number; componentName: string; canIdOffset: number | null; minCanIdOffset: number | null; functionBlock: string | null; functionBlockOverride: string | null; busProtocol: string | null; plcNetworkId: number | null; networkLabel: string | null; anyDirty: boolean; rows: ReturnType<typeof table.getRowModel>["rows"] }
+    | { type: "instance"; instanceId: number; instanceName: string; componentId: number; componentName: string; canIdOffset: number | null; minCanIdOffset: number | null; functionBlock: string | null; functionBlockOverride: string | null; busProtocol: string | null; busId: number | null; networkLabel: string | null; anyDirty: boolean; rows: ReturnType<typeof table.getRowModel>["rows"] }
     | { type: "ungrouped"; rows: ReturnType<typeof table.getRowModel>["rows"] };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1088,7 +1099,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
       functionBlock: string | null;
       functionBlockOverride: string | null;
       busProtocol: string | null;
-      plcNetworkId: number | null;
+      busId: number | null;
       networkLabel: string | null;
       rows: typeof rows;
       flags: boolean[];
@@ -1099,7 +1110,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
       const inst = row.original.instanceSignal?.instance;
       if (inst) {
         if (!instanceMap.has(inst.id)) {
-          const net = inst.network;
+          const net = inst.bus;
           instanceMap.set(inst.id, {
             instanceId: inst.id,
             instanceName: inst.name,
@@ -1110,8 +1121,8 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
             functionBlock: inst.component.functionBlock ?? null,
             functionBlockOverride: inst.functionBlockOverride ?? null,
             busProtocol: inst.component.busProtocol ?? null,
-            plcNetworkId: inst.plcNetworkId ?? null,
-            networkLabel: net ? `${net.plc.name} — ${net.description ?? net.protocol}` : null,
+            busId: inst.busId ?? null,
+            networkLabel: net ? `${net.plc?.name ?? "Project"} — ${net.description ?? net.protocol}` : null,
             rows: [],
             flags: [],
           });
@@ -1137,7 +1148,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
         functionBlock: g.functionBlock,
         functionBlockOverride: g.functionBlockOverride,
         busProtocol: g.busProtocol,
-        plcNetworkId: g.plcNetworkId,
+        busId: g.busId,
         networkLabel: g.networkLabel,
         anyDirty: g.flags.some(Boolean),
         rows: g.rows,
@@ -1654,7 +1665,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                     functionBlock={group.functionBlock}
                     functionBlockOverride={group.functionBlockOverride}
                     busProtocol={group.busProtocol}
-                    plcNetworkId={group.plcNetworkId}
+                    busId={group.busId}
                     networkLabel={group.networkLabel}
                     networks={networks.filter((n) => !group.busProtocol || n.protocol === group.busProtocol)}
                     anyDirty={group.anyDirty}
@@ -1670,7 +1681,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                     onRename={(name) => renameInstance.mutate({ instanceId: group.instanceId, name })}
                     onUpdateOffset={(offset) => renameInstance.mutate({ instanceId: group.instanceId, canIdOffset: offset })}
                     onUpdateFbOverride={(fb) => renameInstance.mutate({ instanceId: group.instanceId, functionBlockOverride: fb })}
-                    onUpdateNetwork={(id) => updateNetwork.mutate({ instanceId: group.instanceId, plcNetworkId: id })}
+                    onUpdateNetwork={(id) => updateNetwork.mutate({ instanceId: group.instanceId, busId: id })}
                     onRevert={() => instanceRevert.mutate({ instanceId: group.instanceId })}
                     onDisconnect={() => disconnectInstance.mutate({ instanceId: group.instanceId })}
                     isRenamePending={renameInstance.isPending}
@@ -1726,7 +1737,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                     functionBlock={null}
                     functionBlockOverride={null}
                     busProtocol={null}
-                    plcNetworkId={null}
+                    busId={null}
                     networkLabel={null}
                     networks={[]}
                     anyDirty={false}

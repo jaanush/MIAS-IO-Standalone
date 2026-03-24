@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           catalog: {
             select: { articleNumber: true, vendorName: true, description: true, codesysDeviceId: true },
           },
-          networks: {
+          buses: {
             select: {
               id: true,
               protocol: true,
@@ -58,13 +58,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             select: {
               id: true,
               name: true,
-              plcNetworkId: true,
+              busId: true,
               ipAddress: true,
               nodeAddress: true,
               modbusInputBase: true,
               modbusOutputBase: true,
               isLocalBus: true,
               codesysDeviceId: true,
+              cabinetNumber: true,
+              carrierNumber: true,
               catalog: {
                 select: { articleNumber: true, vendorName: true },
               },
@@ -73,6 +75,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
                   id: true,
                   slotPosition: true,
                   cardType: true,
+                  subgroup: true,
+                  typeCode: true,
+                  instanceNumber: true,
                   maxInputChannels: true,
                   maxOutputChannels: true,
                   catalog: {
@@ -112,6 +117,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       gvl: { select: { name: true } },
       ioCardId: true,
       channelPosition: true,
+      hwCabinet: true,
+      hwCarrier: true,
+      hwTypeCode: true,
+      hwInstance: true,
       systemId: true,
       componentTag: true,
       drawingRef: true,
@@ -203,8 +212,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       },
       busSignal: {
         select: {
-          plcNetworkId: true,
-          plcNetwork: { select: { protocol: true } },
+          busId: true,
+          bus: { select: { protocol: true } },
           unitId: true,
           registerType: true,
           registerOffset: true,
@@ -317,6 +326,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         }
       : null;
 
+    // Hardware identifier string (stable across card deletion)
+    const hwId = s.hwCabinet != null && s.hwCarrier != null && s.hwTypeCode && s.hwInstance != null
+      ? `N${s.hwCabinet}:D${String(s.hwCarrier).padStart(2, "0")}:${s.hwTypeCode}${String(s.hwInstance).padStart(2, "0")}`
+      : null;
+
     return {
       id: s.id,
       tag: s.tag,
@@ -330,6 +344,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       componentTag: s.componentTag,
       drawingRef: s.drawingRef,
       cabinetLocation: s.cabinetLocation,
+      hwId,
       ioCard,
       instance,
       channelPosition: s.channelPosition,
@@ -407,8 +422,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         : null,
       busSignal: s.busSignal
         ? {
-            networkId: s.busSignal.plcNetworkId,
-            networkProtocol: s.busSignal.plcNetwork?.protocol ?? null,
+            networkId: s.busSignal.busId,
+            networkProtocol: s.busSignal.bus?.protocol ?? null,
             unitId: s.busSignal.unitId,
             registerType: s.busSignal.registerType,
             registerOffset: s.busSignal.registerOffset,
@@ -442,7 +457,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       catalog: plc.catalog
         ? { articleNumber: plc.catalog.articleNumber, manufacturer: plc.catalog.vendorName, description: plc.catalog.description, codesysDeviceId: plc.catalog.codesysDeviceId }
         : null,
-      networks: plc.networks.map((n) => ({
+      networks: plc.buses.map((n) => ({
         id: n.id,
         protocol: n.protocol,
         role: n.role,
@@ -463,19 +478,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       carriers: plc.carriers.map((c) => ({
         id: c.id,
         name: c.name,
-        networkId: c.plcNetworkId,
+        networkId: c.busId,
         ipAddress: c.ipAddress,
         nodeAddress: c.nodeAddress,
         modbusInputBase: c.modbusInputBase,
         modbusOutputBase: c.modbusOutputBase,
         isLocalBus: c.isLocalBus,
         codesysDeviceId: c.codesysDeviceId,
+        cabinetNumber: c.cabinetNumber,
+        carrierNumber: c.carrierNumber,
         catalog: c.catalog ? { articleNumber: c.catalog.articleNumber, manufacturer: c.catalog.vendorName } : null,
         cards: c.cards.map((card) => ({
           id: card.id,
           name: `${card.catalog?.articleNumber ?? "Module"}_S${card.slotPosition}`,
           slotPosition: card.slotPosition,
           cardType: card.cardType,
+          subgroup: card.subgroup,
+          typeCode: card.typeCode,
+          instanceNumber: card.instanceNumber,
           maxInputChannels: card.maxInputChannels,
           maxOutputChannels: card.maxOutputChannels,
           catalog: card.catalog ? { articleNumber: card.catalog.articleNumber, manufacturer: card.catalog.vendorName, codesysModuleId: card.catalog.codesysModuleId } : null,

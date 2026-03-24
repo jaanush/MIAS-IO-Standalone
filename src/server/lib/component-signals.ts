@@ -129,8 +129,8 @@ export async function syncNewSignalToInstances(componentSignalId: number): Promi
       id: true,
       projectId: true,
       canIdOffset: true,
-      plcNetworkId: true,
-      network: { select: { protocol: true } },
+      busId: true,
+      bus: { select: { protocol: true } },
       signals: { where: { componentSignalId: cs.id }, select: { id: true } },
     },
   });
@@ -142,9 +142,9 @@ export async function syncNewSignalToInstances(componentSignalId: number): Promi
     // Skip if already has this component signal
     if (inst.signals.length > 0) continue;
     // Skip if no network (shouldn't happen, but safety)
-    if (!inst.network) continue;
+    if (!inst.bus) continue;
 
-    const protocol = inst.network.protocol as string;
+    const protocol = inst.bus.protocol as string;
     const csOrigin = (cs.origin as string | null) ?? protocol;
     const canOffset = inst.canIdOffset ?? 0;
 
@@ -166,7 +166,7 @@ export async function syncNewSignalToInstances(componentSignalId: number): Promi
         description: cs.description,
         busSignal: {
           create: {
-            plcNetworkId: inst.plcNetworkId!,
+            busId: inst.busId!,
             rawDataType: cs.rawDataType ?? (isDiscrete ? "BOOL" : "WORD"),
             plcDataType: (cs.plcDataTypeCatalog?.code ?? (isDiscrete ? "BOOL" : "INT")) as any,
             byteOrder: cs.byteOrder ?? "BIG_ENDIAN",

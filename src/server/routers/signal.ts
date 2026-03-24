@@ -4,6 +4,27 @@ import { db } from "@/lib/db";
 import type { PlcDataType } from "../../../prisma/generated/prisma/client/client";
 import { SIGNAL_ORIGINS, SIGNAL_TYPES, SIGNAL_DIRECTIONS, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, RAW_DATA_TYPES, PLC_DATA_TYPES, BYTE_ORDERS, MODBUS_REGISTER_TYPES, DISCRETE_ALARM_CONDITIONS, ANALOG_ALARM_CONDITIONS, ALARM_SEVERITIES, BUS_PROTOCOLS, type SignalOrigin } from "@/lib/enums";
 
+/** Resolve hw identifier fields from an ioCardId */
+async function resolveHwFields(ioCardId: number | null | undefined) {
+  if (!ioCardId) return { hwCabinet: null, hwCarrier: null, hwTypeCode: null, hwInstance: null };
+  const card = await db.ioCard.findUnique({
+    where: { id: ioCardId },
+    select: {
+      subgroup: true,
+      typeCode: true,
+      instanceNumber: true,
+      carrier: { select: { cabinetNumber: true, carrierNumber: true } },
+    },
+  });
+  if (!card) return { hwCabinet: null, hwCarrier: null, hwTypeCode: null, hwInstance: null };
+  return {
+    hwCabinet: card.carrier.cabinetNumber,
+    hwCarrier: card.carrier.carrierNumber,
+    hwTypeCode: card.typeCode ? `${card.subgroup ?? "A"}${card.typeCode}` : null,
+    hwInstance: card.instanceNumber,
+  };
+}
+
 /** Bump A→B, Z→AA, AZ→BA, ZZ→AAA, ZZZ→AAAA */
 function bumpRevision(rev: string): string {
   const chars = rev.toUpperCase().split("");
@@ -20,7 +41,7 @@ const signalInclude = {
   analogSignal: { include: { engineeringUnit: { include: { plcDataTypeCatalog: true } }, inputType: true, plcDataTypeCatalog: true, alarms: true } },
   busSignal: {
     include: {
-      plcNetwork: { select: { id: true, protocol: true, description: true, plc: { select: { name: true } } } },
+      bus: { select: { id: true, protocol: true, description: true, plc: { select: { name: true } } } },
     },
   },
   ioCard: {
@@ -52,8 +73,8 @@ const signalInclude = {
           componentId: true,
           canIdOffset: true,
           functionBlockOverride: true,
-          plcNetworkId: true,
-          network: { select: { id: true, protocol: true, description: true, plc: { select: { name: true } } } },
+          busId: true,
+          bus: { select: { id: true, protocol: true, description: true, plc: { select: { name: true } } } },
           component: {
             select: { id: true, name: true, functionBlock: true, minCanIdOffset: true, busProtocol: true },
           },
@@ -222,6 +243,9 @@ export const signalRouter = createTRPCRouter({
     // Tag with project's current revision
     const { currentRevision } = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { currentRevision: true } });
 
+    // Resolve hardware identifier fields from ioCardId
+    const hwFields = await resolveHwFields(ioCardId);
+
     return db.signal.create({
       data: {
         projectId,
@@ -234,6 +258,7 @@ export const signalRouter = createTRPCRouter({
         ioCardId: ioCardId ?? null,
         channelPosition: channelPosition ?? null,
         direction: direction ?? null,
+        ...hwFields,
         systemId: systemId ?? null,
         componentTag: componentTag ?? null,
         drawingRef: drawingRef ?? null,
@@ -427,6 +452,9 @@ export const signalRouter = createTRPCRouter({
       const { projectId: sigProjectId } = await db.signal.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
       const { currentRevision } = await db.project.findUniqueOrThrow({ where: { id: sigProjectId }, select: { currentRevision: true } });
 
+      // Resolve hw* fields when ioCardId changes
+      const hwUpdate = ioCardId !== undefined ? await resolveHwFields(ioCardId) : {};
+
       const updated = await db.signal.update({
         where: { id },
         data: {
@@ -438,6 +466,7 @@ export const signalRouter = createTRPCRouter({
           ...(ioCardId !== undefined ? { ioCardId: ioCardId ?? null } : {}),
           ...(channelPosition !== undefined ? { channelPosition: channelPosition ?? null } : {}),
           ...(direction !== undefined ? { direction: direction ?? null } : {}),
+          ...hwUpdate,
           ...(systemId !== undefined ? { systemId: systemId ?? null } : {}),
           ...(componentTag !== undefined ? { componentTag: componentTag ?? null } : {}),
           ...(drawingRef !== undefined ? { drawingRef: drawingRef ?? null } : {}),
@@ -590,6 +619,14 @@ export const signalRouter = createTRPCRouter({
       let created = 0;
       let updated = 0;
 
+      // Pre-resolve hw* fields for all unique ioCardIds in the batch
+      const uniqueCardIds = [...new Set(rows.map((r) => r.ioCardId).filter((id): id is number => id != null))];
+      const hwFieldsMap = new Map<number, Awaited<ReturnType<typeof resolveHwFields>>>();
+      for (const cardId of uniqueCardIds) {
+        hwFieldsMap.set(cardId, await resolveHwFields(cardId));
+      }
+      const nullHw = { hwCabinet: null, hwCarrier: null, hwTypeCode: null, hwInstance: null };
+
       // Pre-fetch existing signals by instrumentTag for upsert behavior
       const existingByInstrTag = new Map<string, number>();
       const existingByTag = new Map<string, number>();
@@ -624,11 +661,12 @@ export const signalRouter = createTRPCRouter({
               sensorFailRaw, sensorFailMargin, sensorFailBehavior, sensorFailDelayMs,
             } = row;
 
+            const hwF = ioCardId ? (hwFieldsMap.get(ioCardId) ?? nullHw) : nullHw;
             const signalData = {
               projectId, signalType, origin, revision: currentRevision,
               tag: tag ?? null, description: description ?? null, notes: notes ?? null,
               ioCardId: ioCardId ?? null, channelPosition: channelPosition ?? null,
-              direction: direction ?? null, systemId: systemId ?? null,
+              direction: direction ?? null, ...hwF, systemId: systemId ?? null,
               componentTag: componentTag ?? null, drawingRef: drawingRef ?? null,
               cabinetLocation: cabinetLocation ?? null, gvlId: gvlId ?? null,
               alarmGroup: alarmGroup ?? null, alarmBlockMask: alarmBlockMask ?? null,
@@ -665,6 +703,21 @@ export const signalRouter = createTRPCRouter({
             if (existingId) {
               // Update existing signal — strip child table creates, just update scalar fields
               const { discreteSignal: _d, analogSignal: _a, ...updateData } = signalData as any;
+              // Pre-check: if ioCardId + channelPosition would conflict with a DIFFERENT signal, drop the card ref
+              if (updateData.ioCardId != null && updateData.channelPosition != null) {
+                const conflict = await tx.signal.findFirst({
+                  where: { ioCardId: updateData.ioCardId, channelPosition: updateData.channelPosition, id: { not: existingId } },
+                  select: { id: true },
+                });
+                if (conflict) {
+                  updateData.ioCardId = null;
+                  updateData.channelPosition = null;
+                  updateData.hwCabinet = null;
+                  updateData.hwCarrier = null;
+                  updateData.hwTypeCode = null;
+                  updateData.hwInstance = null;
+                }
+              }
               await tx.signal.update({ where: { id: existingId }, data: updateData });
               updated++;
             } else {
@@ -808,17 +861,23 @@ export const signalRouter = createTRPCRouter({
 
       return plcs.flatMap((plc) =>
         plc.carriers.flatMap((carrier) =>
-          carrier.cards.map((card) => ({
-            id: card.id,
-            cardType: card.cardType,
-            maxInputChannels: card.catalog?.maxInputChannels ?? card.maxInputChannels ?? null,
-            maxOutputChannels: card.catalog?.maxOutputChannels ?? card.maxOutputChannels ?? null,
-            articleNumber: card.catalog?.articleNumber ?? null,
-            description: card.catalog?.description ?? null,
-            filterTimeMs: card.filterTimeMs ?? card.catalog?.filterTimeMs ?? null,
-            supplyVoltageField: card.supplyVoltageField ?? card.catalog?.supplyVoltageField ?? null,
-            path: `${plc.name} / ${carrier.name} / Slot ${card.slotPosition + 1}`,
-          }))
+          carrier.cards.map((card) => {
+            const tc = card.typeCode ? `${card.subgroup ?? "A"}${card.typeCode}` : null;
+            const hwId = carrier.cabinetNumber != null && carrier.carrierNumber != null && tc && card.instanceNumber != null
+              ? `N${carrier.cabinetNumber}:D${String(carrier.carrierNumber).padStart(2, "0")}:${tc}${String(card.instanceNumber).padStart(2, "0")}`
+              : null;
+            return {
+              id: card.id,
+              cardType: card.cardType,
+              maxInputChannels: card.catalog?.maxInputChannels ?? card.maxInputChannels ?? null,
+              maxOutputChannels: card.catalog?.maxOutputChannels ?? card.maxOutputChannels ?? null,
+              articleNumber: card.catalog?.articleNumber ?? null,
+              description: card.catalog?.description ?? null,
+              filterTimeMs: card.filterTimeMs ?? card.catalog?.filterTimeMs ?? null,
+              supplyVoltageField: card.supplyVoltageField ?? card.catalog?.supplyVoltageField ?? null,
+              path: hwId ?? `${plc.name} / ${carrier.name} / Slot ${card.slotPosition + 1}`,
+            };
+          })
         )
       );
     }),
@@ -853,23 +912,23 @@ export const signalRouter = createTRPCRouter({
       protocol: z.enum(BUS_PROTOCOLS).optional(),
     }))
     .query(({ input }) =>
-      db.plcNetwork.findMany({
+      db.bus.findMany({
         where: {
-          plc: { projectId: input.projectId, deletedAt: null },
+          projectId: input.projectId,
           ...(input.protocol ? { protocol: input.protocol } : {}),
         },
         select: { id: true, protocol: true, description: true, plc: { select: { name: true } } },
-        orderBy: [{ plc: { name: "asc" } }, { protocol: "asc" }],
+        orderBy: [{ protocol: "asc" }],
       })
     ),
 
   instanceNetworkUpdate: protectedProcedure
     .input(z.object({
       instanceId: z.number().int(),
-      plcNetworkId: z.number().int().nullable(),
+      busId: z.number().int().nullable(),
     }))
     .mutation(async ({ input }) => {
-      const { instanceId, plcNetworkId } = input;
+      const { instanceId, busId } = input;
 
       return db.$transaction(async (tx) => {
         // Load instance with component and all signals
@@ -888,9 +947,9 @@ export const signalRouter = createTRPCRouter({
         });
 
         // Validate protocol match if network is set
-        if (plcNetworkId != null) {
-          const network = await tx.plcNetwork.findUniqueOrThrow({
-            where: { id: plcNetworkId },
+        if (busId != null) {
+          const network = await tx.bus.findUniqueOrThrow({
+            where: { id: busId },
             select: { protocol: true },
           });
           if (instance.component.busProtocol && network.protocol !== instance.component.busProtocol) {
@@ -901,14 +960,14 @@ export const signalRouter = createTRPCRouter({
         // Update instance network
         await tx.componentInstance.update({
           where: { id: instanceId },
-          data: { plcNetworkId },
+          data: { busId },
         });
 
         // Load network protocol for origin update
         let networkProtocol: string | null = null;
-        if (plcNetworkId != null) {
-          const net = await tx.plcNetwork.findUniqueOrThrow({
-            where: { id: plcNetworkId },
+        if (busId != null) {
+          const net = await tx.bus.findUniqueOrThrow({
+            where: { id: busId },
             select: { protocol: true },
           });
           networkProtocol = net.protocol;
@@ -927,11 +986,11 @@ export const signalRouter = createTRPCRouter({
               });
             }
 
-            // Update BusSignal.plcNetworkId
+            // Update BusSignal.busId
             if (sig.busSignal) {
               await tx.busSignal.update({
                 where: { signalId: sig.id },
-                data: { plcNetworkId },
+                data: { busId },
               });
             }
           }
@@ -944,7 +1003,7 @@ export const signalRouter = createTRPCRouter({
   busSignalSave: protectedProcedure
     .input(z.object({
       signalId: z.number().int(),
-      plcNetworkId: z.number().int().optional().nullable(),
+      busId: z.number().int().optional().nullable(),
       rawDataType: z.enum(RAW_DATA_TYPES),
       plcDataType: z.enum(PLC_DATA_TYPES),
       byteOrder: z.enum(BYTE_ORDERS),

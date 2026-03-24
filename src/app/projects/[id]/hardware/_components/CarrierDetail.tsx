@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2, ExternalLink } from "lucide-react";
-import { SlotGrid } from "./SlotGrid";
+import { CardList } from "./CardList";
+import { PortNetworkEditor } from "./PortNetworkEditor";
 import { wagoDatasheetUrl } from "@/lib/utils";
 
 const schema = z.object({
   name: z.string().min(1, "Required"),
-  ipAddress: z.string().optional().nullable(),
-  nodeAddress: z.coerce.number().int().optional().nullable(),
+  cabinetNumber: z.coerce.number().int().min(1).max(9).optional().nullable(),
+  carrierNumber: z.coerce.number().int().min(1).max(99).optional().nullable(),
   firmwareVersion: z.string().optional().nullable(),
   modbusInputBase: z.coerce.number().int().optional().nullable(),
   modbusOutputBase: z.coerce.number().int().optional().nullable(),
@@ -23,25 +24,13 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-type Network = {
-  id: number;
-  protocol: string;
-  role: string;
-  nodeAddress: number | null;
-};
-
-type Port = {
-  id: number;
-  portNumber: number;
-  label: string | null;
-  ipAddress: string | null;
-  plcNetworkId: number | null;
-};
-
 type IoCard = {
   id: number;
   slotPosition: number;
   cardType: string;
+  subgroup: string | null;
+  typeCode: string | null;
+  instanceNumber: number | null;
   name: string | null;
   deletedAt: Date | null;
   catalog: {
@@ -51,15 +40,24 @@ type IoCard = {
     cardType: string;
     maxInputChannels: number | null;
     maxOutputChannels: number | null;
+    busCurrentConsumptionMa: number | null;
     approvals: { approvalId: number }[];
   } | null;
+};
+
+type Port = {
+  id: number;
+  portNumber: number;
+  label: string | null;
+  ipAddress: string | null;
+  ipNetworkId: number | null;
 };
 
 type Carrier = {
   id: number;
   name: string;
-  ipAddress?: string | null;
-  nodeAddress?: number | null;
+  cabinetNumber?: number | null;
+  carrierNumber?: number | null;
   firmwareVersion?: string | null;
   modbusInputBase?: number | null;
   modbusOutputBase?: number | null;
@@ -79,13 +77,13 @@ type Carrier = {
 type Props = {
   carrier: Carrier;
   projectId: number;
-  networks: Network[];
   onRefresh: () => void;
 };
 
-export function CarrierDetail({ carrier, projectId, networks, onRefresh }: Props) {
+export function CarrierDetail({ carrier, projectId, onRefresh }: Props) {
   const update = trpc.projectHardware.carrierUpdate.useMutation({ onSuccess: onRefresh });
   const deleteCarrier = trpc.projectHardware.carrierDelete.useMutation({ onSuccess: onRefresh });
+  const carrierPortSave = trpc.projectHardware.carrierPortSave.useMutation({ onSuccess: onRefresh });
 
   const {
     register,
@@ -96,8 +94,8 @@ export function CarrierDetail({ carrier, projectId, networks, onRefresh }: Props
     resolver: zodResolver(schema) as any,
     defaultValues: {
       name: carrier.name,
-      ipAddress: carrier.ipAddress ?? "",
-      nodeAddress: carrier.nodeAddress ?? undefined,
+      cabinetNumber: carrier.cabinetNumber ?? undefined,
+      carrierNumber: carrier.carrierNumber ?? undefined,
       firmwareVersion: carrier.firmwareVersion ?? "",
       modbusInputBase: carrier.modbusInputBase ?? undefined,
       modbusOutputBase: carrier.modbusOutputBase ?? undefined,
@@ -108,8 +106,8 @@ export function CarrierDetail({ carrier, projectId, networks, onRefresh }: Props
   useEffect(() => {
     reset({
       name: carrier.name,
-      ipAddress: carrier.ipAddress ?? "",
-      nodeAddress: carrier.nodeAddress ?? undefined,
+      cabinetNumber: carrier.cabinetNumber ?? undefined,
+      carrierNumber: carrier.carrierNumber ?? undefined,
       firmwareVersion: carrier.firmwareVersion ?? "",
       modbusInputBase: carrier.modbusInputBase ?? undefined,
       modbusOutputBase: carrier.modbusOutputBase ?? undefined,
@@ -159,12 +157,12 @@ export function CarrierDetail({ carrier, projectId, networks, onRefresh }: Props
             {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
           <div className="space-y-1">
-            <Label>IP Address</Label>
-            <Input {...register("ipAddress")} placeholder="192.168.1.20" />
+            <Label>Cabinet Number (1-9)</Label>
+            <Input type="number" min={1} max={9} {...register("cabinetNumber")} placeholder="e.g. 3" />
           </div>
           <div className="space-y-1">
-            <Label>Node Address</Label>
-            <Input type="number" {...register("nodeAddress")} />
+            <Label>Carrier Number (1-99)</Label>
+            <Input type="number" min={1} max={99} {...register("carrierNumber")} placeholder="e.g. 3" />
           </div>
           <div className="space-y-1">
             <Label>Firmware Version</Label>
@@ -200,13 +198,14 @@ export function CarrierDetail({ carrier, projectId, networks, onRefresh }: Props
             {Array.from({ length: carrier.catalog.ethernetPorts }, (_, i) => {
               const port = carrier.ports.find((p) => p.portNumber === i);
               return (
-                <CarrierPortRow
+                <PortNetworkEditor
                   key={i}
                   portNumber={i}
                   port={port ?? null}
-                  networks={networks}
+                  projectId={projectId}
                   carrierId={carrier.id}
-                  onRefresh={onRefresh}
+                  onSave={(data) => carrierPortSave.mutate({ carrierId: carrier.id, portNumber: i, ...data })}
+                  saving={carrierPortSave.isPending}
                 />
               );
             })}
@@ -214,8 +213,8 @@ export function CarrierDetail({ carrier, projectId, networks, onRefresh }: Props
         </div>
       )}
 
-      {/* Slot grid */}
-      <SlotGrid
+      {/* Card list */}
+      <CardList
         carrierId={carrier.id}
         projectId={projectId}
         maxSlots={carrier.catalog?.maxModules ?? null}
@@ -226,89 +225,3 @@ export function CarrierDetail({ carrier, projectId, networks, onRefresh }: Props
   );
 }
 
-function CarrierPortRow({
-  portNumber,
-  port,
-  networks,
-  carrierId,
-  onRefresh,
-}: {
-  portNumber: number;
-  port: Port | null;
-  networks: Network[];
-  carrierId: number;
-  onRefresh: () => void;
-}) {
-  const save = trpc.projectHardware.carrierPortSave.useMutation({ onSuccess: onRefresh });
-  const [ip, setIp] = useState(port?.ipAddress ?? "");
-  const [networkId, setNetworkId] = useState<string>(String(port?.plcNetworkId ?? ""));
-  const [label, setLabel] = useState(port?.label ?? "");
-
-  useEffect(() => {
-    setIp(port?.ipAddress ?? "");
-    setNetworkId(String(port?.plcNetworkId ?? ""));
-    setLabel(port?.label ?? "");
-  }, [port]);
-
-  const isDirty =
-    ip !== (port?.ipAddress ?? "") ||
-    networkId !== String(port?.plcNetworkId ?? "") ||
-    label !== (port?.label ?? "");
-
-  return (
-    <div className="rounded-md border px-3 py-2">
-      <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-end">
-        <div className="space-y-1">
-          <Label className="text-xs">Port {portNumber + 1}</Label>
-          <Input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Label"
-            className="h-8 text-sm w-24"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">IP Address</Label>
-          <Input
-            value={ip}
-            onChange={(e) => setIp(e.target.value)}
-            placeholder="192.168.1.20"
-            className="h-8 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Bus / Network</Label>
-          <select
-            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm h-8"
-            value={networkId}
-            onChange={(e) => setNetworkId(e.target.value)}
-          >
-            <option value="">— None —</option>
-            {networks.map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.protocol} / {n.role}
-                {n.nodeAddress != null ? ` (Node ${n.nodeAddress})` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-        <Button
-          size="sm"
-          className="h-8"
-          disabled={!isDirty || save.isPending}
-          onClick={() =>
-            save.mutate({
-              carrierId,
-              portNumber,
-              label: label || null,
-              ipAddress: ip || null,
-              plcNetworkId: networkId ? Number(networkId) : null,
-            })
-          }
-        >
-          {save.isPending ? "…" : "Save"}
-        </Button>
-      </div>
-    </div>
-  );
-}

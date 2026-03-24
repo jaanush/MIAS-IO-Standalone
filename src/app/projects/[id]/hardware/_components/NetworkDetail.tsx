@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CAN_MODES, CAN_ORIGIN_SET, ETHERNET_PROTOCOL_SET, SERIAL_PARITY, type BusProtocol } from "@/lib/enums";
+import { Cpu, Server, Box, Plus, Trash2 } from "lucide-react";
+import { CAN_MODES, CAN_ORIGIN_SET, ETHERNET_PROTOCOL_SET, SERIAL_PARITY, NETWORK_NODE_ROLES, type BusProtocol } from "@/lib/enums";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -15,7 +16,9 @@ type Instance = {
   name: string;
   tag: string | null;
   notes: string | null;
-  plcNetworkId: number | null;
+  busId: number | null;
+  nodeRole: string | null;
+  nodeAddress: number | null;
   canIdOffset: number | null;
   component: {
     id: number;
@@ -25,15 +28,26 @@ type Instance = {
   };
 };
 
+type BusNode = {
+  id: number;
+  role: string;
+  nodeAddress: number | null;
+  ipAddress: string | null;
+  description: string | null;
+  plc: { id: number; name: string } | null;
+  carrier: { id: number; name: string; cabinetNumber: number | null; carrierNumber: number | null } | null;
+};
+
 type Network = {
   id: number;
   protocol: string;
   role: string;
   nodeAddress: number | null;
   description: string | null;
+  ipNetworkId: number | null;
   ioCardId: number | null;
   ioCard: { id: number; name: string | null; slotPosition: number } | null;
-  plcPorts: { id: number; portNumber: number; label: string | null }[];
+  nodes: BusNode[];
   instances: Instance[];
   baudRateKbit: number | null;
   baudRateBps: number | null;
@@ -49,26 +63,25 @@ type Network = {
 
 type Props = {
   network: Network;
+  projectId: number;
   onRefresh: () => void;
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function NetworkDetail({ network, onRefresh }: Props) {
+export function NetworkDetail({ network, projectId, onRefresh }: Props) {
   const utils = trpc.useUtils();
+  const busUpdate = trpc.projectHardware.busUpdate.useMutation({ onSuccess: onRefresh });
+  const { data: ipNetworks = [] } = trpc.projectHardware.ipNetworkList.useQuery({ projectId });
 
   const proto = network.protocol as BusProtocol;
   const isSerial = ["MODBUS_RTU", "PROFIBUS", "DEVICENET"].includes(proto);
   const isCan = CAN_ORIGIN_SET.has(proto);
   const isEthernet = ETHERNET_PROTOCOL_SET.has(proto);
 
-  const hostedBy = network.ioCard
-    ? `Slot ${network.ioCard.slotPosition + 1}${network.ioCard.name ? ` — ${network.ioCard.name}` : ""}`
-    : "PLC CPU";
-
   function handleOffsetSaved() {
     onRefresh();
-    utils.projectHardware.networkCanIds.invalidate({ networkId: network.id });
+    utils.projectHardware.busCanIds.invalidate({ busId: network.id });
   }
 
   return (
@@ -76,14 +89,44 @@ export function NetworkDetail({ network, onRefresh }: Props) {
       {/* Header */}
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant="outline" className="text-sm">{network.protocol}</Badge>
-        <Badge variant="secondary">{network.role}</Badge>
-        <span className="text-sm text-muted-foreground">via {hostedBy}</span>
-        {network.plcPorts.length > 0 && (
-          <span className="text-sm text-muted-foreground">
-            · Port {network.plcPorts.map((p) => p.portNumber + 1).join(", ")}
-          </span>
+        {network.description && (
+          <span className="text-sm font-medium">{network.description}</span>
         )}
+        <span className="text-sm text-muted-foreground">
+          {network.nodes.length} node{network.nodes.length !== 1 ? "s" : ""}
+        </span>
       </div>
+
+      {/* IP Network assignment (ethernet buses only) */}
+      {isEthernet && (
+        <div className="flex items-center gap-2">
+          <Label className="text-xs shrink-0">IP Network:</Label>
+          <select
+            className="h-8 flex-1 max-w-xs rounded-md border border-input bg-background px-2 text-sm"
+            value={network.ipNetworkId ?? ""}
+            onChange={(e) => {
+              busUpdate.mutate({
+                id: network.id,
+                ipNetworkId: e.target.value ? Number(e.target.value) : null,
+              });
+            }}
+          >
+            <option value="">— None —</option>
+            {(ipNetworks as any[]).map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.name ?? `Network #${n.id}`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Connected Nodes */}
+      <ConnectedNodesSection
+        network={network}
+        projectId={projectId}
+        onRefresh={onRefresh}
+      />
 
       {/* Network Config Form */}
       <NetworkConfigForm
@@ -94,15 +137,244 @@ export function NetworkDetail({ network, onRefresh }: Props) {
         onSaved={onRefresh}
       />
 
-      {/* Bus Devices */}
-      <BusDevicesSection
-        instances={network.instances}
-        isCan={isCan}
-        onRefresh={handleOffsetSaved}
-      />
-
       {/* CAN ID Spans (CAN protocols only) */}
       {isCan && <CanIdSpanSection networkId={network.id} />}
+    </div>
+  );
+}
+
+// ── Connected nodes section ──────────────────────────────────────────────────
+
+function ConnectedNodesSection({
+  network,
+  projectId,
+  onRefresh,
+}: {
+  network: Network;
+  projectId: number;
+  onRefresh: () => void;
+}) {
+  const upsertNode = trpc.projectHardware.busNodeUpsert.useMutation({ onSuccess: onRefresh });
+  const deleteNode = trpc.projectHardware.busNodeDelete.useMutation({ onSuccess: onRefresh });
+  const instanceUpdate = trpc.projectHardware.instanceUpdate.useMutation({ onSuccess: onRefresh });
+  const instanceDelete = trpc.projectHardware.instanceDelete.useMutation({ onSuccess: onRefresh });
+
+  // Fetch available PLCs and carriers for the "Add Node" dropdown
+  const { data: hwData } = trpc.projectHardware.getHardware.useQuery({ projectId });
+  const plcs = hwData?.plcs ?? [];
+  const allCarriers = plcs.flatMap((p) => [
+    ...p.carriers,
+    ...p.buses.flatMap((n) => n.carriers),
+  ]);
+
+  // IDs already connected
+  const connectedPlcIds = new Set(network.nodes.filter((n) => n.plc).map((n) => n.plc!.id));
+  const connectedCarrierIds = new Set(network.nodes.filter((n) => n.carrier).map((n) => n.carrier!.id));
+
+  const totalNodes = network.nodes.length + network.instances.length;
+
+  const [addType, setAddType] = useState<"plc" | "carrier" | null>(null);
+  const [addId, setAddId] = useState<string>("");
+
+  function handleAdd() {
+    if (!addId) return;
+    const id = Number(addId);
+    if (addType === "plc") {
+      upsertNode.mutate({ busId: network.id, plcId: id, role: "CLIENT" });
+    } else {
+      upsertNode.mutate({ busId: network.id, carrierId: id, role: "SERVER" });
+    }
+    setAddType(null);
+    setAddId("");
+  }
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        Connected Nodes
+      </h3>
+
+      {totalNodes > 0 ? (
+        <div className="rounded-md border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40 text-left text-xs">
+                <th className="px-3 py-1.5 font-medium">Device</th>
+                <th className="px-3 py-1.5 font-medium w-24">Role</th>
+                <th className="px-3 py-1.5 font-medium w-20">Node Addr</th>
+                <th className="px-3 py-1.5 font-medium w-10" />
+              </tr>
+            </thead>
+            <tbody>
+              {network.nodes.map((node) => {
+                const deviceName = node.plc?.name ?? (
+                  node.carrier
+                    ? (node.carrier.cabinetNumber != null && node.carrier.carrierNumber != null
+                        ? `N${node.carrier.cabinetNumber}:D${String(node.carrier.carrierNumber).padStart(2, "0")} ${node.carrier.name}`
+                        : node.carrier.name)
+                    : "Unknown"
+                );
+                const DeviceIcon = node.plc ? Cpu : Server;
+
+                return (
+                  <tr key={node.id} className="border-b last:border-0 hover:bg-muted/20">
+                    <td className="px-3 py-1.5">
+                      <span className="flex items-center gap-1.5">
+                        <DeviceIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">{deviceName}</span>
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <select
+                        className="h-7 w-full rounded border border-input bg-background px-1.5 text-xs"
+                        value={node.role}
+                        onChange={(e) => upsertNode.mutate({
+                          busId: network.id,
+                          plcId: node.plc?.id ?? undefined,
+                          carrierId: node.carrier?.id ?? undefined,
+                          role: e.target.value as any,
+                          nodeAddress: node.nodeAddress,
+                          ipAddress: node.ipAddress,
+                        })}
+                      >
+                        {NETWORK_NODE_ROLES.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <Input
+                        inputMode="numeric"
+                        className="h-7 w-full text-xs px-2 tabular-nums"
+                        defaultValue={node.nodeAddress ?? ""}
+                        placeholder="—"
+                        onBlur={(e) => {
+                          const v = e.target.value ? Number(e.target.value) : null;
+                          if (v !== node.nodeAddress) {
+                            upsertNode.mutate({
+                              busId: network.id,
+                              plcId: node.plc?.id ?? undefined,
+                              carrierId: node.carrier?.id ?? undefined,
+                              role: node.role as any,
+                              nodeAddress: v,
+                              ipAddress: node.ipAddress,
+                            });
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Remove from network"
+                        onClick={() => { if (confirm("Remove this node from the network?")) deleteNode.mutate({ id: node.id }); }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* Component instances as nodes */}
+              {network.instances.map((inst) => (
+                <tr key={`inst-${inst.id}`} className="border-b last:border-0 hover:bg-muted/20">
+                  <td className="px-3 py-1.5">
+                    <span className="flex items-center gap-1.5">
+                      <Box className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="truncate">{inst.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{inst.component.name}</span>
+                    </span>
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <select
+                      className="h-7 w-full rounded border border-input bg-background px-1.5 text-xs"
+                      value={inst.nodeRole ?? ""}
+                      onChange={(e) => instanceUpdate.mutate({
+                        id: inst.id,
+                        name: inst.name,
+                        nodeRole: (e.target.value || null) as any,
+                        nodeAddress: inst.nodeAddress,
+                      })}
+                    >
+                      <option value="">—</option>
+                      {NETWORK_NODE_ROLES.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <Input
+                      inputMode="numeric"
+                      className="h-7 w-full text-xs px-2 tabular-nums"
+                      defaultValue={inst.nodeAddress ?? ""}
+                      placeholder="—"
+                      onBlur={(e) => {
+                        const v = e.target.value ? Number(e.target.value) : null;
+                        if (v !== inst.nodeAddress) {
+                          instanceUpdate.mutate({
+                            id: inst.id,
+                            name: inst.name,
+                            nodeRole: inst.nodeRole as any,
+                            nodeAddress: v,
+                          });
+                        }
+                      }}
+                    />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-destructive"
+                      title="Remove instance"
+                      onClick={() => { if (confirm(`Remove ${inst.name}? This will delete its signals.`)) instanceDelete.mutate({ id: inst.id }); }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground py-2">No devices connected to this bus.</p>
+      )}
+
+      {/* Add node */}
+      <div className="flex items-center gap-2">
+        <select
+          className="h-8 rounded border border-input bg-background px-2 text-xs"
+          value={addType ?? ""}
+          onChange={(e) => { setAddType((e.target.value || null) as any); setAddId(""); }}
+        >
+          <option value="">+ Add node...</option>
+          <option value="plc">PLC</option>
+          <option value="carrier">Carrier</option>
+        </select>
+        {addType && (
+          <>
+            <select
+              className="h-8 flex-1 rounded border border-input bg-background px-2 text-xs"
+              value={addId}
+              onChange={(e) => setAddId(e.target.value)}
+            >
+              <option value="">Select {addType}...</option>
+              {addType === "plc"
+                ? plcs.filter((p) => !connectedPlcIds.has(p.id)).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))
+                : allCarriers.filter((c) => !connectedCarrierIds.has(c.id)).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))
+              }
+            </select>
+            <Button size="sm" className="h-8" disabled={!addId || upsertNode.isPending} onClick={handleAdd}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -128,24 +400,32 @@ function NetworkConfigForm({
   const [baudRateKbit, setBaudRateKbit] = useState(String(network.baudRateKbit ?? ""));
   const [serialParity, setSerialParity] = useState(network.serialParity ?? "");
   const [serialStopBits, setSerialStopBits] = useState(String(network.serialStopBits ?? ""));
-  const [ipAddress, setIpAddress] = useState(network.ipAddress ?? "");
   const [ipPort, setIpPort] = useState(String(network.ipPort ?? ""));
   const [canMode, setCanMode] = useState(network.canMode ?? "");
   const [canHeartbeatMs, setCanHeartbeatMs] = useState(String(network.canHeartbeatMs ?? ""));
   const [canSyncPeriodMs, setCanSyncPeriodMs] = useState(String(network.canSyncPeriodMs ?? ""));
   const [cyclePeriodMs, setCyclePeriodMs] = useState(String(network.cyclePeriodMs ?? ""));
 
-  const update = trpc.projectHardware.networkUpdate.useMutation({ onSuccess: onSaved });
+  const update = trpc.projectHardware.busUpdate.useMutation({ onSuccess: onSaved });
 
   const sel = "w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm";
 
   return (
     <div className="space-y-4 rounded-md border p-4">
       <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Network Configuration
+        Bus Configuration
       </h3>
 
       <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2 space-y-1">
+          <Label className="text-xs">Name</Label>
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="h-8 text-sm"
+            placeholder="e.g. Field devices bus"
+          />
+        </div>
         <div className="space-y-1">
           <Label className="text-xs">Role</Label>
           <select className={sel} value={role} onChange={(e) => setRole(e.target.value)}>
@@ -160,15 +440,6 @@ function NetworkConfigForm({
             type="number"
             value={nodeAddress}
             onChange={(e) => setNodeAddress(e.target.value)}
-            className="h-8 text-sm"
-            placeholder="optional"
-          />
-        </div>
-        <div className="col-span-2 space-y-1">
-          <Label className="text-xs">Description</Label>
-          <Input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
             className="h-8 text-sm"
             placeholder="optional"
           />
@@ -262,18 +533,9 @@ function NetworkConfigForm({
       {isEthernet && (
         <>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-1">
-            Network Parameters
+            TCP Parameters
           </p>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">IP Address</Label>
-              <Input
-                value={ipAddress}
-                onChange={(e) => setIpAddress(e.target.value)}
-                className="h-8 text-sm"
-                placeholder="e.g. 192.168.1.100"
-              />
-            </div>
             <div className="space-y-1">
               <Label className="text-xs">TCP Port</Label>
               <Input
@@ -314,7 +576,6 @@ function NetworkConfigForm({
               baudRateKbit: baudRateKbit ? Number(baudRateKbit) : null,
               serialParity: (serialParity || null) as Parameters<typeof update.mutate>[0]["serialParity"],
               serialStopBits: serialStopBits ? Number(serialStopBits) : null,
-              ipAddress: ipAddress || null,
               ipPort: ipPort ? Number(ipPort) : null,
               canMode: (canMode || null) as Parameters<typeof update.mutate>[0]["canMode"],
               canHeartbeatMs: canHeartbeatMs ? Number(canHeartbeatMs) : null,
@@ -442,7 +703,7 @@ function InstanceRow({
 // ── CAN ID span section ────────────────────────────────────────────────────────
 
 function CanIdSpanSection({ networkId }: { networkId: number }) {
-  const { data = [], isLoading } = trpc.projectHardware.networkCanIds.useQuery({ networkId });
+  const { data = [], isLoading } = trpc.projectHardware.busCanIds.useQuery({ busId: networkId });
 
   const toHex = (n: number) => `0x${n.toString(16).toUpperCase().padStart(3, "0")}`;
 

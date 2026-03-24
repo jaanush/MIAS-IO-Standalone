@@ -41,7 +41,7 @@ enum MemberRole {
   @@map("member_role")
 }
 
-// BusProtocol — used on PlcNetwork and DeviceCatalogProtocol
+// BusProtocol — used on Bus and DeviceCatalogProtocol
 enum BusProtocol {
   MODBUS_RTU
   MODBUS_TCP
@@ -68,6 +68,13 @@ enum NetworkRole {
   SCANNER
 
   @@map("network_role")
+}
+
+enum NetworkNodeRole {
+  CLIENT
+  SERVER
+
+  @@map("network_node_role")
 }
 
 enum CatalogDeviceType {
@@ -574,6 +581,18 @@ model ModuleCatalog {
   @@map("module_catalog")
 }
 
+// Global lookup: IoCardType → type code letter (A-Z)
+model ModuleTypeCode {
+  id          Int        @id @default(autoincrement())
+  cardType    IoCardType @map("card_type")
+  code        String     @db.Char(1)
+  groupName   String     @db.VarChar(50) @map("group_name")
+  description String?    @db.VarChar(100)
+
+  @@unique([cardType, code])
+  @@map("module_type_code")
+}
+
 // =============================================================
 // PROJECT
 // =============================================================
@@ -595,6 +614,8 @@ model Project {
   members           ProjectMember[]
   approvals         ProjectApproval[]
   plcs              Plc[]
+  ipNetworks        IpNetwork[]
+  buses             Bus[]
   signals           Signal[]
   hardwareComponents HardwareComponent[]
   componentInstances ComponentInstance[]
@@ -641,18 +662,42 @@ model Plc {
   project  Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   catalog  DeviceCatalog? @relation(fields: [catalogId], references: [id])
   creator  User?          @relation("PlcCreatedBy", fields: [createdBy], references: [id])
-  networks PlcNetwork[]
+  buses    Bus[]
   carriers IoCarrier[]
-  ports    PlcPort[]
+  ports        PlcPort[]
+  busNodes     BusNode[]
 
   @@map("plc")
 }
 
 // NULL io_card_id = hosted by PLC CPU. SET = hosted by that IO card.
-model PlcNetwork {
+// IP network infrastructure (Ethernet) — can carry multiple buses
+model IpNetwork {
+  id          Int      @id @default(autoincrement())
+  projectId   Int      @map("project_id")
+  name        String?  @db.VarChar(100)
+  subnet      String?  @db.VarChar(18) @map("subnet")        // CIDR notation e.g. "192.168.1.0/24"
+  gateway     String?  @db.VarChar(45) @map("gateway")       // optional default gateway
+  dns         String?  @db.VarChar(100) @map("dns")          // optional DNS servers (comma-separated)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  buses        Bus[]
+  plcPorts     PlcPort[]
+  carrierPorts CarrierPort[]
+
+  @@map("ip_network")
+}
+
+// Bus — fieldbus or network-based protocol connecting devices
+model Bus {
   id          Int         @id @default(autoincrement())
-  plcId       Int         @map("plc_id")
-  ioCardId    Int?        @map("io_card_id")
+  projectId   Int         @map("project_id")
+  ipNetworkId Int?        @map("ip_network_id")   // set for buses running over IP (MODBUS_TCP, PROFINET, etc.)
+  plcId       Int?        @map("plc_id")           // legacy: PLC that originally owned this bus
+  ioCardId    Int?        @map("io_card_id")       // hosted by this card (providesNetwork)
   protocol    BusProtocol
   role        NetworkRole
   nodeAddress Int?        @db.SmallInt @map("node_address")
@@ -673,28 +718,50 @@ model PlcNetwork {
   canHeartbeatMs  Int?     @map("can_heartbeat_ms")
   canSyncPeriodMs Int?     @map("can_sync_period_ms")
 
-  // General polling / cycle (MODBUS_RTU, MODBUS_TCP, CANBUS, etc.)
+  // General polling / cycle
   cyclePeriodMs Int? @map("cycle_period_ms")
 
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
-  plc          Plc          @relation(fields: [plcId], references: [id], onDelete: Cascade)
-  ioCard       IoCard?      @relation("NetworkHostCard", fields: [ioCardId], references: [id])
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  ipNetwork    IpNetwork?    @relation(fields: [ipNetworkId], references: [id], onDelete: SetNull)
+  plc          Plc?          @relation(fields: [plcId], references: [id], onDelete: SetNull)
+  ioCard       IoCard?       @relation("NetworkHostCard", fields: [ioCardId], references: [id])
   carriers     IoCarrier[]
   busSignals   BusSignal[]
-  plcPorts     PlcPort[]
-  carrierPorts CarrierPort[]
   instances    ComponentInstance[]
+  nodes        BusNode[]
 
   @@map("plc_network")
+}
+
+// Join table: device participating on a bus with a role
+model BusNode {
+  id          Int              @id @default(autoincrement())
+  busId       Int              @map("network_id")   // keep DB column name for now
+  plcId       Int?             @map("plc_id")
+  carrierId   Int?             @map("carrier_id")
+  role        NetworkNodeRole  @default(CLIENT)
+  nodeAddress Int?             @db.SmallInt @map("node_address")
+  ipAddress   String?          @db.VarChar(45) @map("ip_address")
+  description String?          @db.VarChar(255)
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  bus      Bus         @relation(fields: [busId], references: [id], onDelete: Cascade)
+  plc      Plc?        @relation(fields: [plcId], references: [id], onDelete: Cascade)
+  carrier  IoCarrier?  @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+
+  @@unique([busId, plcId])
+  @@unique([busId, carrierId])
+  @@map("network_node")
 }
 
 model IoCarrier {
   id              Int       @id @default(autoincrement())
   plcId           Int       @map("plc_id")
   catalogId       Int?      @map("catalog_id")
-  plcNetworkId    Int?      @map("plc_network_id")
+  busId           Int?      @map("plc_network_id")  // FK column keeps old name
   name            String    @db.VarChar(255)
   model           String?   @db.VarChar(100)
   ipAddress       String?   @db.VarChar(45) @map("ip_address")
@@ -704,6 +771,8 @@ model IoCarrier {
   modbusOutputBase Int?      @map("modbus_output_base")  // start word address of this carrier in BCOutputData[]
   isLocalBus       Boolean   @default(false) @map("is_local_bus")    // true = PLC's built-in Kbus, excluded from CODESYS sync
   codesysDeviceId  String?   @db.VarChar(50) @map("codesys_device_id") // CODESYS device ID for remote carriers (e.g. "0059 0000 0005 0000")
+  cabinetNumber    Int?      @db.SmallInt @map("cabinet_number")   // hardware identifier: cabinet (1-9)
+  carrierNumber    Int?      @db.SmallInt @map("carrier_number")   // hardware identifier: carrier (01-99)
   notes            String?
   deletedAt        DateTime? @map("deleted_at")
   createdBy        String?   @db.Uuid @map("created_by")
@@ -712,10 +781,11 @@ model IoCarrier {
 
   plc     Plc            @relation(fields: [plcId], references: [id], onDelete: Cascade)
   catalog DeviceCatalog? @relation(fields: [catalogId], references: [id])
-  network PlcNetwork?    @relation(fields: [plcNetworkId], references: [id])
+  bus     Bus?           @relation(fields: [busId], references: [id])
   creator User?          @relation("IoCarrierCreatedBy", fields: [createdBy], references: [id])
-  cards   IoCard[]
-  ports   CarrierPort[]
+  cards        IoCard[]
+  ports        CarrierPort[]
+  busNodes     BusNode[]
 
   @@map("io_carrier")
 }
@@ -740,6 +810,9 @@ model IoCard {
   tempMaxC              Int?       @db.SmallInt @map("temp_max_c")
   maxChannelCurrentMa   Int?       @db.SmallInt @map("max_channel_current_ma")
   shortCircuitProtected Boolean    @default(false) @map("short_circuit_protected")
+  subgroup              String?    @db.Char(1) @map("subgroup")            // fuse group letter (A, B, C...)
+  typeCode              String?    @db.Char(1) @map("type_code")          // card type letter (I, M, Q, T, U...)
+  instanceNumber        Int?       @db.SmallInt @map("instance_number")   // instance within subgroup+type (01-99)
   notes                 String?
   deletedAt             DateTime?  @map("deleted_at")
   createdBy             String?    @db.Uuid @map("created_by")
@@ -750,38 +823,39 @@ model IoCard {
   catalog        ModuleCatalog? @relation(fields: [catalogId], references: [id])
   creator        User?          @relation("IoCardCreatedBy", fields: [createdBy], references: [id])
   signals        Signal[]
-  hostedNetworks PlcNetwork[]   @relation("NetworkHostCard")
+  hostedBuses    Bus[]          @relation("NetworkHostCard")
 
   @@unique([carrierId, slotPosition])
+  @@unique([carrierId, subgroup, typeCode, instanceNumber])
   @@map("io_card")
 }
 
 // Per-port IP and bus assignment for multi-port PLCs and carriers
 model PlcPort {
-  id           Int     @id @default(autoincrement())
-  plcId        Int     @map("plc_id")
-  portNumber   Int     @db.SmallInt @map("port_number")
-  label        String? @db.VarChar(20)
-  ipAddress    String? @db.VarChar(45) @map("ip_address")
-  plcNetworkId Int?    @map("plc_network_id")
+  id            Int     @id @default(autoincrement())
+  plcId         Int     @map("plc_id")
+  portNumber    Int     @db.SmallInt @map("port_number")
+  label         String? @db.VarChar(20)
+  ipAddress     String? @db.VarChar(45) @map("ip_address")
+  ipNetworkId   Int?    @map("plc_network_id")  // FK column keeps old name, now points to IpNetwork
 
-  plc     Plc         @relation(fields: [plcId], references: [id], onDelete: Cascade)
-  network PlcNetwork? @relation(fields: [plcNetworkId], references: [id], onDelete: SetNull)
+  plc       Plc        @relation(fields: [plcId], references: [id], onDelete: Cascade)
+  ipNetwork IpNetwork? @relation(fields: [ipNetworkId], references: [id], onDelete: SetNull)
 
   @@unique([plcId, portNumber])
   @@map("plc_port")
 }
 
 model CarrierPort {
-  id           Int     @id @default(autoincrement())
-  carrierId    Int     @map("carrier_id")
-  portNumber   Int     @db.SmallInt @map("port_number")
-  label        String? @db.VarChar(20)
-  ipAddress    String? @db.VarChar(45) @map("ip_address")
-  plcNetworkId Int?    @map("plc_network_id")
+  id            Int     @id @default(autoincrement())
+  carrierId     Int     @map("carrier_id")
+  portNumber    Int     @db.SmallInt @map("port_number")
+  label         String? @db.VarChar(20)
+  ipAddress     String? @db.VarChar(45) @map("ip_address")
+  ipNetworkId   Int?    @map("plc_network_id")  // FK column keeps old name, now points to IpNetwork
 
-  carrier IoCarrier   @relation(fields: [carrierId], references: [id], onDelete: Cascade)
-  network PlcNetwork? @relation(fields: [plcNetworkId], references: [id], onDelete: SetNull)
+  carrier   IoCarrier  @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+  ipNetwork IpNetwork? @relation(fields: [ipNetworkId], references: [id], onDelete: SetNull)
 
   @@unique([carrierId, portNumber])
   @@map("carrier_port")
@@ -798,6 +872,11 @@ model Signal {
   ioCardId         Int?         @map("io_card_id")
   channelPosition  Int?         @db.SmallInt @map("channel_position")
   direction        SignalDirection?
+  // Stable hardware identifier (survives card deletion)
+  hwCabinet        Int?         @db.SmallInt @map("hw_cabinet")       // cabinet number (1-9)
+  hwCarrier        Int?         @db.SmallInt @map("hw_carrier")       // carrier number (01-99)
+  hwTypeCode       String?      @db.VarChar(2) @map("hw_type_code")  // subgroup + type code (e.g. "BI")
+  hwInstance        Int?         @db.SmallInt @map("hw_instance")      // module instance (01-99)
   systemId         Int?         @map("system_id")
   componentTag     String?      @db.VarChar(100) @map("component_tag")
   drawingRef       String?      @db.VarChar(100) @map("drawing_ref")
@@ -840,7 +919,7 @@ model Signal {
 
   project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   instanceSignal InstanceSignal?  @relation(fields: [instanceSignalId], references: [id])
-  ioCard         IoCard?          @relation(fields: [ioCardId], references: [id])
+  ioCard         IoCard?          @relation(fields: [ioCardId], references: [id], onDelete: SetNull)
   creator        User?            @relation("SignalCreatedBy", fields: [createdBy], references: [id])
   discreteSignal DiscreteSignal?
   analogSignal   AnalogSignal?
@@ -857,7 +936,7 @@ model Signal {
 // Bus-specific addressing — present when signal.origin != IEC
 model BusSignal {
   signalId      Int                  @id @map("signal_id")
-  plcNetworkId  Int?                 @map("plc_network_id")
+  busId         Int?                 @map("plc_network_id")  // FK column keeps old name
 
   // Modbus
   unitId          Int?               @db.SmallInt @map("unit_id")
@@ -885,8 +964,8 @@ model BusSignal {
   // Communication timeout (ms) — how long PLC waits before declaring timeout
   timeoutMs   Int?           @map("timeout_ms")
 
-  signal     Signal      @relation(fields: [signalId], references: [id], onDelete: Cascade)
-  plcNetwork PlcNetwork? @relation(fields: [plcNetworkId], references: [id], onDelete: SetNull)
+  signal Signal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  bus    Bus?   @relation(fields: [busId], references: [id], onDelete: SetNull)
 
   @@map("bus_signal")
 }
@@ -1153,11 +1232,13 @@ model ComponentInstance {
   id           Int        @id @default(autoincrement())
   projectId    Int        @map("project_id")
   componentId  Int        @map("component_id")
-  plcNetworkId Int?       @map("plc_network_id")
-  name         String     @db.VarChar(255)
-  tag          String?    @db.VarChar(50)
-  byteOrder    ByteOrder? @map("byte_order")
-  canIdOffset            Int?       @map("can_id_offset")
+  busId        Int?              @map("plc_network_id")  // FK column keeps old name
+  nodeRole     NetworkNodeRole?  @map("node_role")
+  nodeAddress  Int?              @db.SmallInt @map("node_address")
+  name         String            @db.VarChar(255)
+  tag          String?           @db.VarChar(50)
+  byteOrder    ByteOrder?        @map("byte_order")
+  canIdOffset  Int?              @map("can_id_offset")
   functionBlockOverride  String?    @db.VarChar(100) @map("function_block_override")
   notes                  String?
   createdBy              String?    @db.Uuid @map("created_by")
@@ -1166,7 +1247,7 @@ model ComponentInstance {
 
   project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   component  HardwareComponent @relation(fields: [componentId], references: [id])
-  network    PlcNetwork?       @relation(fields: [plcNetworkId], references: [id])
+  bus        Bus?              @relation(fields: [busId], references: [id])
   creator    User?             @relation("ComponentInstanceCreatedBy", fields: [createdBy], references: [id])
   signals    InstanceSignal[]
   codesysFbInstances CodesysFbInstance[]

@@ -243,7 +243,7 @@ export function AddCarrierDialog({
                 create.mutate({
                   plcId,
                   catalogId: selectedCatalogId,
-                  plcNetworkId: networkId,
+                  busId: networkId,
                   name,
                   ipAddress: ipAddress || null,
                   nodeAddress: nodeAddress ? Number(nodeAddress) : null,

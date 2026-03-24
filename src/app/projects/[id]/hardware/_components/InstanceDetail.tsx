@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET } from "@/lib/enums";
 
 type Instance = {
   id: number;
   name: string;
   tag: string | null;
   notes: string | null;
-  plcNetworkId: number | null;
+  busId: number | null;
+  nodeRole: string | null;
+  nodeAddress: number | null;
+  canIdOffset: number | null;
+  functionBlockOverride: string | null;
   component: {
     id: number;
     name: string;
@@ -20,16 +26,16 @@ type Instance = {
   };
 };
 
-type Network = {
+type Bus = {
   id: number;
   protocol: string;
-  nodeAddress: number | null;
   description: string | null;
+  ipNetworkId: number | null;
 };
 
 type Props = {
   instance: Instance;
-  network: Network | null;
+  network: Bus | null;
   onDeleted: () => void;
   onRefresh: () => void;
 };
@@ -38,43 +44,46 @@ export function InstanceDetail({ instance, network, onDeleted, onRefresh }: Prop
   const [name, setName] = useState(instance.name);
   const [tag, setTag] = useState(instance.tag ?? "");
   const [notes, setNotes] = useState(instance.notes ?? "");
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [nodeRole, setNodeRole] = useState(instance.nodeRole ?? "");
+  const [nodeAddress, setNodeAddress] = useState(instance.nodeAddress != null ? String(instance.nodeAddress) : "");
+  const [canIdOffset, setCanIdOffset] = useState(instance.canIdOffset != null ? String(instance.canIdOffset) : "");
+  const [fbOverride, setFbOverride] = useState(instance.functionBlockOverride ?? "");
 
-  const update = trpc.projectHardware.instanceUpdate.useMutation();
+  useEffect(() => {
+    setName(instance.name);
+    setTag(instance.tag ?? "");
+    setNotes(instance.notes ?? "");
+    setNodeRole(instance.nodeRole ?? "");
+    setNodeAddress(instance.nodeAddress != null ? String(instance.nodeAddress) : "");
+    setCanIdOffset(instance.canIdOffset != null ? String(instance.canIdOffset) : "");
+    setFbOverride(instance.functionBlockOverride ?? "");
+  }, [instance]);
+
+  const update = trpc.projectHardware.instanceUpdate.useMutation({ onSuccess: onRefresh });
   const del = trpc.projectHardware.instanceDelete.useMutation();
 
-  async function handleSave(e: React.FormEvent) {
+  function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    try {
-      await update.mutateAsync({
-        id: instance.id,
-        name: name.trim(),
-        tag: tag.trim() || null,
-        notes: notes.trim() || null,
-      });
-      onRefresh();
-    } finally {
-      setSaving(false);
-    }
+    update.mutate({
+      id: instance.id,
+      name: name.trim(),
+      tag: tag.trim() || null,
+      notes: notes.trim() || null,
+      nodeRole: (nodeRole || null) as any,
+      nodeAddress: nodeAddress ? Number(nodeAddress) : null,
+      canIdOffset: canIdOffset ? Number(canIdOffset) : null,
+      functionBlockOverride: fbOverride.trim() || null,
+    });
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete instance "${instance.name}"? This will also delete all its signals and cannot be undone.`)) return;
-    setDeleting(true);
-    try {
-      await del.mutateAsync({ id: instance.id });
-      onDeleted();
-    } finally {
-      setDeleting(false);
-    }
+    if (!confirm(`Delete instance "${instance.name}"? This will also delete all its signals.`)) return;
+    await del.mutateAsync({ id: instance.id });
+    onDeleted();
   }
 
-  const networkLabel = network
-    ? [network.protocol, network.nodeAddress != null ? `Node ${network.nodeAddress}` : null, network.description]
-        .filter(Boolean).join(" · ")
-    : "—";
+  const isCan = network && ["CANBUS", "CANOPEN", "J1939"].includes(network.protocol);
+  const isEthernet = network && ETHERNET_PROTOCOL_SET.has(network.protocol);
 
   return (
     <div className="space-y-6 max-w-lg">
@@ -87,38 +96,85 @@ export function InstanceDetail({ instance, network, onDeleted, onRefresh }: Prop
           )}
         </p>
         {network && (
-          <p className="text-xs text-muted-foreground mt-0.5">Network: {networkLabel}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge variant="outline" className="text-xs">{network.protocol}</Badge>
+            {network.description && <span className="text-xs text-muted-foreground">{network.description}</span>}
+          </div>
         )}
       </div>
 
       <form onSubmit={handleSave} className="space-y-4">
-        <div className="space-y-1.5">
-          <Label>Instance name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} required />
+        {/* Identity */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Instance Name *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} required className="h-8 text-sm" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Tag</Label>
+            <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="e.g. P01" className="h-8 text-sm" />
+          </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label>Tag <span className="text-muted-foreground text-xs">(optional)</span></Label>
-          <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="e.g. P01" />
+        {/* Bus node settings */}
+        {network && (
+          <div className="rounded-md border p-3 space-y-3 bg-muted/20">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Bus Node Settings</span>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Role</Label>
+                <select
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+                  value={nodeRole}
+                  onChange={(e) => setNodeRole(e.target.value)}
+                >
+                  <option value="">—</option>
+                  {NETWORK_NODE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Node Address</Label>
+                <Input
+                  inputMode="numeric"
+                  value={nodeAddress}
+                  onChange={(e) => setNodeAddress(e.target.value)}
+                  placeholder="e.g. 1"
+                  className="h-8 text-sm tabular-nums"
+                />
+              </div>
+              {isCan && (
+                <div className="space-y-1">
+                  <Label className="text-xs">CAN ID Offset</Label>
+                  <Input
+                    inputMode="numeric"
+                    value={canIdOffset}
+                    onChange={(e) => setCanIdOffset(e.target.value)}
+                    placeholder="0"
+                    className="h-8 text-sm tabular-nums"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Code gen */}
+        <div className="space-y-1">
+          <Label className="text-xs">Function Block Override</Label>
+          <Input value={fbOverride} onChange={(e) => setFbOverride(e.target.value)} placeholder="Optional" className="h-8 text-sm" />
         </div>
 
-        <div className="space-y-1.5">
-          <Label>Notes</Label>
-          <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <div className="space-y-1">
+          <Label className="text-xs">Notes</Label>
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-8 text-sm" />
         </div>
 
         <div className="flex items-center gap-2">
-          <Button type="submit" disabled={saving || !name.trim()}>
-            {saving ? "Saving…" : "Save"}
+          <Button type="submit" size="sm" disabled={update.isPending || !name.trim()}>
+            {update.isPending ? "Saving…" : "Save"}
           </Button>
-
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={deleting}
-            onClick={handleDelete}
-          >
-            {deleting ? "Deleting…" : "Delete instance"}
+          <Button type="button" size="sm" variant="destructive" disabled={del.isPending} onClick={handleDelete}>
+            {del.isPending ? "Deleting…" : "Delete"}
           </Button>
         </div>
       </form>
