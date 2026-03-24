@@ -64,7 +64,12 @@ const plcInclude = {
       protocols: { select: { protocol: true } },
     },
   },
-  buses: { include: busInclude, orderBy: { protocol: "asc" as const } },
+  busNodes: {
+    include: {
+      bus: { include: busInclude },
+    },
+    orderBy: { createdAt: "asc" as const },
+  },
   carriers: {
     where: { busId: null },
     include: carrierInclude,
@@ -120,12 +125,11 @@ export const projectHardwareRouter = createTRPCRouter({
         },
       };
 
-      const [plcs, networks] = await Promise.all([
+      const [rawPlcs, standaloneBuses] = await Promise.all([
         db.plc.findMany({
           where: { projectId: input.projectId },
           include: {
             ...plcInclude,
-            buses: { include: fullBusInclude, orderBy: { protocol: "asc" } },
             carriers: {
               where: { busId: null },
               include: {
@@ -138,15 +142,45 @@ export const projectHardwareRouter = createTRPCRouter({
           },
           orderBy: { name: "asc" },
         }),
-        // Project-level networks not owned by any PLC
+        // Standalone buses (no BusNode connections to any PLC)
         db.bus.findMany({
-          where: { projectId: input.projectId, plcId: null },
+          where: {
+            projectId: input.projectId,
+            nodes: { none: { plcId: { not: null } } },
+          },
           include: fullBusInclude,
           orderBy: { protocol: "asc" },
         }),
       ]);
 
-      return { plcs, networks };
+      // Transform: build buses array from busNodes for each PLC
+      const plcs = rawPlcs.map((plc) => ({
+        ...plc,
+        buses: plc.busNodes
+          .filter((bn) => bn.bus)
+          .map((bn) => bn.bus!)
+          // Fetch full bus data with nodes/carriers/instances
+      }));
+
+      // Re-fetch the connected buses with full includes
+      const plcBusIds = new Set(rawPlcs.flatMap((p) => p.busNodes.filter((bn) => bn.bus).map((bn) => bn.bus!.id)));
+      const connectedBuses = plcBusIds.size > 0
+        ? await db.bus.findMany({
+            where: { id: { in: [...plcBusIds] } },
+            include: fullBusInclude,
+          })
+        : [];
+      const busMap = new Map(connectedBuses.map((b) => [b.id, b]));
+
+      const plcsWithBuses = rawPlcs.map((plc) => {
+        const { busNodes, ...rest } = plc;
+        const buses = busNodes
+          .map((bn) => bn.bus ? busMap.get(bn.bus.id) : undefined)
+          .filter((b): b is NonNullable<typeof b> => b != null);
+        return { ...rest, buses };
+      });
+
+      return { plcs: plcsWithBuses, networks: standaloneBuses };
     }),
 
   // ── Project approvals (for module filter) ────────────────────────────────
