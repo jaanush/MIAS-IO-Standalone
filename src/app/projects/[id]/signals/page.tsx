@@ -1122,7 +1122,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
             functionBlockOverride: inst.functionBlockOverride ?? null,
             busProtocol: inst.component.busProtocol ?? null,
             busId: inst.busId ?? null,
-            networkLabel: net ? `${net.plc?.name ?? "Project"} — ${net.description ?? net.protocol}` : null,
+            networkLabel: net ? `${net.protocol} — ${net.description ?? net.protocol}` : null,
             rows: [],
             flags: [],
           });

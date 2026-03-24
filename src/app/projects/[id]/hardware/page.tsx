@@ -202,7 +202,7 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
 
         {selectedIpNetwork && (
           <IpNetworkDetail
-            network={selectedIpNetwork as any}
+            network={selectedIpNetwork!}
             projectId={projectId}
             onRefresh={() => { refresh(); utils.projectHardware.ipNetworkList.invalidate(); }}
             onDeleted={() => { setSelected(null); refresh(); utils.projectHardware.ipNetworkList.invalidate(); }}

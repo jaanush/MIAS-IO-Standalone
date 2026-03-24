@@ -183,7 +183,7 @@ export function ProjectBusConfigDialog({ open, onClose, signal, networks, onSave
               <option value={NONE}>— select network —</option>
               {networks.map((n) => (
                 <option key={n.id} value={n.id}>
-                  {n.plc?.name ?? "Project"} / {n.protocol}{n.description ? ` (${n.description})` : ""}
+                  {n.protocol}{n.description ? ` (${n.description})` : ""}
                 </option>
               ))}
             </select>

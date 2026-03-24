@@ -34,24 +34,28 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           catalog: {
             select: { articleNumber: true, vendorName: true, description: true, codesysDeviceId: true },
           },
-          buses: {
+          busNodes: {
             select: {
-              id: true,
-              protocol: true,
-              role: true,
-              nodeAddress: true,
-              description: true,
-              ipAddress: true,
-              ipPort: true,
-              baudRateKbit: true,
-              baudRateBps: true,
-              serialParity: true,
-              serialStopBits: true,
-              canMode: true,
-              canHeartbeatMs: true,
-              canSyncPeriodMs: true,
-              cyclePeriodMs: true,
-              ioCardId: true,
+              bus: {
+                select: {
+                  id: true,
+                  protocol: true,
+                  role: true,
+                  nodeAddress: true,
+                  description: true,
+                  ipAddress: true,
+                  ipPort: true,
+                  baudRateKbit: true,
+                  baudRateBps: true,
+                  serialParity: true,
+                  serialStopBits: true,
+                  canMode: true,
+                  canHeartbeatMs: true,
+                  canSyncPeriodMs: true,
+                  cyclePeriodMs: true,
+                  ioCardId: true,
+                },
+              },
             },
           },
           carriers: {
@@ -457,7 +461,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       catalog: plc.catalog
         ? { articleNumber: plc.catalog.articleNumber, manufacturer: plc.catalog.vendorName, description: plc.catalog.description, codesysDeviceId: plc.catalog.codesysDeviceId }
         : null,
-      networks: plc.buses.map((n) => ({
+      networks: plc.busNodes.map((bn) => bn.bus).filter(Boolean).map((n) => ({
         id: n.id,
         protocol: n.protocol,
         role: n.role,

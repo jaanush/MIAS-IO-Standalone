@@ -661,7 +661,6 @@ model Plc {
   project  Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   catalog  DeviceCatalog? @relation(fields: [catalogId], references: [id], onDelete: SetNull)
   creator  User?          @relation("PlcCreatedBy", fields: [createdBy], references: [id])
-  buses    Bus[]
   carriers IoCarrier[]
   ports        PlcPort[]
   busNodes     BusNode[]
@@ -695,7 +694,6 @@ model Bus {
   id          Int         @id @default(autoincrement())
   projectId   Int         @map("project_id")
   ipNetworkId Int?        @map("ip_network_id")   // set for buses running over IP (MODBUS_TCP, PROFINET, etc.)
-  plcId       Int?        @map("plc_id")           // legacy: PLC that originally owned this bus
   ioCardId    Int?        @map("io_card_id")       // hosted by this card (providesNetwork)
   protocol    BusProtocol
   role        NetworkRole
@@ -725,7 +723,6 @@ model Bus {
 
   project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   ipNetwork    IpNetwork?    @relation(fields: [ipNetworkId], references: [id], onDelete: SetNull)
-  plc          Plc?          @relation(fields: [plcId], references: [id], onDelete: SetNull)
   ioCard       IoCard?       @relation("NetworkHostCard", fields: [ioCardId], references: [id])
   carriers     IoCarrier[]
   busSignals   BusSignal[]

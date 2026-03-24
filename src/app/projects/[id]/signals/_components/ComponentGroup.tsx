@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight, Unlink, RotateCcw, ExternalLink, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type NetworkOption = { id: number; protocol: string; description: string | null; plc: { name: string } | null };
+type NetworkOption = { id: number; protocol: string; description: string | null };
 
 type ComponentGroupProps = {
   instanceId: number | null;
@@ -312,7 +312,7 @@ export function ComponentGroup({
                       <option value="">None</option>
                       {networks.map((n) => (
                         <option key={n.id} value={n.id}>
-                          {n.plc?.name ?? "Project"} — {n.description ?? n.protocol}
+                          {n.protocol} — {n.description ?? n.protocol}
                         </option>
                       ))}
                     </select>

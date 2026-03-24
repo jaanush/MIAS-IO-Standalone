@@ -915,7 +915,7 @@ export const signalRouter = createTRPCRouter({
           projectId: input.projectId,
           ...(input.protocol ? { protocol: input.protocol } : {}),
         },
-        select: { id: true, protocol: true, description: true, plc: { select: { name: true } } },
+        select: { id: true, protocol: true, description: true },
         orderBy: [{ protocol: "asc" }],
       })
     ),

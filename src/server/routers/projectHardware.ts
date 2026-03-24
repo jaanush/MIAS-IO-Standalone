@@ -188,7 +188,7 @@ export const projectHardwareRouter = createTRPCRouter({
       const busMap = new Map(connectedBuses.map((b) => [b.id, b]));
 
       const plcsWithBuses = rawPlcs.map((plc) => {
-        const { busNodes, buses: _legacyBuses, ...rest } = plc as any;
+        const { busNodes, ...rest } = plc;
         // Find buses connected to this PLC (direct or via carrier)
         const plcBusIds = [...busToPlcIds.entries()]
           .filter(([, plcIds]) => plcIds.has(plc.id))
