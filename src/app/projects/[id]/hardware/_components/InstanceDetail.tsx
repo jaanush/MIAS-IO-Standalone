@@ -121,19 +121,21 @@ export function InstanceDetail({ instance, network, onDeleted, onRefresh }: Prop
           <div className="rounded-md border p-3 space-y-3 bg-muted/20">
             <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Bus Node Settings</span>
             <div className="grid grid-cols-2 gap-3">
+              {!isCan && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Role</Label>
+                  <select
+                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    value={nodeRole}
+                    onChange={(e) => setNodeRole(e.target.value)}
+                  >
+                    <option value="">—</option>
+                    {NETWORK_NODE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="space-y-1">
-                <Label className="text-xs">Role</Label>
-                <select
-                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
-                  value={nodeRole}
-                  onChange={(e) => setNodeRole(e.target.value)}
-                >
-                  <option value="">—</option>
-                  {NETWORK_NODE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Node Address</Label>
+                <Label className="text-xs">{isCan ? "Node ID" : "Node Address"}</Label>
                 <Input
                   inputMode="numeric"
                   value={nodeAddress}

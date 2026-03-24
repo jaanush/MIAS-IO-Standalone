@@ -125,6 +125,7 @@ export function NetworkDetail({ network, projectId, onRefresh }: Props) {
       <ConnectedNodesSection
         network={network}
         projectId={projectId}
+        isCan={isCan}
         onRefresh={onRefresh}
       />
 
@@ -148,10 +149,12 @@ export function NetworkDetail({ network, projectId, onRefresh }: Props) {
 function ConnectedNodesSection({
   network,
   projectId,
+  isCan,
   onRefresh,
 }: {
   network: Network;
   projectId: number;
+  isCan: boolean;
   onRefresh: () => void;
 }) {
   const upsertNode = trpc.projectHardware.busNodeUpsert.useMutation();
@@ -243,8 +246,9 @@ function ConnectedNodesSection({
             <thead>
               <tr className="border-b bg-muted/40 text-left text-xs">
                 <th className="px-3 py-1.5 font-medium">Device</th>
-                <th className="px-3 py-1.5 font-medium w-24">Role</th>
-                <th className="px-3 py-1.5 font-medium w-20">Node Addr</th>
+                {!isCan && <th className="px-3 py-1.5 font-medium w-24">Role</th>}
+                <th className="px-3 py-1.5 font-medium w-20">{isCan ? "Node ID" : "Node Addr"}</th>
+                {isCan && <th className="px-3 py-1.5 font-medium w-20">CAN Offset</th>}
                 <th className="px-3 py-1.5 font-medium w-10" />
               </tr>
             </thead>
@@ -267,24 +271,26 @@ function ConnectedNodesSection({
                         <span className="truncate">{deviceName}</span>
                       </span>
                     </td>
-                    <td className="px-3 py-1.5">
-                      <select
-                        className="h-7 w-full rounded border border-input bg-background px-1.5 text-xs"
-                        value={node.role}
-                        onChange={(e) => upsertNode.mutate({
-                          busId: network.id,
-                          plcId: node.plc?.id ?? undefined,
-                          carrierId: node.carrier?.id ?? undefined,
-                          role: e.target.value as any,
-                          nodeAddress: node.nodeAddress,
-                          ipAddress: node.ipAddress,
-                        })}
-                      >
-                        {NETWORK_NODE_ROLES.map((r) => (
-                          <option key={r} value={r}>{r}</option>
-                        ))}
-                      </select>
-                    </td>
+                    {!isCan && (
+                      <td className="px-3 py-1.5">
+                        <select
+                          className="h-7 w-full rounded border border-input bg-background px-1.5 text-xs"
+                          value={node.role}
+                          onChange={(e) => upsertNode.mutate({
+                            busId: network.id,
+                            plcId: node.plc?.id ?? undefined,
+                            carrierId: node.carrier?.id ?? undefined,
+                            role: e.target.value as any,
+                            nodeAddress: node.nodeAddress,
+                            ipAddress: node.ipAddress,
+                          })}
+                        >
+                          {NETWORK_NODE_ROLES.map((r) => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
                     <td className="px-3 py-1.5">
                       <Input
                         inputMode="numeric"
@@ -306,12 +312,13 @@ function ConnectedNodesSection({
                         }}
                       />
                     </td>
+                    {isCan && <td className="px-3 py-1.5" />}
                     <td className="px-3 py-1.5">
                       <button
                         type="button"
                         className="text-muted-foreground hover:text-destructive"
-                        title="Remove from network"
-                        onClick={() => { if (confirm("Remove this node from the network?")) deleteNode.mutate({ id: node.id }); }}
+                        title="Remove from bus"
+                        onClick={() => { if (confirm("Remove this node from the bus?")) deleteNode.mutate({ id: node.id }); }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -329,23 +336,25 @@ function ConnectedNodesSection({
                       <span className="text-[10px] text-muted-foreground">{inst.component.name}</span>
                     </span>
                   </td>
-                  <td className="px-3 py-1.5">
-                    <select
-                      className="h-7 w-full rounded border border-input bg-background px-1.5 text-xs"
-                      value={inst.nodeRole ?? ""}
-                      onChange={(e) => instanceUpdate.mutate({
-                        id: inst.id,
-                        name: inst.name,
-                        nodeRole: (e.target.value || null) as any,
-                        nodeAddress: inst.nodeAddress,
-                      })}
-                    >
-                      <option value="">—</option>
-                      {NETWORK_NODE_ROLES.map((r) => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                  </td>
+                  {!isCan && (
+                    <td className="px-3 py-1.5">
+                      <select
+                        className="h-7 w-full rounded border border-input bg-background px-1.5 text-xs"
+                        value={inst.nodeRole ?? ""}
+                        onChange={(e) => instanceUpdate.mutate({
+                          id: inst.id,
+                          name: inst.name,
+                          nodeRole: (e.target.value || null) as any,
+                          nodeAddress: inst.nodeAddress,
+                        })}
+                      >
+                        <option value="">—</option>
+                        {NETWORK_NODE_ROLES.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    </td>
+                  )}
                   <td className="px-3 py-1.5">
                     <Input
                       inputMode="numeric"
@@ -365,6 +374,28 @@ function ConnectedNodesSection({
                       }}
                     />
                   </td>
+                  {isCan && (
+                    <td className="px-3 py-1.5">
+                      <Input
+                        inputMode="numeric"
+                        className="h-7 w-full text-xs px-2 tabular-nums"
+                        defaultValue={inst.canIdOffset ?? ""}
+                        placeholder="0"
+                        onBlur={(e) => {
+                          const v = e.target.value ? Number(e.target.value) : null;
+                          if (v !== inst.canIdOffset) {
+                            instanceUpdate.mutate({
+                              id: inst.id,
+                              name: inst.name,
+                              nodeRole: inst.nodeRole as any,
+                              nodeAddress: inst.nodeAddress,
+                              canIdOffset: v,
+                            });
+                          }
+                        }}
+                      />
+                    </td>
+                  )}
                   <td className="px-3 py-1.5">
                     <button
                       type="button"
