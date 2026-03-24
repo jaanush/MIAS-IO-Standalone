@@ -6,6 +6,10 @@
  * signal set for a component, including all inherited signals.
  */
 import { db } from "@/lib/db";
+import type { PrismaClient } from "../../../prisma/generated/prisma/client/client";
+
+// Allow passing a transaction client or default to global db
+type DbClient = PrismaClient | Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 
 type ComponentSignalRow = {
   id: number;
@@ -85,17 +89,17 @@ export async function getEffectiveSignals(componentId: number): Promise<Resolved
  * Get all component IDs that inherit from the given component
  * (the component itself + all descendants in the hierarchy).
  */
-export async function getComponentAndDescendants(componentId: number): Promise<number[]> {
+export async function getComponentAndDescendants(componentId: number, tx: DbClient = db): Promise<number[]> {
   const result: number[] = [componentId];
   let frontier = [componentId];
 
   while (frontier.length > 0) {
-    const children = await db.hardwareComponent.findMany({
+    const children = await (tx as any).hardwareComponent.findMany({
       where: { parentId: { in: frontier } },
       select: { id: true },
     });
     if (children.length === 0) break;
-    const childIds = children.map((c) => c.id);
+    const childIds = children.map((c: { id: number }) => c.id);
     result.push(...childIds);
     frontier = childIds;
     if (result.length > 1000) break; // safety
@@ -111,8 +115,9 @@ export async function getComponentAndDescendants(componentId: number): Promise<n
  * Creates InstanceSignal + Signal + BusSignal + DiscreteSignal/AnalogSignal
  * for each instance that doesn't already have one for this ComponentSignal.
  */
-export async function syncNewSignalToInstances(componentSignalId: number): Promise<number> {
-  const cs = await db.componentSignal.findUniqueOrThrow({
+export async function syncNewSignalToInstances(componentSignalId: number, tx: DbClient = db): Promise<number> {
+  const p = tx as any; // Prisma transaction client
+  const cs = await p.componentSignal.findUniqueOrThrow({
     where: { id: componentSignalId },
     include: { plcDataTypeCatalog: { select: { code: true } } },
   });
@@ -120,10 +125,10 @@ export async function syncNewSignalToInstances(componentSignalId: number): Promi
   if (!cs.active) return 0;
 
   // Find all components that inherit this signal (self + descendants)
-  const componentIds = await getComponentAndDescendants(cs.componentId);
+  const componentIds = await getComponentAndDescendants(cs.componentId, tx);
 
   // Find all instances of those components that don't already have an InstanceSignal for this CS
-  const instances = await db.componentInstance.findMany({
+  const instances = await p.componentInstance.findMany({
     where: { componentId: { in: componentIds } },
     select: {
       id: true,
@@ -148,7 +153,7 @@ export async function syncNewSignalToInstances(componentSignalId: number): Promi
     const csOrigin = (cs.origin as string | null) ?? protocol;
     const canOffset = inst.canIdOffset ?? 0;
 
-    const instanceSignal = await db.instanceSignal.create({
+    const instanceSignal = await p.instanceSignal.create({
       data: {
         instanceId: inst.id,
         componentSignalId: cs.id,
@@ -156,7 +161,7 @@ export async function syncNewSignalToInstances(componentSignalId: number): Promi
       },
     });
 
-    await db.signal.create({
+    await p.signal.create({
       data: {
         projectId: inst.projectId,
         instanceSignalId: instanceSignal.id,
@@ -253,9 +258,10 @@ export async function syncNewSignalToInstances(componentSignalId: number): Promi
  * Remove a ComponentSignal from all existing instances.
  * Deletes InstanceSignals (and their linked Signals cascade via schema).
  */
-export async function removeSignalFromInstances(componentSignalId: number): Promise<number> {
+export async function removeSignalFromInstances(componentSignalId: number, tx: DbClient = db): Promise<number> {
+  const p = tx as any;
   // Find all instance signals referencing this component signal
-  const instanceSignals = await db.instanceSignal.findMany({
+  const instanceSignals = await p.instanceSignal.findMany({
     where: { componentSignalId },
     select: { id: true, signals: { select: { id: true } } },
   });
@@ -263,38 +269,16 @@ export async function removeSignalFromInstances(componentSignalId: number): Prom
   if (instanceSignals.length === 0) return 0;
 
   // Collect all Signal IDs to delete
-  const signalIds = instanceSignals.flatMap((is) => is.signals.map((s) => s.id));
+  const signalIds = instanceSignals.flatMap((is: any) => is.signals.map((s: any) => s.id));
 
   // Delete project signals — DB ON DELETE CASCADE handles child tables
-  // (discrete_signal, analog_signal, bus_signal, and their alarms)
   if (signalIds.length > 0) {
-    await db.signal.deleteMany({ where: { id: { in: signalIds } } });
+    await p.signal.deleteMany({ where: { id: { in: signalIds } } });
   }
 
   // Delete the instance signals
-  await db.instanceSignal.deleteMany({ where: { componentSignalId } });
+  await p.instanceSignal.deleteMany({ where: { componentSignalId } });
 
   return instanceSignals.length;
 }
 
-/**
- * Get the ancestor chain for a component (self → parent → grandparent → ...).
- */
-export async function getAncestorChain(componentId: number): Promise<{ id: number; name: string }[]> {
-  const chain: { id: number; name: string }[] = [];
-  let currentId: number | null = componentId;
-
-  while (currentId != null) {
-    const comp: { id: number; name: string; parentId: number | null } | null =
-      await db.hardwareComponent.findUnique({
-        where: { id: currentId },
-        select: { id: true, name: true, parentId: true },
-      });
-    if (!comp) break;
-    chain.push({ id: comp.id, name: comp.name });
-    currentId = comp.parentId;
-    if (chain.length > 10) break;
-  }
-
-  return chain;
-}

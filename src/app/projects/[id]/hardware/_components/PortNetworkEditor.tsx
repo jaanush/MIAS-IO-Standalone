@@ -55,12 +55,6 @@ export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierI
   });
   const { data: ipNetworks = [] } = trpc.projectHardware.ipNetworkList.useQuery({ projectId });
 
-  // Bus nodes for this device — to know which buses it's already on
-  const { data: allBusNodes = [] } = trpc.projectHardware.busNodes.useQuery(
-    { busId: 0 }, // dummy — we'll filter client-side
-    { enabled: false } // disabled — we'll use device-level data instead
-  );
-
   const [ip, setIp] = useState(port?.ipAddress ?? "");
   const [label, setLabel] = useState(port?.label ?? "");
   const [networkId, setNetworkId] = useState<string>(String(port?.ipNetworkId ?? ""));

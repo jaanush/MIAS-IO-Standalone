@@ -511,14 +511,16 @@ export const signalRouter = createTRPCRouter({
   bulkDelete: protectedProcedure
     .input(z.object({ ids: z.array(z.number().int()).min(1) }))
     .mutation(async ({ input }) => {
-      // Delete child tables first (Prisma doesn't cascade deleteMany through relations)
-      await db.discreteAlarm.deleteMany({ where: { signal: { signalId: { in: input.ids } } } });
-      await db.analogAlarm.deleteMany({ where: { signal: { signalId: { in: input.ids } } } });
-      await db.discreteSignal.deleteMany({ where: { signalId: { in: input.ids } } });
-      await db.analogSignal.deleteMany({ where: { signalId: { in: input.ids } } });
-      await db.busSignal.deleteMany({ where: { signalId: { in: input.ids } } });
-      const result = await db.signal.deleteMany({ where: { id: { in: input.ids } } });
-      return { count: result.count };
+      return db.$transaction(async (tx) => {
+        // Delete child tables first (Prisma doesn't cascade deleteMany through relations)
+        await tx.discreteAlarm.deleteMany({ where: { signal: { signalId: { in: input.ids } } } });
+        await tx.analogAlarm.deleteMany({ where: { signal: { signalId: { in: input.ids } } } });
+        await tx.discreteSignal.deleteMany({ where: { signalId: { in: input.ids } } });
+        await tx.analogSignal.deleteMany({ where: { signalId: { in: input.ids } } });
+        await tx.busSignal.deleteMany({ where: { signalId: { in: input.ids } } });
+        const result = await tx.signal.deleteMany({ where: { id: { in: input.ids } } });
+        return { count: result.count };
+      });
     }),
 
   bulkUpdate: protectedProcedure
@@ -1235,14 +1237,16 @@ export const signalRouter = createTRPCRouter({
   componentInstanceDelete: protectedProcedure
     .input(z.object({ instanceId: z.number().int() }))
     .mutation(async ({ input }) => {
-      // Null out instanceSignalId on all signals bound to this instance's InstanceSignals
-      await db.signal.updateMany({
-        where: { instanceSignal: { instanceId: input.instanceId } },
-        data: { instanceSignalId: null },
+      await db.$transaction(async (tx) => {
+        // Null out instanceSignalId on all signals bound to this instance's InstanceSignals
+        await tx.signal.updateMany({
+          where: { instanceSignal: { instanceId: input.instanceId } },
+          data: { instanceSignalId: null },
+        });
+        // Delete InstanceSignal rows, then the ComponentInstance (cascade not guaranteed)
+        await tx.instanceSignal.deleteMany({ where: { instanceId: input.instanceId } });
+        await tx.componentInstance.delete({ where: { id: input.instanceId } });
       });
-      // Delete InstanceSignal rows, then the ComponentInstance (cascade not guaranteed)
-      await db.instanceSignal.deleteMany({ where: { instanceId: input.instanceId } });
-      await db.componentInstance.delete({ where: { id: input.instanceId } });
       return { ok: true };
     }),
 

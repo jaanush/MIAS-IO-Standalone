@@ -1015,15 +1015,17 @@ export const projectHardwareRouter = createTRPCRouter({
   instanceDelete: protectedProcedure
     .input(z.object({ id: z.number().int() }))
     .mutation(async ({ input }) => {
-      // Signal.instanceSignalId has no cascade — delete signals explicitly first
-      const instanceSignals = await db.instanceSignal.findMany({
-        where: { instanceId: input.id },
-        select: { id: true },
+      await db.$transaction(async (tx) => {
+        // Signal.instanceSignalId has no cascade — delete signals explicitly first
+        const instanceSignals = await tx.instanceSignal.findMany({
+          where: { instanceId: input.id },
+          select: { id: true },
+        });
+        const instanceSignalIds = instanceSignals.map((is) => is.id);
+        await tx.signal.deleteMany({ where: { instanceSignalId: { in: instanceSignalIds } } });
+        // InstanceSignal rows cascade-delete with the instance
+        await tx.componentInstance.delete({ where: { id: input.id } });
       });
-      const instanceSignalIds = instanceSignals.map((is) => is.id);
-      await db.signal.deleteMany({ where: { instanceSignalId: { in: instanceSignalIds } } });
-      // InstanceSignal rows cascade-delete with the instance
-      await db.componentInstance.delete({ where: { id: input.id } });
     }),
 
   // ── Hardware identifier rebinding ───────────────────────────────────────

@@ -354,7 +354,7 @@ export const componentsRouter = createTRPCRouter({
             const key = `${s.tagSuffix ?? ""}|${s.ioType}|${s.origin ?? ""}`;
             if (!commonMatchKeys.has(key)) continue;
             // Clean up instance signals referencing this component signal
-            await removeSignalFromInstances(s.id);
+            await removeSignalFromInstances(s.id, tx);
             await tx.componentDiscreteAlarm.deleteMany({ where: { componentSignalId: s.id } });
             await tx.componentAnalogAlarm.deleteMany({ where: { componentSignalId: s.id } });
             await tx.componentSignal.delete({ where: { id: s.id } });
