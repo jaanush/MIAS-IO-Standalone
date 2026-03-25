@@ -7,6 +7,14 @@ import { CodesysTaskPanel } from "../details/_components/CodesysTaskPanel";
 import { Badge } from "@/components/ui/badge";
 import { Network } from "lucide-react";
 
+/** Shape of the JSON metadata blob stored on CodesysSession. */
+interface SessionMetadata {
+  projectName?: string;
+  gvlCount?: number;
+  pouCount?: number;
+  dutCount?: number;
+}
+
 export default function RemotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const projectId = Number(id);
@@ -40,7 +48,9 @@ export default function RemotePage({ params }: { params: Promise<{ id: string }>
           </div>
         ) : (
           <div className="rounded-md border divide-y">
-            {sessions.map((s) => (
+            {sessions.map((s) => {
+              const meta = s.metadata as SessionMetadata | null;
+              return (
               <div key={s.id} className="px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative">
@@ -59,14 +69,14 @@ export default function RemotePage({ params }: { params: Promise<{ id: string }>
                       Project Open
                     </Badge>
                   )}
-                  {(s as any).metadata?.projectName && (
+                  {meta?.projectName && (
                     <span className="text-[10px] text-muted-foreground font-mono">
-                      {(s as any).metadata.projectName}
+                      {meta.projectName}
                     </span>
                   )}
-                  {(s as any).metadata && (
+                  {meta && (
                     <span className="text-[10px] text-muted-foreground">
-                      GVL:{(s as any).metadata.gvlCount ?? 0} POU:{(s as any).metadata.pouCount ?? 0} DUT:{(s as any).metadata.dutCount ?? 0}
+                      GVL:{meta.gvlCount ?? 0} POU:{meta.pouCount ?? 0} DUT:{meta.dutCount ?? 0}
                     </span>
                   )}
                   <span className="text-[10px] text-muted-foreground">
@@ -74,7 +84,8 @@ export default function RemotePage({ params }: { params: Promise<{ id: string }>
                   </span>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

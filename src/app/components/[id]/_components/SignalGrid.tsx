@@ -20,6 +20,8 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { trpc } from "@/trpc/client";
+import type { AppRouter } from "@/server/routers/_app";
+import type { inferRouterInputs } from "@trpc/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +65,8 @@ export type AnalogAlarmRow = {
 };
 
 type BusRawDataType = "BOOL"|"BYTE"|"WORD"|"DWORD"|"LWORD"|"INT"|"DINT"|"LINT"|"UINT"|"UDINT"|"ULINT"|"REAL"|"LREAL";
+
+type BulkPatchData = inferRouterInputs<AppRouter>["components"]["signalBulkPatch"]["data"];
 
 export type SignalRowState = {
   id?: number;
@@ -1267,7 +1271,7 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
             const { discreteAlarms: _da, analogAlarms: _aa, id: _id, channelOffset: _co, ...patchData } = diff as Record<string, unknown>;
             await bulkPatch.mutateAsync({
               ids: otherIds,
-              data: patchData as any,
+              data: patchData as BulkPatchData,
             });
             for (const otherKey of Array.from(rowSelection).filter((k) => k !== key)) {
               setLocalEdits((prev) => { const m = new Map(prev); m.delete(otherKey); return m; });

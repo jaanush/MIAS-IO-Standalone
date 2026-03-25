@@ -11,19 +11,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ChevronDown, ChevronRight, RefreshCw, X, Eye } from "lucide-react";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/routers/_app";
 
-type Task = {
-  id: string;
-  type: string;
-  status: "QUEUED" | "CLAIMED" | "SUCCESS" | "FAILURE";
-  params: unknown;
-  resultLog: string[];
-  resultError: string | null;
-  resultData: unknown;
-  claimedAt: Date | null;
-  completedAt: Date | null;
-  createdAt: Date;
-};
+/** Structured result data stored in CodesysTask.resultData (Prisma Json field). */
+interface TaskResultData {
+  changes?: { applied: number; skipped: number; warnings: number };
+  devices?: Array<{ name: string; ip?: string; depth?: number }>;
+  ioMapping?: Array<{ name: string; parent?: string; channels?: Array<{ id: string }> }>;
+  [key: string]: unknown;
+}
+
+type Task = inferRouterOutputs<AppRouter>["codesys"]["taskList"][number];
 
 const STATUS_BADGE: Record<Task["status"], string> = {
   QUEUED: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -248,7 +247,7 @@ export function CodesysTaskPanel({ projectId }: { projectId: number }) {
 }
 
 function TaskResultDialog({ task, onClose }: { task: Task; onClose: () => void }) {
-  const data = task.resultData as any;
+  const data = task.resultData as TaskResultData | null;
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -287,7 +286,7 @@ function TaskResultDialog({ task, onClose }: { task: Task; onClose: () => void }
             <div className="space-y-1">
               <h3 className="text-sm font-semibold text-muted-foreground">Device Tree</h3>
               <div className="rounded border bg-muted/20 p-3 text-xs font-mono space-y-0.5 max-h-[200px] overflow-y-auto">
-                {data.devices.map((dev: any, i: number) => (
+                {data.devices.map((dev, i) => (
                   <div key={i} style={{ paddingLeft: (dev.depth ?? 0) * 16 }}>
                     <span className="text-foreground">{dev.name}</span>
                     {dev.ip && <span className="text-muted-foreground ml-2">{dev.ip}</span>}
@@ -311,12 +310,12 @@ function TaskResultDialog({ task, onClose }: { task: Task; onClose: () => void }
                     </tr>
                   </thead>
                   <tbody>
-                    {data.ioMapping.map((mod: any, i: number) => (
+                    {data.ioMapping.map((mod, i) => (
                       <tr key={i} className="border-b last:border-0">
                         <td className="px-2 py-1 font-mono">{mod.name}</td>
                         <td className="px-2 py-1 text-muted-foreground">{mod.parent ?? "—"}</td>
                         <td className="px-2 py-1 font-mono text-muted-foreground">
-                          {mod.channels?.map((ch: any) => ch.id).join(", ") ?? "—"}
+                          {mod.channels?.map((ch) => ch.id).join(", ") ?? "—"}
                         </td>
                       </tr>
                     ))}

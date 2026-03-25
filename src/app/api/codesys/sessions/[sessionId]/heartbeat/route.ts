@@ -65,7 +65,7 @@ export async function POST(
 
   return NextResponse.json({
     status: "ok",
-    tasks: (tasks as any[]).map((t) => ({
+    tasks: tasks.map((t) => ({
       id: t.id,
       projectId: t.project_id,
       type: t.type,

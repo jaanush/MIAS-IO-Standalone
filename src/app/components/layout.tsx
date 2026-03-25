@@ -42,8 +42,8 @@ export default function ComponentsLayout({ children }: { children: React.ReactNo
     const cMap = new Map<number, typeof filtered>();
     const rts: typeof filtered = [];
     for (const c of filtered) {
-      if ((c as any).parent?.id) {
-        const pid = (c as any).parent.id;
+      if (c.parent?.id) {
+        const pid = c.parent.id;
         if (!cMap.has(pid)) cMap.set(pid, []);
         cMap.get(pid)!.push(c);
       } else {
@@ -104,8 +104,8 @@ export default function ComponentsLayout({ children }: { children: React.ReactNo
                         >
                           <span className="text-sm truncate">
                             {c.name}
-                            {(c as any)._count?.children > 0 && (
-                              <span className="ml-1 text-[10px] text-muted-foreground/60">({(c as any)._count.children})</span>
+                            {c._count.children > 0 && (
+                              <span className="ml-1 text-[10px] text-muted-foreground/60">({c._count.children})</span>
                             )}
                           </span>
                           {c.model && (

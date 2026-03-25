@@ -132,7 +132,7 @@ export function GroupComponentsDialog({ open, onClose, onCreated }: Props) {
             </div>
             <div className="flex-1 overflow-y-auto border rounded-md divide-y max-h-[300px]">
               {filtered.map((c) => {
-                const hasParent = !!(c as any).parent?.id;
+                const hasParent = !!c.parent?.id;
                 const isSelected = selected.has(c.id);
                 return (
                   <label
@@ -153,7 +153,7 @@ export function GroupComponentsDialog({ open, onClose, onCreated }: Props) {
                       <div className="text-xs text-muted-foreground truncate">
                         {[c.manufacturer, c.model].filter(Boolean).join(" / ") || "No manufacturer"}
                         {" \u00B7 "}
-                        {(c as any)._count?.signals ?? 0} signals
+                        {c._count.signals} signals
                       </div>
                     </div>
                     {hasParent && (
