@@ -761,12 +761,20 @@ const globalFilterFn: FilterFn<SignalRow> = (row, _colId, filterValue: string) =
   );
 };
 
-/** Text filter: "<empty>" matches null/blank, "!<empty>" matches non-empty, otherwise substring. */
+/** Text filter: "<empty>" matches null/blank, "!<empty>" matches non-empty, "<unbound>" matches hw fields set but no card, otherwise substring. */
 const emptyAwareText: FilterFn<SignalRow> = (row, columnId, filterValue) => {
   const cellValue = String(row.getValue(columnId) ?? "");
   const filter = String(filterValue).trim().toLowerCase();
   if (filter === "<empty>") return cellValue === "";
   if (filter === "!<empty>") return cellValue !== "";
+  if (filter === "<unbound>") {
+    const r = row.original;
+    return r.ioCardId == null && r.hwCabinet != null && r.hwTypeCode != null;
+  }
+  if (filter === "!<unbound>") {
+    const r = row.original;
+    return !(r.ioCardId == null && r.hwCabinet != null && r.hwTypeCode != null);
+  }
   return cellValue.toLowerCase().includes(filter);
 };
 
