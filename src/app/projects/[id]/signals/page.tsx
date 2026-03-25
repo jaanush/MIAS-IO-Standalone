@@ -22,11 +22,12 @@ import type { AppRouter } from "@/server/routers/_app";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Check, X, Trash2, Settings2, Upload, Download, Layers, ChevronUp, ChevronDown, ChevronRight, ChevronsUpDown, Network, Bell, RotateCcw, FileSpreadsheet, FileCode, Columns3, Cpu, GripVertical } from "lucide-react";
+import { Plus, Check, X, Trash2, Settings2, Upload, Download, Layers, ChevronUp, ChevronDown, ChevronRight, ChevronsUpDown, Network, Bell, RotateCcw, FileSpreadsheet, FileCode, Columns3, Cpu, GripVertical, Link2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 import { AddEditSignalDialog } from "./_components/AddEditSignalDialog";
@@ -1251,6 +1252,16 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const signalRevert = trpc.signal.signalRevert.useMutation({
     onSuccess: () => utils.signal.list.invalidate({ projectId }),
   });
+  const rebindSignals = trpc.projectHardware.rebindSignals.useMutation({
+    onSuccess: (result) => {
+      utils.signal.list.invalidate({ projectId });
+      if (result.rebound > 0 || result.unmatched.length > 0) {
+        toast.success(`Rebound ${result.rebound} signal${result.rebound !== 1 ? "s" : ""}${result.unmatched.length > 0 ? `, ${result.unmatched.length} unmatched` : ""}`);
+      } else {
+        toast.info("No unbound signals to rebind");
+      }
+    },
+  });
   const disconnectInstance = trpc.signal.componentInstanceDelete.useMutation({
     onSuccess: () => utils.signal.list.invalidate({ projectId }),
   });
@@ -1512,6 +1523,22 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
             <Layers className="h-4 w-4 mr-1" />
             {grouped ? "Grouped" : "Flat"}
           </Button>
+          {(() => {
+            const unboundCount = signals.filter((s) => s.ioCardId == null && s.hwCabinet != null && s.hwTypeCode != null).length;
+            if (unboundCount === 0) return null;
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950"
+                disabled={rebindSignals.isPending}
+                onClick={() => rebindSignals.mutate({ projectId })}
+              >
+                <Link2 className="h-4 w-4 mr-1" />
+                Rebind {unboundCount} signal{unboundCount !== 1 ? "s" : ""}
+              </Button>
+            );
+          })()}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline">
