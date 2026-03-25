@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SIGNAL_ORIGINS } from "@/lib/enums";
+import { SIGNAL_ORIGINS, type SignalOrigin } from "@/lib/enums";
 
 const NONE = "__none__";
 const sel = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
@@ -64,7 +64,7 @@ export function ProjectHardwareDialog({ projectId, open, signal, onClose, onSave
   function handleSave() {
     update.mutate({
       id: signal.id,
-      origin: origin as any,
+      origin: origin as SignalOrigin,
       ioCardId: isIec ? ioCardId : null,
       channelPosition: isIec && ioCardId ? channelPosition : null,
       cabinetLocation: cabinetLocation || null,

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET } from "@/lib/enums";
+import { NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET, type NetworkNodeRole } from "@/lib/enums";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 import type { ComponentInstance, Bus } from "@/lib/types/hardware";
@@ -49,7 +49,7 @@ export function InstanceDetail({ instance, network, onDeleted, onRefresh }: Prop
       name: name.trim(),
       tag: tag.trim() || null,
       notes: notes.trim() || null,
-      nodeRole: (nodeRole || null) as any,
+      nodeRole: (nodeRole || null) as NetworkNodeRole | null,
       nodeAddress: nodeAddress ? Number(nodeAddress) : null,
       canIdOffset: canIdOffset ? Number(canIdOffset) : null,
       functionBlockOverride: fbOverride.trim() || null,

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BUS_PROTOCOLS, NETWORK_NODE_ROLES, CAN_MODES, SERIAL_PARITY, ETHERNET_PROTOCOL_SET, type BusProtocol } from "@/lib/enums";
+import { BUS_PROTOCOLS, NETWORK_NODE_ROLES, CAN_MODES, SERIAL_PARITY, ETHERNET_PROTOCOL_SET, type BusProtocol, type NetworkRole, type SerialParity, type CanMode, type NetworkNodeRole } from "@/lib/enums";
 
 type Props = {
   open: boolean;
@@ -35,7 +35,7 @@ export function AddNetworkDialog({
 }: Props) {
   const [protocol, setProtocol] = useState<string>("");
   const [description, setDescription] = useState("");
-  const [role, setRole] = useState("MASTER");
+  const [role, setRole] = useState<NetworkRole>("MASTER");
   // Protocol-specific
   const [baudRateKbit, setBaudRateKbit] = useState("");
   const [serialParity, setSerialParity] = useState("");
@@ -46,13 +46,14 @@ export function AddNetworkDialog({
   const [ipPort, setIpPort] = useState("");
   const [cyclePeriodMs, setCyclePeriodMs] = useState("");
   // First node
-  const [firstNodeType, setFirstNodeType] = useState<"plc" | "carrier" | "">(
+  type NodeType = "plc" | "carrier" | "";
+  const [firstNodeType, setFirstNodeType] = useState<NodeType>(
     initialPlcId ? "plc" : initialCarrierId ? "carrier" : ""
   );
   const [firstNodeId, setFirstNodeId] = useState<string>(
     initialPlcId ? String(initialPlcId) : initialCarrierId ? String(initialCarrierId) : ""
   );
-  const [firstNodeRole, setFirstNodeRole] = useState("CLIENT");
+  const [firstNodeRole, setFirstNodeRole] = useState<NetworkNodeRole>("CLIENT");
 
   const { data: hwData } = trpc.projectHardware.getHardware.useQuery({ projectId }, { enabled: open });
   const plcs = hwData?.plcs ?? [];
@@ -92,13 +93,13 @@ export function AddNetworkDialog({
     const net = await createNetwork.mutateAsync({
       projectId,
       protocol: proto,
-      role: role as any,
+      role,
       description: description || null,
       baudRateKbit: baudRateKbit ? Number(baudRateKbit) : null,
-      serialParity: (serialParity || null) as any,
+      serialParity: (serialParity || null) as SerialParity | null,
       serialStopBits: serialStopBits ? Number(serialStopBits) : null,
       ipPort: ipPort ? Number(ipPort) : null,
-      canMode: (canMode || null) as any,
+      canMode: (canMode || null) as CanMode | null,
       canHeartbeatMs: canHeartbeatMs ? Number(canHeartbeatMs) : null,
       canSyncPeriodMs: canSyncPeriodMs ? Number(canSyncPeriodMs) : null,
       cyclePeriodMs: cyclePeriodMs ? Number(cyclePeriodMs) : null,
@@ -110,7 +111,7 @@ export function AddNetworkDialog({
         busId: net.id,
         plcId: firstNodeType === "plc" ? Number(firstNodeId) : undefined,
         carrierId: firstNodeType === "carrier" ? Number(firstNodeId) : undefined,
-        role: firstNodeRole as any,
+        role: firstNodeRole,
       });
     }
 
@@ -153,7 +154,7 @@ export function AddNetworkDialog({
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Network Role</Label>
-                  <Select value={role} onValueChange={setRole}>
+                  <Select value={role} onValueChange={(v) => setRole(v as NetworkRole)}>
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
@@ -255,7 +256,7 @@ export function AddNetworkDialog({
               <div className="rounded-md border p-3 space-y-2 bg-muted/20">
                 <Label className="text-xs font-medium">First Connected Node (optional)</Label>
                 <div className="grid grid-cols-3 gap-2">
-                  <Select value={firstNodeType || "__none__"} onValueChange={(v) => { setFirstNodeType((v === "__none__" ? "" : v) as any); setFirstNodeId(""); }}>
+                  <Select value={firstNodeType || "__none__"} onValueChange={(v) => { setFirstNodeType((v === "__none__" ? "" : v) as NodeType); setFirstNodeId(""); }}>
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
@@ -279,7 +280,7 @@ export function AddNetworkDialog({
                           }
                         </SelectContent>
                       </Select>
-                      <Select value={firstNodeRole} onValueChange={setFirstNodeRole}>
+                      <Select value={firstNodeRole} onValueChange={(v) => setFirstNodeRole(v as NetworkNodeRole)}>
                         <SelectTrigger className="h-8 text-sm">
                           <SelectValue />
                         </SelectTrigger>

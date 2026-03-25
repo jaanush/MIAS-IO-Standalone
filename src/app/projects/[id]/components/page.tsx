@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BUS_PROTOCOLS } from "@/lib/enums";
+import { BUS_PROTOCOLS, type BusProtocol } from "@/lib/enums";
 import { ComponentDetail } from "@/app/components/_components/ComponentDetail";
 
 export default function ProjectComponentsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,10 +35,10 @@ export default function ProjectComponentsPage({ params }: { params: Promise<{ id
   const [showCreate, setShowCreate] = useState(false);
 
   // Build tree: roots and children
-  const roots = components.filter((c) => !(c as any).parent?.id);
+  const roots = components.filter((c) => !c.parent?.id);
   const childrenMap = new Map<number, typeof components>();
   for (const c of components) {
-    const pid = (c as any).parent?.id;
+    const pid = c.parent?.id;
     if (pid) {
       if (!childrenMap.has(pid)) childrenMap.set(pid, []);
       childrenMap.get(pid)!.push(c);
@@ -71,8 +71,8 @@ export default function ProjectComponentsPage({ params }: { params: Promise<{ id
               >
                 <div className="text-sm truncate">
                   {c.name}
-                  {(c._count as any).children > 0 && (
-                    <span className="ml-1 text-[10px] text-muted-foreground/60">({(c._count as any).children})</span>
+                  {c._count.children > 0 && (
+                    <span className="ml-1 text-[10px] text-muted-foreground/60">({c._count.children})</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
@@ -190,7 +190,7 @@ function CreateComponentDialog({ projectId, onClose, onCreated }: {
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button
-              onClick={() => create.mutate({ projectId, name, busProtocol: (busProtocol || null) as any, description: description || null })}
+              onClick={() => create.mutate({ projectId, name, busProtocol: (busProtocol || null) as BusProtocol | null, description: description || null })}
               disabled={!name.trim() || create.isPending}
             >
               {create.isPending ? "Creating..." : "Create"}

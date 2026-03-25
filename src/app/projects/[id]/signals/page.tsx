@@ -353,7 +353,7 @@ function buildPayload(v: EditValues) {
     notes: v.notes || null,
     trigger: v.trigger,
     filterTimeMs: v.filterTimeMs !== "" ? Number(v.filterTimeMs) : null,
-    switchingType: (v.switchingType || null) as any,
+    switchingType: (v.switchingType || null) as "HIGH_SIDE" | "LOW_SIDE" | "BOTH" | null | undefined,
     signalVoltage: v.signalVoltage || null,
     inputTypeId: v.inputTypeId,
     wireConfig: (v.wireConfig || null) as "TWO_WIRE" | "THREE_WIRE" | "FOUR_WIRE" | null | undefined,

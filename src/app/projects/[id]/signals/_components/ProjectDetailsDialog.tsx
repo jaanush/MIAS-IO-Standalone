@@ -19,12 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { SignalDirection, TriggerType, SwitchingType, WireConfig } from "@/lib/enums";
 
 const NONE = "__none__";
 const sel = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
 
 type SignalRow = {
   id: number;
+  tag?: string | null;
+  direction?: string | null;
+  revision?: string | number | null;
   signalType: "DISCRETE" | "ANALOG";
   discreteSignal?: {
     trigger?: string;
@@ -83,8 +87,8 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
   const as = signal.analogSignal;
 
   // Shared
-  const [tag, setTag] = useState((signal as any).tag ?? "");
-  const [direction, setDirection] = useState<string | null>((signal as any).direction ?? null);
+  const [tag, setTag] = useState(signal.tag ?? "");
+  const [direction, setDirection] = useState<"INPUT" | "OUTPUT" | null>(signal.direction as "INPUT" | "OUTPUT" | null ?? null);
 
   // Discrete
   const [trigger, setTrigger] = useState(ds?.trigger ?? "NO");
@@ -127,14 +131,14 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
   const update = trpc.signal.update.useMutation({ onSuccess: () => onSaved() });
 
   function handleSave() {
-    const shared = { tag: tag || null, direction: direction as any };
+    const shared = { tag: tag || null, direction: direction as SignalDirection | null };
     if (isDisc) {
       update.mutate({
         id: signal.id,
         ...shared,
-        trigger: trigger as any,
+        trigger: trigger as TriggerType,
         filterTimeMs,
-        switchingType: switchingType as any,
+        switchingType: switchingType as SwitchingType | null,
         signalVoltage,
         plcDataTypeId: discPlcDtId,
       });
@@ -143,7 +147,7 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
         id: signal.id,
         ...shared,
         inputTypeId,
-        wireConfig: wireConfig as any,
+        wireConfig: wireConfig as WireConfig | null,
         rawMin, rawMax, rawZero,
         scaleMin, scaleMax,
         clampLow, clampHigh,
@@ -154,7 +158,7 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
         scalingFbOverride,
         deadbandRawMin, deadbandRawZero, deadbandRawMax,
         sensorFailRaw, sensorFailMargin,
-        sensorFailBehavior: sensorFailBehavior as any,
+        sensorFailBehavior: sensorFailBehavior as "HOLD_LAST" | "GO_LOW" | "GO_HIGH" | "GO_SAFE" | null,
         sensorFailDelayMs,
       });
     }
@@ -190,13 +194,13 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
             <div className="space-y-1">
               <Label className="text-muted-foreground">Rev</Label>
               <div className="h-9 flex items-center rounded-md border border-input bg-muted px-3 text-sm font-mono text-muted-foreground">
-                {(signal as any).revision ?? "—"}
+                {signal.revision ?? "—"}
               </div>
             </div>
           </div>
           <div className="space-y-1">
             <Label>IO Direction</Label>
-            <Select value={direction ?? NONE} onValueChange={(v) => setDirection(v === NONE ? null : v)}>
+            <Select value={direction ?? NONE} onValueChange={(v) => setDirection(v === NONE ? null : v as "INPUT" | "OUTPUT")}>
               <SelectTrigger className={sel}>
                 <SelectValue />
               </SelectTrigger>

@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Settings2, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BUS_PROTOCOLS, NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET } from "@/lib/enums";
-import type { IpNetwork } from "@/lib/types/hardware";
+import { BUS_PROTOCOLS, NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET, type NetworkNodeRole } from "@/lib/enums";
+import type { IpNetwork, BusNode } from "@/lib/types/hardware";
 
 type PortData = {
   ipAddress: string | null;
@@ -57,7 +57,7 @@ export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierI
   const [adding, setAdding] = useState(false);
   const [selectedBusId, setSelectedBusId] = useState("");
   const [nodeConfigBus, setNodeConfigBus] = useState<{ id: number; protocol: string } | null>(null);
-  const [nodeRole, setNodeRole] = useState("CLIENT");
+  const [nodeRole, setNodeRole] = useState<NetworkNodeRole>("CLIENT");
   const [nodeAddress, setNodeAddress] = useState("");
   const [nodeIp, setNodeIp] = useState("");
 
@@ -128,17 +128,17 @@ export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierI
   function handleRemoveBus(busId: number) {
     // Find the node for this device on this bus
     const bus = allBuses.find((b) => b.id === busId);
-    const node = bus?.nodes?.find((n: any) => (plcId && n.plc?.id === plcId) || (carrierId && n.carrier?.id === carrierId));
-    if (node) deleteNode.mutate({ id: (node as any).id });
+    const node: BusNode | undefined = bus?.nodes?.find((n) => (plcId && n.plc?.id === plcId) || (carrierId && n.carrier?.id === carrierId));
+    if (node) deleteNode.mutate({ id: node.id });
   }
 
   function openNodeConfig(bus: { id: number; protocol: string }) {
     const busData = allBuses.find((b) => b.id === bus.id);
-    const node = busData?.nodes?.find((n: any) => (plcId && n.plc?.id === plcId) || (carrierId && n.carrier?.id === carrierId));
+    const node: BusNode | undefined = busData?.nodes?.find((n) => (plcId && n.plc?.id === plcId) || (carrierId && n.carrier?.id === carrierId));
     setNodeConfigBus(bus);
-    setNodeRole((node as any)?.role ?? "CLIENT");
-    setNodeAddress((node as any)?.nodeAddress != null ? String((node as any).nodeAddress) : "");
-    setNodeIp((node as any)?.ipAddress ?? "");
+    setNodeRole((node?.role as NetworkNodeRole) ?? "CLIENT");
+    setNodeAddress(node?.nodeAddress != null ? String(node.nodeAddress) : "");
+    setNodeIp(node?.ipAddress ?? "");
   }
 
   function handleSaveNodeConfig() {
@@ -147,7 +147,7 @@ export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierI
       busId: nodeConfigBus.id,
       plcId: plcId ?? undefined,
       carrierId: carrierId ?? undefined,
-      role: nodeRole as any,
+      role: nodeRole,
       nodeAddress: nodeAddress ? Number(nodeAddress) : null,
     });
     setNodeConfigBus(null);
@@ -254,7 +254,7 @@ export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierI
           <div className="space-y-3">
             <div className="space-y-1">
               <Label className="text-xs">Role</Label>
-              <Select value={nodeRole} onValueChange={setNodeRole}>
+              <Select value={nodeRole} onValueChange={(v) => setNodeRole(v as NetworkNodeRole)}>
                 <SelectTrigger className="h-8 text-sm">
                   <SelectValue />
                 </SelectTrigger>

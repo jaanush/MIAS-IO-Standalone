@@ -8,10 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Cpu, Server, Box, Plus, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CAN_ORIGIN_SET, ETHERNET_PROTOCOL_SET, NETWORK_NODE_ROLES, type BusProtocol } from "@/lib/enums";
+import { CAN_ORIGIN_SET, ETHERNET_PROTOCOL_SET, NETWORK_NODE_ROLES, type BusProtocol, type NetworkNodeRole } from "@/lib/enums";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
-import type { Bus, BusNode, ComponentInstance } from "@/lib/types/hardware";
+import type { Bus, BusNode, ComponentInstance, IpNetwork } from "@/lib/types/hardware";
 import { NetworkConfigForm } from "./NetworkConfigForm";
 import { CanIdSpanSection } from "./CanIdSpanSection";
 
@@ -71,7 +71,7 @@ export function NetworkDetail({ network, projectId, onRefresh }: Props) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">— None —</SelectItem>
-              {(ipNetworks as any[]).map((n) => (
+              {(ipNetworks as IpNetwork[]).map((n) => (
                 <SelectItem key={n.id} value={String(n.id)}>
                   {n.name ?? `Network #${n.id}`}
                 </SelectItem>
@@ -242,7 +242,7 @@ function ConnectedNodesSection({
                             busId: network.id,
                             plcId: node.plc?.id ?? undefined,
                             carrierId: node.carrier?.id ?? undefined,
-                            role: v as any,
+                            role: v as NetworkNodeRole,
                             nodeAddress: node.nodeAddress,
                             ipAddress: node.ipAddress,
                           })}
@@ -271,7 +271,7 @@ function ConnectedNodesSection({
                               busId: network.id,
                               plcId: node.plc?.id ?? undefined,
                               carrierId: node.carrier?.id ?? undefined,
-                              role: node.role as any,
+                              role: node.role as NetworkNodeRole,
                               nodeAddress: v,
                               ipAddress: node.ipAddress,
                             });
@@ -310,7 +310,7 @@ function ConnectedNodesSection({
                         onValueChange={(v) => instanceUpdate.mutate({
                           id: inst.id,
                           name: inst.name,
-                          nodeRole: (v === "__none__" ? null : v) as any,
+                          nodeRole: (v === "__none__" ? null : v) as NetworkNodeRole | null,
                           nodeAddress: inst.nodeAddress,
                         })}
                       >
@@ -338,7 +338,7 @@ function ConnectedNodesSection({
                           instanceUpdate.mutate({
                             id: inst.id,
                             name: inst.name,
-                            nodeRole: inst.nodeRole as any,
+                            nodeRole: inst.nodeRole as NetworkNodeRole | null,
                             nodeAddress: v,
                           });
                         }
@@ -358,7 +358,7 @@ function ConnectedNodesSection({
                             instanceUpdate.mutate({
                               id: inst.id,
                               name: inst.name,
-                              nodeRole: inst.nodeRole as any,
+                              nodeRole: inst.nodeRole as NetworkNodeRole | null,
                               nodeAddress: inst.nodeAddress,
                               canIdOffset: v,
                             });
@@ -390,7 +390,7 @@ function ConnectedNodesSection({
       <div className="flex items-center gap-2">
         <Select
           value={addType ?? "__none__"}
-          onValueChange={(v) => { setAddType((v === "__none__" ? null : v) as any); setAddId(""); }}
+          onValueChange={(v) => { setAddType((v === "__none__" ? null : v) as "plc" | "carrier" | "component" | "module" | null); setAddId(""); }}
         >
           <SelectTrigger className="h-8 text-xs">
             <SelectValue />

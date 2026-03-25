@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { CardType } from "@/lib/enums";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -728,7 +729,7 @@ function ModuleTypeCodesSection() {
     setFormError(null);
     upsert.mutate({
       id: editing?.id,
-      cardType: form.cardType as any,
+      cardType: form.cardType as CardType,
       code: form.code.trim().toUpperCase(),
       groupName: form.groupName.trim(),
       description: form.description.trim() || null,
