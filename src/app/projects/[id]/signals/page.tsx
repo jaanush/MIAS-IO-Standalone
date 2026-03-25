@@ -26,6 +26,7 @@ import { Plus, Check, X, Trash2, Settings2, Upload, Download, Layers, ChevronUp,
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 import { AddEditSignalDialog } from "./_components/AddEditSignalDialog";
@@ -623,8 +624,8 @@ function EditRow({
   const valuesRef = useRef(values);
   valuesRef.current = values;
 
-  function handleCardChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const cardId = e.target.value ? Number(e.target.value) : null;
+  function handleCardChange(v: string) {
+    const cardId = (v && v !== "__none__") ? Number(v) : null;
     const ch = cardId != null ? String(nextAvailableChannel(signals, cardId, editingId)) : "";
     const card = cards.find((c) => c.id === cardId);
     const derived = card ? deriveFromCard(card, !!isNew) : { direction: "", filterTimeMs: "" };
@@ -660,53 +661,55 @@ function EditRow({
       case "tag": return <Td key={key}><input className={inp} value={values.tag} onChange={(e) => onChange({ tag: e.target.value })} placeholder="TAG" /></Td>;
       case "desc": return <Td key={key}><input className={inp} value={values.description} onChange={(e) => onChange({ description: e.target.value })} placeholder="Description" autoFocus={isNew} /></Td>;
       case "io": return <Td key={key}>
-        <select className={sel}
+        <Select
           value={`${values.signalType === "DISCRETE" ? "D" : "A"}${values.direction === "OUTPUT" ? "O" : "I"}`}
-          onChange={(e) => {
-            const code = e.target.value;
+          onValueChange={(code) => {
             const signalType: "DISCRETE" | "ANALOG" = code.startsWith("D") ? "DISCRETE" : "ANALOG";
             const direction: "INPUT" | "OUTPUT" = code.endsWith("O") ? "OUTPUT" : "INPUT";
             const defaultPdt = signalType === "DISCRETE" ? (plcDataTypes.find((d) => d.code === "BOOL")?.id ?? null) : (plcDataTypes.find((d) => d.code === "REAL")?.id ?? null);
             onChange({ signalType, direction, plcDataTypeId: defaultPdt });
           }}
         >
-          <option value="DI">DI</option><option value="DO">DO</option><option value="AI">AI</option><option value="AO">AO</option>
-        </select>
+          <SelectTrigger className={sel}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="DI">DI</SelectItem><SelectItem value="DO">DO</SelectItem><SelectItem value="AI">AI</SelectItem><SelectItem value="AO">AO</SelectItem>
+          </SelectContent>
+        </Select>
       </Td>;
-      case "origin": return <Td key={key}><select className={sel} value={values.origin} onChange={(e) => onChange({ origin: e.target.value })}>{SIGNAL_ORIGINS.map((o) => <option key={o} value={o}>{o}</option>)}</select></Td>;
-      case "card": return <Td key={key}>{values.origin === "IEC" ? <select className={sel} value={values.ioCardId ?? ""} onChange={handleCardChange}><option value="">— Unassigned —</option>{cards.map((c) => <option key={c.id} value={c.id}>{c.path}{c.articleNumber ? ` — ${c.articleNumber}` : ""}</option>)}</select> : <span className="text-xs text-muted-foreground italic">Via network</span>}</Td>;
+      case "origin": return <Td key={key}><Select value={values.origin} onValueChange={(v) => onChange({ origin: v })}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent>{SIGNAL_ORIGINS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></Td>;
+      case "card": return <Td key={key}>{values.origin === "IEC" ? <Select value={values.ioCardId != null ? String(values.ioCardId) : "__none__"} onValueChange={handleCardChange}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">— Unassigned —</SelectItem>{cards.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.path}{c.articleNumber ? ` — ${c.articleNumber}` : ""}</SelectItem>)}</SelectContent></Select> : <span className="text-xs text-muted-foreground italic">Via network</span>}</Td>;
       case "ch": return <Td key={key}>{values.origin === "IEC" ? <input className={cn(inp, "text-center")} type="number" min={0} value={values.channelPosition} onChange={(e) => onChange({ channelPosition: e.target.value })} placeholder="0" /> : <span className="text-xs text-muted-foreground">—</span>}</Td>;
       case "network": return <React.Fragment key={key}>{gray}</React.Fragment>;
       case "cabinet": return <Td key={key}><input className={inp} value={values.cabinetLocation} onChange={(e) => onChange({ cabinetLocation: e.target.value })} placeholder="A01" /></Td>;
       case "drawing": return <Td key={key}><input className={inp} value={values.drawingRef} onChange={(e) => onChange({ drawingRef: e.target.value })} placeholder="625-E01" /></Td>;
-      case "system": return <Td key={key}><select className={sel} value={values.systemId ?? ""} onChange={(e) => onChange({ systemId: e.target.value ? Number(e.target.value) : null })}><option value="">—</option>{systems.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Td>;
+      case "system": return <Td key={key}><Select value={values.systemId != null ? String(values.systemId) : "__none__"} onValueChange={(v) => onChange({ systemId: v !== "__none__" ? Number(v) : null })}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">—</SelectItem>{systems.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent></Select></Td>;
       case "component": return <Td key={key}><input className={inp} value={values.componentTag} onChange={(e) => onChange({ componentTag: e.target.value })} placeholder="625-M01" /></Td>;
-      case "gvl": return <Td key={key}><select className={sel} value={values.gvlId ?? ""} onChange={(e) => onChange({ gvlId: e.target.value ? Number(e.target.value) : null })}><option value="">—</option>{gvls.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></Td>;
+      case "gvl": return <Td key={key}><Select value={values.gvlId != null ? String(values.gvlId) : "__none__"} onValueChange={(v) => onChange({ gvlId: v !== "__none__" ? Number(v) : null })}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">—</SelectItem>{gvls.map((g) => <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>)}</SelectContent></Select></Td>;
       // Discrete
-      case "trigger": return isDisc ? <Td key={key}><select className={sel} value={values.trigger} onChange={(e) => onChange({ trigger: e.target.value as "NO" | "NC" })}><option value="NO">NO</option><option value="NC">NC</option></select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
+      case "trigger": return isDisc ? <Td key={key}><Select value={values.trigger} onValueChange={(v) => onChange({ trigger: v as "NO" | "NC" })}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="NO">NO</SelectItem><SelectItem value="NC">NC</SelectItem></SelectContent></Select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
       case "filter": return isDisc ? <Td key={key}><input className={cn(inp, "text-right")} type="number" min={0} value={values.filterTimeMs} onChange={(e) => onChange({ filterTimeMs: e.target.value })} placeholder="ms" /></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
       // Analog
-      case "itype": return isAnlg ? <Td key={key}><select className={sel} value={values.inputTypeId ?? ""} onChange={(e) => {
-        const typeId = e.target.value ? Number(e.target.value) : null;
+      case "itype": return isAnlg ? <Td key={key}><Select value={values.inputTypeId != null ? String(values.inputTypeId) : "__none__"} onValueChange={(v) => {
+        const typeId = v !== "__none__" ? Number(v) : null;
         const selectedType = inputTypes.find((t) => t.id === typeId);
         const update: Partial<EditValues> = { inputTypeId: typeId };
         if (selectedType?.code === "PT100" || selectedType?.code === "PT1000") { const degUnit = units.find((u) => u.symbol === "°C"); if (degUnit) update.engineeringUnitId = degUnit.id; }
         onChange(update);
-      }}><option value="">—</option>{inputTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
-      case "wire": return isAnlg ? <Td key={key}><select className={sel} value={values.wireConfig} onChange={(e) => onChange({ wireConfig: e.target.value as EditValues["wireConfig"] })}><option value="">—</option><option value="TWO_WIRE">2-Wire</option><option value="THREE_WIRE">3-Wire</option><option value="FOUR_WIRE">4-Wire</option></select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
-      case "eu": return isAnlg ? <Td key={key}><select className={sel} value={values.engineeringUnitId ?? ""} onChange={(e) => onChange({ engineeringUnitId: e.target.value ? Number(e.target.value) : null })}><option value="">—</option>{units.map((u) => <option key={u.id} value={u.id}>{u.symbol}</option>)}</select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
+      }}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">—</SelectItem>{inputTypes.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}</SelectContent></Select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
+      case "wire": return isAnlg ? <Td key={key}><Select value={values.wireConfig || "__none__"} onValueChange={(v) => onChange({ wireConfig: (v === "__none__" ? "" : v) as EditValues["wireConfig"] })}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">—</SelectItem><SelectItem value="TWO_WIRE">2-Wire</SelectItem><SelectItem value="THREE_WIRE">3-Wire</SelectItem><SelectItem value="FOUR_WIRE">4-Wire</SelectItem></SelectContent></Select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
+      case "eu": return isAnlg ? <Td key={key}><Select value={values.engineeringUnitId != null ? String(values.engineeringUnitId) : "__none__"} onValueChange={(v) => onChange({ engineeringUnitId: v !== "__none__" ? Number(v) : null })}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">—</SelectItem>{units.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.symbol}</SelectItem>)}</SelectContent></Select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
       case "smin": return isAnlg ? <Td key={key}><input className={cn(inp, "text-right")} type="number" value={values.scaleMin} onChange={(e) => onChange({ scaleMin: e.target.value })} placeholder="min" /></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
       case "smax": return isAnlg ? <Td key={key}><input className={cn(inp, "text-right")} type="number" value={values.scaleMax} onChange={(e) => onChange({ scaleMax: e.target.value })} placeholder="max" /></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
       case "dtype": return isAnlg ? <Td key={key}>{(() => {
         const euTypeId = values.engineeringUnitId ? (units.find((u) => u.id === values.engineeringUnitId)?.plcDataTypeId ?? null) : null;
         const euTypeCode = euTypeId ? (plcDataTypes.find((t) => t.id === euTypeId)?.code ?? null) : null;
-        return euTypeCode ? <span className="text-xs font-mono text-purple-600 px-1" title="Overridden by EU">{euTypeCode}</span> : <select className={sel} value={values.plcDataTypeId ?? ""} onChange={(e) => onChange({ plcDataTypeId: e.target.value ? Number(e.target.value) : null })}><option value="">—</option>{plcDataTypes.map((t) => <option key={t.id} value={t.id}>{t.code}</option>)}</select>;
+        return euTypeCode ? <span className="text-xs font-mono text-purple-600 px-1" title="Overridden by EU">{euTypeCode}</span> : <Select value={values.plcDataTypeId != null ? String(values.plcDataTypeId) : "__none__"} onValueChange={(v) => onChange({ plcDataTypeId: v !== "__none__" ? Number(v) : null })}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">—</SelectItem>{plcDataTypes.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.code}</SelectItem>)}</SelectContent></Select>;
       })()}</Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
       // Additional editable fields
       case "notes": return <Td key={key}><input className={inp} value={values.notes} onChange={(e) => onChange({ notes: e.target.value })} placeholder="Notes…" /></Td>;
-      case "switchType": return isDisc ? <Td key={key}><select className={sel} value={values.switchingType} onChange={(e) => onChange({ switchingType: e.target.value })}><option value="">—</option><option value="HIGH_SIDE">High</option><option value="LOW_SIDE">Low</option><option value="BOTH">Both</option></select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
+      case "switchType": return isDisc ? <Td key={key}><Select value={values.switchingType || "__none__"} onValueChange={(v) => onChange({ switchingType: v === "__none__" ? "" : v })}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">—</SelectItem><SelectItem value="HIGH_SIDE">High</SelectItem><SelectItem value="LOW_SIDE">Low</SelectItem><SelectItem value="BOTH">Both</SelectItem></SelectContent></Select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
       case "sigVoltage": return isDisc ? <Td key={key}><input className={inp} value={values.signalVoltage} onChange={(e) => onChange({ signalVoltage: e.target.value })} placeholder="24V" /></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
-      case "discPlcType": return isDisc ? <Td key={key}><select className={sel} value={values.plcDataTypeId ?? ""} onChange={(e) => onChange({ plcDataTypeId: e.target.value ? Number(e.target.value) : null })}><option value="">—</option>{plcDataTypes.map((t) => <option key={t.id} value={t.id}>{t.code}</option>)}</select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
+      case "discPlcType": return isDisc ? <Td key={key}><Select value={values.plcDataTypeId != null ? String(values.plcDataTypeId) : "__none__"} onValueChange={(v) => onChange({ plcDataTypeId: v !== "__none__" ? Number(v) : null })}><SelectTrigger className={sel}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">—</SelectItem>{plcDataTypes.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.code}</SelectItem>)}</SelectContent></Select></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
       case "rawMin": return isAnlg ? <Td key={key}><input className={cn(inp, "text-right")} type="number" value={values.rawMin} onChange={(e) => onChange({ rawMin: e.target.value })} /></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
       case "rawMax": return isAnlg ? <Td key={key}><input className={cn(inp, "text-right")} type="number" value={values.rawMax} onChange={(e) => onChange({ rawMax: e.target.value })} /></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
       case "rawZero": return isAnlg ? <Td key={key}><input className={cn(inp, "text-right")} type="number" value={values.rawZero} onChange={(e) => onChange({ rawZero: e.target.value })} /></Td> : <React.Fragment key={key}>{gray}</React.Fragment>;
@@ -924,20 +927,23 @@ function FilterCell({
       .map((v) => ({ value: String(v), label: String(v) }));
 
     return (
-      <select
-        className={cn(base, "px-0.5")}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onClick={(e) => e.stopPropagation()}
+      <Select
+        value={value || "__all__"}
+        onValueChange={(v) => onChange(v === "__all__" ? "" : v)}
       >
-        <option value="">All ({facetMap.get("") != null ? facetMap.size - 1 : facetMap.size})</option>
-        {emptyCount > 0 && <option value="__empty__">(empty) ({emptyCount})</option>}
-        {facetOptions.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label} ({facetMap.get(o.value) ?? 0})
-          </option>
-        ))}
-      </select>
+        <SelectTrigger className={cn(base, "px-0.5")} onClick={(e) => e.stopPropagation()}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__all__">All ({facetMap.get("") != null ? facetMap.size - 1 : facetMap.size})</SelectItem>
+          {emptyCount > 0 && <SelectItem value="__empty__">(empty) ({emptyCount})</SelectItem>}
+          {facetOptions.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label} ({facetMap.get(o.value) ?? 0})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     );
   }
 

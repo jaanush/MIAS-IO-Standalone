@@ -12,6 +12,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SIGNAL_ORIGINS } from "@/lib/enums";
 
 const NONE = "__none__";
@@ -75,35 +82,44 @@ export function ProjectHardwareDialog({ projectId, open, signal, onClose, onSave
         <div className="space-y-4 py-2">
           <div className="space-y-1">
             <Label>Signal Origin</Label>
-            <select className={sel} value={origin} onChange={(e) => { setOrigin(e.target.value); if (e.target.value !== "IEC") { setIoCardId(null); setChannelPosition(null); } }}>
-              {SIGNAL_ORIGINS.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
+            <Select value={origin} onValueChange={(v) => { setOrigin(v); if (v !== "IEC") { setIoCardId(null); setChannelPosition(null); } }}>
+              <SelectTrigger className={sel}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SIGNAL_ORIGINS.map((o) => (
+                  <SelectItem key={o} value={o}>{o}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {isIec ? (
             <>
               <div className="space-y-1">
                 <Label>IO Card</Label>
-                <select
-                  className={sel}
+                <Select
                   value={ioCardId != null ? String(ioCardId) : NONE}
-                  onChange={(e) => {
-                    const v = e.target.value === NONE ? null : Number(e.target.value);
-                    setIoCardId(v);
-                    if (!v) setChannelPosition(null);
+                  onValueChange={(v) => {
+                    const val = v === NONE ? null : Number(v);
+                    setIoCardId(val);
+                    if (!val) setChannelPosition(null);
                   }}
                 >
-                  <option value={NONE}>— Unassigned —</option>
-                  {cards.map((c) => (
-                    <option key={c.id} value={String(c.id)}>
-                      {c.path}
-                      {c.articleNumber ? ` — ${c.articleNumber}` : ""}
-                      {c.description ? `: ${c.description}` : ""}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className={sel}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— Unassigned —</SelectItem>
+                    {cards.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.path}
+                        {c.articleNumber ? ` — ${c.articleNumber}` : ""}
+                        {c.description ? `: ${c.description}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               {ioCardId != null && (
                 <div className="space-y-1">

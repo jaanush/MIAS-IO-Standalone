@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import type { SignalRowState } from "./SignalGrid";
 import { RAW_DATA_TYPES } from "@/lib/enums";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // WORKAROUND: Radix Select doesn't allow empty string as value, so nullable fields use a sentinel
 const NONE = "__none__";
@@ -74,42 +75,54 @@ export function BusConfigDialog({ open, onClose, row, plcDataTypes, onChange }: 
           {/* PLC data type */}
           <div className="space-y-1">
             <Label>PLC Data Type</Label>
-            <select
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            <Select
               value={get("plcDataTypeId") != null ? String(get("plcDataTypeId")) : NONE}
-              onChange={(e) => patch("plcDataTypeId", e.target.value === NONE ? null : Number(e.target.value))}
+              onValueChange={(v) => patch("plcDataTypeId", v === NONE ? null : Number(v))}
             >
-              <option value={NONE}>— none —</option>
-              {plcDataTypes.map((t) => (
-                <option key={t.id} value={String(t.id)}>{t.code}</option>
-              ))}
-            </select>
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>— none —</SelectItem>
+                {plcDataTypes.map((t) => (
+                  <SelectItem key={t.id} value={String(t.id)}>{t.code}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Raw data type + byte order */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Raw Data Type</Label>
-              <select
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              <Select
                 value={get("rawDataType") ?? NONE}
-                onChange={(e) => patch("rawDataType", e.target.value === NONE ? null : e.target.value)}
+                onValueChange={(v) => patch("rawDataType", v === NONE ? null : v)}
               >
-                <option value={NONE}>— none —</option>
-                {RAW_DATA_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>— none —</SelectItem>
+                  {RAW_DATA_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label>Byte Order</Label>
-              <select
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              <Select
                 value={get("byteOrder") ?? NONE}
-                onChange={(e) => patch("byteOrder", e.target.value === NONE ? null : e.target.value)}
+                onValueChange={(v) => patch("byteOrder", v === NONE ? null : v)}
               >
-                <option value={NONE}>— none —</option>
-                <option value="BIG_ENDIAN">Big Endian</option>
-                <option value="LITTLE_ENDIAN">Little Endian</option>
-              </select>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>— none —</SelectItem>
+                  <SelectItem value="BIG_ENDIAN">Big Endian</SelectItem>
+                  <SelectItem value="LITTLE_ENDIAN">Little Endian</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -292,16 +305,20 @@ export function BusConfigDialog({ open, onClose, row, plcDataTypes, onChange }: 
               </div>
               <div className="space-y-1">
                 <Label>Register Type</Label>
-                <select
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                <Select
                   value={get("modbusRegisterType") ?? NONE}
-                  onChange={(e) => patch("modbusRegisterType", e.target.value === NONE ? null : e.target.value)}
+                  onValueChange={(v) => patch("modbusRegisterType", v === NONE ? null : v)}
                 >
-                  <option value={NONE}>— none —</option>
-                  {MODBUS_REG_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    {MODBUS_REG_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label>Register Offset</Label>

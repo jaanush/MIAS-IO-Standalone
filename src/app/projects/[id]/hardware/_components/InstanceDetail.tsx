@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET } from "@/lib/enums";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
@@ -104,14 +105,15 @@ export function InstanceDetail({ instance, network, onDeleted, onRefresh }: Prop
               {!isCan && (
                 <div className="space-y-1">
                   <Label className="text-xs">Role</Label>
-                  <select
-                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
-                    value={nodeRole}
-                    onChange={(e) => setNodeRole(e.target.value)}
-                  >
-                    <option value="">—</option>
-                    {NETWORK_NODE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
+                  <Select value={nodeRole || "__none__"} onValueChange={(v) => setNodeRole(v === "__none__" ? "" : v)}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">—</SelectItem>
+                      {NETWORK_NODE_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
               <div className="space-y-1">

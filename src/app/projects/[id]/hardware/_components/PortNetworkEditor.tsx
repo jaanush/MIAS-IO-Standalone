@@ -14,6 +14,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Plus, Settings2, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BUS_PROTOCOLS, NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET } from "@/lib/enums";
 import type { IpNetwork } from "@/lib/types/hardware";
 
@@ -166,16 +167,17 @@ export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierI
         <div className="space-y-1">
           <Label className="text-xs">IP Network</Label>
           <div className="flex gap-1">
-            <select
-              className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm"
-              value={networkId}
-              onChange={(e) => setNetworkId(e.target.value)}
-            >
-              <option value="">— None —</option>
-              {(ipNetworks as IpNetwork[]).map((n) => (
-                <option key={n.id} value={n.id}>{n.name ?? `Network #${n.id}`}</option>
-              ))}
-            </select>
+            <Select value={networkId || "__none__"} onValueChange={(v) => setNetworkId(v === "__none__" ? "" : v)}>
+              <SelectTrigger className="h-8 flex-1 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— None —</SelectItem>
+                {(ipNetworks as IpNetwork[]).map((n) => (
+                  <SelectItem key={n.id} value={String(n.id)}>{n.name ?? `Network #${n.id}`}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button size="sm" variant="outline" className="h-8 px-2 shrink-0" disabled={createNetwork.isPending} onClick={handleCreateNetwork} title="Create new IP network">
               <Plus className="h-3 w-3" />
             </Button>
@@ -214,12 +216,17 @@ export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierI
             <div className="flex items-center gap-1.5 pl-2">
               {unconnectedBuses.length > 0 && (
                 <>
-                  <select className="h-7 flex-1 rounded border border-input bg-background px-1.5 text-xs" value={selectedBusId} onChange={(e) => setSelectedBusId(e.target.value)}>
-                    <option value="">Select bus...</option>
-                    {unconnectedBuses.map((b) => (
-                      <option key={b.id} value={b.id}>{b.protocol}{b.description ? ` — ${b.description}` : ""}</option>
-                    ))}
-                  </select>
+                  <Select value={selectedBusId || "__none__"} onValueChange={(v) => setSelectedBusId(v === "__none__" ? "" : v)}>
+                    <SelectTrigger className="h-7 flex-1 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Select bus...</SelectItem>
+                      {unconnectedBuses.map((b) => (
+                        <SelectItem key={b.id} value={String(b.id)}>{b.protocol}{b.description ? ` — ${b.description}` : ""}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button size="sm" className="h-7 text-xs px-2" disabled={!selectedBusId || upsertNode.isPending} onClick={handleAddExistingBus}>
                     Join
                   </Button>
@@ -247,9 +254,14 @@ export function PortNetworkEditor({ portNumber, port, projectId, plcId, carrierI
           <div className="space-y-3">
             <div className="space-y-1">
               <Label className="text-xs">Role</Label>
-              <select className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm" value={nodeRole} onChange={(e) => setNodeRole(e.target.value)}>
-                {NETWORK_NODE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
+              <Select value={nodeRole} onValueChange={setNodeRole}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {NETWORK_NODE_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Node Address</Label>

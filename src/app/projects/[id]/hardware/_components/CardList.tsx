@@ -9,6 +9,7 @@ import { Plus, Trash2, ExternalLink, GripVertical, Zap, AlertTriangle } from "lu
 import { ModulePickerDialog } from "./ModulePickerDialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, wagoDatasheetUrl } from "@/lib/utils";
 import type { IoCard } from "@/lib/types/hardware";
 
@@ -189,21 +190,26 @@ export function CardList({ carrierId, projectId, maxSlots, cards, onRefresh }: P
                         {/* Identifier: subgroup + type code + instance */}
                         <div className="flex items-center gap-0.5 shrink-0 w-20">
                           <span className="text-xs font-mono font-bold opacity-50">{card.subgroup ?? ""}</span>
-                          <select
-                            className="h-6 w-8 rounded border border-current/20 bg-transparent text-xs font-mono font-bold text-center"
-                            value={card.typeCode ?? ""}
-                            disabled={typeCodesLoading}
-                            onChange={(e) => { if (e.target.value) updateCard.mutate({ id: card.id, typeCode: e.target.value }); }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {validCodes.length > 0 ? (
-                              validCodes.map((tc) => (
-                                <option key={tc.code} value={tc.code}>{tc.code}</option>
-                              ))
-                            ) : (
-                              <option value={card.typeCode ?? ""}>{card.typeCode ?? "-"}</option>
-                            )}
-                          </select>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Select
+                              value={card.typeCode ?? ""}
+                              disabled={typeCodesLoading}
+                              onValueChange={(v) => { if (v) updateCard.mutate({ id: card.id, typeCode: v }); }}
+                            >
+                              <SelectTrigger className="h-6 w-10 text-xs font-mono font-bold">
+                                <SelectValue placeholder="-" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {validCodes.length > 0 ? (
+                                  validCodes.map((tc) => (
+                                    <SelectItem key={tc.code} value={tc.code}>{tc.code}</SelectItem>
+                                  ))
+                                ) : (
+                                  card.typeCode && <SelectItem value={card.typeCode}>{card.typeCode}</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
                           <Input
                             type="number"
                             min={1}

@@ -586,16 +586,20 @@ const SignalRow = memo(function SignalRow({
     ),
     origin: () => (
       <td key="origin" className="px-2 py-1 w-32">
-        <select
-          className="h-7 w-full rounded border border-input bg-background px-1.5 text-xs"
-          value={local.origin ?? ""}
-          onChange={(e) => onChange({ origin: (e.target.value || null) as SignalOrigin | null })}
+        <Select
+          value={local.origin ?? "__none__"}
+          onValueChange={(v) => onChange({ origin: (v === "__none__" ? null : v) as SignalOrigin | null })}
         >
-          <option value="">—</option>
-          {SIGNAL_ORIGINS.map((o) => (
-            <option key={o} value={o}>{o}</option>
-          ))}
-        </select>
+          <SelectTrigger className="h-7 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">—</SelectItem>
+            {SIGNAL_ORIGINS.map((o) => (
+              <SelectItem key={o} value={o}>{o}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </td>
     ),
     tag: () => (

@@ -5,6 +5,7 @@ import { trpc } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CAN_MODES, SERIAL_PARITY } from "@/lib/enums";
 import type { Bus } from "@/lib/types/hardware";
 
@@ -31,7 +32,7 @@ export function NetworkConfigForm({ network, isSerial, isCan, isEthernet, onSave
 
   const update = trpc.projectHardware.busUpdate.useMutation({ onSuccess: onSaved });
 
-  const sel = "w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm";
+  // sel class removed — using shadcn Select instead
 
   return (
     <div className="space-y-4 rounded-md border p-4">
@@ -51,11 +52,16 @@ export function NetworkConfigForm({ network, isSerial, isCan, isEthernet, onSave
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Role</Label>
-          <select className={sel} value={role} onChange={(e) => setRole(e.target.value)}>
-            {["MASTER", "SLAVE", "ADAPTER", "SCANNER"].map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
+          <Select value={role} onValueChange={setRole}>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {["MASTER", "SLAVE", "ADAPTER", "SCANNER"].map((r) => (
+                <SelectItem key={r} value={r}>{r}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Node Address</Label>
@@ -87,18 +93,28 @@ export function NetworkConfigForm({ network, isSerial, isCan, isEthernet, onSave
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Parity</Label>
-              <select className={sel} value={serialParity} onChange={(e) => setSerialParity(e.target.value)}>
-                <option value="">— none —</option>
-                {SERIAL_PARITY.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
+              <Select value={serialParity || "__none__"} onValueChange={(v) => setSerialParity(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— none —</SelectItem>
+                  {SERIAL_PARITY.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Stop Bits</Label>
-              <select className={sel} value={serialStopBits} onChange={(e) => setSerialStopBits(e.target.value)}>
-                <option value="">—</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-              </select>
+              <Select value={serialStopBits || "__none__"} onValueChange={(v) => setSerialStopBits(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  <SelectItem value="1">1</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </>
@@ -123,10 +139,15 @@ export function NetworkConfigForm({ network, isSerial, isCan, isEthernet, onSave
             {network.protocol === "CANBUS" && (
               <div className="space-y-1">
                 <Label className="text-xs">CAN Mode</Label>
-                <select className={sel} value={canMode} onChange={(e) => setCanMode(e.target.value)}>
-                  <option value="">— none —</option>
-                  {CAN_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <Select value={canMode || "__none__"} onValueChange={(v) => setCanMode(v === "__none__" ? "" : v)}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— none —</SelectItem>
+                    {CAN_MODES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             <div className="space-y-1">

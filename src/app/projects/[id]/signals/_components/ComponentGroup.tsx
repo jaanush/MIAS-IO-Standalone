@@ -3,6 +3,13 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, Unlink, RotateCcw, ExternalLink, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 import { cn } from "@/lib/utils";
@@ -304,21 +311,24 @@ export function ComponentGroup({
                   {isNetworkUpdatePending ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    <select
-                      className="bg-background border border-input rounded px-1 py-0 h-5 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring max-w-48"
-                      value={busId ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        onUpdateNetwork(val === "" ? null : Number(val));
+                    <Select
+                      value={busId != null ? String(busId) : "__none__"}
+                      onValueChange={(v) => {
+                        onUpdateNetwork(v === "__none__" ? null : Number(v));
                       }}
                     >
-                      <option value="">None</option>
-                      {networks.map((n) => (
-                        <option key={n.id} value={n.id}>
-                          {n.protocol} — {n.description ?? n.protocol}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="bg-background border border-input rounded px-1 py-0 h-5 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring max-w-48">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None</SelectItem>
+                        {networks.map((n) => (
+                          <SelectItem key={n.id} value={String(n.id)}>
+                            {n.protocol} — {n.description ?? n.protocol}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 </span>
               )}

@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BUS_PROTOCOLS, NETWORK_NODE_ROLES, CAN_MODES, SERIAL_PARITY, ETHERNET_PROTOCOL_SET, type BusProtocol } from "@/lib/enums";
 
 type Props = {
@@ -118,8 +119,6 @@ export function AddNetworkDialog({
     onClose();
   }
 
-  const sel = "w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm h-8";
-
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="max-w-lg">
@@ -131,12 +130,17 @@ export function AddNetworkDialog({
           {/* Protocol */}
           <div className="space-y-1">
             <Label className="text-xs">Protocol *</Label>
-            <select className={sel} value={protocol} onChange={(e) => setProtocol(e.target.value)}>
-              <option value="">Select protocol...</option>
-              {BUS_PROTOCOLS.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
+            <Select value={protocol || "__none__"} onValueChange={(v) => setProtocol(v === "__none__" ? "" : v)}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Select protocol...</SelectItem>
+                {BUS_PROTOCOLS.map((p) => (
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {protocol && (
@@ -149,11 +153,16 @@ export function AddNetworkDialog({
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Network Role</Label>
-                  <select className={sel} value={role} onChange={(e) => setRole(e.target.value)}>
-                    {["MASTER", "SLAVE", "ADAPTER", "SCANNER"].map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
+                  <Select value={role} onValueChange={setRole}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["MASTER", "SLAVE", "ADAPTER", "SCANNER"].map((r) => (
+                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -166,18 +175,28 @@ export function AddNetworkDialog({
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Parity</Label>
-                    <select className={sel} value={serialParity} onChange={(e) => setSerialParity(e.target.value)}>
-                      <option value="">—</option>
-                      {SERIAL_PARITY.map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
+                    <Select value={serialParity || "__none__"} onValueChange={(v) => setSerialParity(v === "__none__" ? "" : v)}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {SERIAL_PARITY.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Stop Bits</Label>
-                    <select className={sel} value={serialStopBits} onChange={(e) => setSerialStopBits(e.target.value)}>
-                      <option value="">—</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                    </select>
+                    <Select value={serialStopBits || "__none__"} onValueChange={(v) => setSerialStopBits(v === "__none__" ? "" : v)}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        <SelectItem value="1">1</SelectItem>
+                        <SelectItem value="2">2</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
@@ -192,10 +211,15 @@ export function AddNetworkDialog({
                   {proto === "CANBUS" && (
                     <div className="space-y-1">
                       <Label className="text-xs">CAN Mode</Label>
-                      <select className={sel} value={canMode} onChange={(e) => setCanMode(e.target.value)}>
-                        <option value="">—</option>
-                        {CAN_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
-                      </select>
+                      <Select value={canMode || "__none__"} onValueChange={(v) => setCanMode(v === "__none__" ? "" : v)}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">—</SelectItem>
+                          {CAN_MODES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                   <div className="space-y-1">
@@ -231,23 +255,38 @@ export function AddNetworkDialog({
               <div className="rounded-md border p-3 space-y-2 bg-muted/20">
                 <Label className="text-xs font-medium">First Connected Node (optional)</Label>
                 <div className="grid grid-cols-3 gap-2">
-                  <select className={sel} value={firstNodeType} onChange={(e) => { setFirstNodeType(e.target.value as any); setFirstNodeId(""); }}>
-                    <option value="">Skip</option>
-                    <option value="plc">PLC</option>
-                    <option value="carrier">Carrier</option>
-                  </select>
+                  <Select value={firstNodeType || "__none__"} onValueChange={(v) => { setFirstNodeType((v === "__none__" ? "" : v) as any); setFirstNodeId(""); }}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Skip</SelectItem>
+                      <SelectItem value="plc">PLC</SelectItem>
+                      <SelectItem value="carrier">Carrier</SelectItem>
+                    </SelectContent>
+                  </Select>
                   {firstNodeType && (
                     <>
-                      <select className={sel} value={firstNodeId} onChange={(e) => setFirstNodeId(e.target.value)}>
-                        <option value="">Select...</option>
-                        {firstNodeType === "plc"
-                          ? plcs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)
-                          : allCarriers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)
-                        }
-                      </select>
-                      <select className={sel} value={firstNodeRole} onChange={(e) => setFirstNodeRole(e.target.value)}>
-                        {NETWORK_NODE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                      </select>
+                      <Select value={firstNodeId || "__none__"} onValueChange={(v) => setFirstNodeId(v === "__none__" ? "" : v)}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Select...</SelectItem>
+                          {firstNodeType === "plc"
+                            ? plcs.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)
+                            : allCarriers.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)
+                          }
+                        </SelectContent>
+                      </Select>
+                      <Select value={firstNodeRole} onValueChange={setFirstNodeRole}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {NETWORK_NODE_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </>
                   )}
                 </div>

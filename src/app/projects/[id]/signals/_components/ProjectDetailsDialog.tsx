@@ -12,6 +12,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const NONE = "__none__";
 const sel = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
@@ -189,11 +196,16 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
           </div>
           <div className="space-y-1">
             <Label>IO Direction</Label>
-            <select className={sel} value={direction ?? NONE} onChange={(e) => setDirection(e.target.value === NONE ? null : e.target.value)}>
-              <option value={NONE}>— auto —</option>
-              <option value="INPUT">Input ({isDisc ? "DI" : "AI"})</option>
-              <option value="OUTPUT">Output ({isDisc ? "DO" : "AO"})</option>
-            </select>
+            <Select value={direction ?? NONE} onValueChange={(v) => setDirection(v === NONE ? null : v)}>
+              <SelectTrigger className={sel}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>— auto —</SelectItem>
+                <SelectItem value="INPUT">Input ({isDisc ? "DI" : "AI"})</SelectItem>
+                <SelectItem value="OUTPUT">Output ({isDisc ? "DO" : "AO"})</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -202,19 +214,29 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Trigger</Label>
-                <select className={sel} value={trigger} onChange={(e) => setTrigger(e.target.value)}>
-                  <option value="NO">NO (Normally Open)</option>
-                  <option value="NC">NC (Normally Closed)</option>
-                </select>
+                <Select value={trigger} onValueChange={(v) => setTrigger(v)}>
+                  <SelectTrigger className={sel}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NO">NO (Normally Open)</SelectItem>
+                    <SelectItem value="NC">NC (Normally Closed)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label>Switching Type</Label>
-                <select className={sel} value={switchingType ?? NONE} onChange={(e) => setSwitchingType(e.target.value === NONE ? null : e.target.value)}>
-                  <option value={NONE}>— none —</option>
-                  <option value="HIGH_SIDE">High Side</option>
-                  <option value="LOW_SIDE">Low Side</option>
-                  <option value="BOTH">Both</option>
-                </select>
+                <Select value={switchingType ?? NONE} onValueChange={(v) => setSwitchingType(v === NONE ? null : v)}>
+                  <SelectTrigger className={sel}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    <SelectItem value="HIGH_SIDE">High Side</SelectItem>
+                    <SelectItem value="LOW_SIDE">Low Side</SelectItem>
+                    <SelectItem value="BOTH">Both</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -226,10 +248,15 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
             </div>
             <div className="space-y-1">
               <Label>PLC Data Type</Label>
-              <select className={sel} value={discPlcDtId != null ? String(discPlcDtId) : NONE} onChange={(e) => setDiscPlcDtId(e.target.value === NONE ? null : Number(e.target.value))}>
-                <option value={NONE}>— none —</option>
-                {plcDataTypes.map((t) => <option key={t.id} value={String(t.id)}>{t.code}</option>)}
-              </select>
+              <Select value={discPlcDtId != null ? String(discPlcDtId) : NONE} onValueChange={(v) => setDiscPlcDtId(v === NONE ? null : Number(v))}>
+                <SelectTrigger className={sel}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>— none —</SelectItem>
+                  {plcDataTypes.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.code}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         ) : (
@@ -238,19 +265,29 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Input Type</Label>
-                <select className={sel} value={inputTypeId != null ? String(inputTypeId) : NONE} onChange={(e) => setInputTypeId(e.target.value === NONE ? null : Number(e.target.value))}>
-                  <option value={NONE}>— none —</option>
-                  {inputTypes.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
-                </select>
+                <Select value={inputTypeId != null ? String(inputTypeId) : NONE} onValueChange={(v) => setInputTypeId(v === NONE ? null : Number(v))}>
+                  <SelectTrigger className={sel}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    {inputTypes.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label>Wire Config</Label>
-                <select className={sel} value={wireConfig ?? NONE} onChange={(e) => setWireConfig(e.target.value === NONE ? null : e.target.value)}>
-                  <option value={NONE}>— none —</option>
-                  <option value="TWO_WIRE">2-wire</option>
-                  <option value="THREE_WIRE">3-wire</option>
-                  <option value="FOUR_WIRE">4-wire</option>
-                </select>
+                <Select value={wireConfig ?? NONE} onValueChange={(v) => setWireConfig(v === NONE ? null : v)}>
+                  <SelectTrigger className={sel}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    <SelectItem value="TWO_WIRE">2-wire</SelectItem>
+                    <SelectItem value="THREE_WIRE">3-wire</SelectItem>
+                    <SelectItem value="FOUR_WIRE">4-wire</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -283,17 +320,27 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Engineering Unit</Label>
-                <select className={sel} value={euId != null ? String(euId) : NONE} onChange={(e) => setEuId(e.target.value === NONE ? null : Number(e.target.value))}>
-                  <option value={NONE}>— none —</option>
-                  {units.map((eu) => <option key={eu.id} value={String(eu.id)}>{eu.symbol}</option>)}
-                </select>
+                <Select value={euId != null ? String(euId) : NONE} onValueChange={(v) => setEuId(v === NONE ? null : Number(v))}>
+                  <SelectTrigger className={sel}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    {units.map((eu) => <SelectItem key={eu.id} value={String(eu.id)}>{eu.symbol}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label>PLC Data Type</Label>
-                <select className={sel} value={anaPlcDtId != null ? String(anaPlcDtId) : NONE} onChange={(e) => setAnaPlcDtId(e.target.value === NONE ? null : Number(e.target.value))}>
-                  <option value={NONE}>— none —</option>
-                  {plcDataTypes.map((t) => <option key={t.id} value={String(t.id)}>{t.code}</option>)}
-                </select>
+                <Select value={anaPlcDtId != null ? String(anaPlcDtId) : NONE} onValueChange={(v) => setAnaPlcDtId(v === NONE ? null : Number(v))}>
+                  <SelectTrigger className={sel}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    {plcDataTypes.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -315,13 +362,18 @@ export function ProjectDetailsDialog({ open, signal, onClose, onSaved }: Props) 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Fail Behavior</Label>
-                <select className={sel} value={sensorFailBehavior ?? NONE} onChange={(e) => setSensorFailBehavior(e.target.value === NONE ? null : e.target.value)}>
-                  <option value={NONE}>— none —</option>
-                  <option value="HOLD_LAST">Hold Last</option>
-                  <option value="GO_LOW">Go Low</option>
-                  <option value="GO_HIGH">Go High</option>
-                  <option value="GO_SAFE">Go Safe</option>
-                </select>
+                <Select value={sensorFailBehavior ?? NONE} onValueChange={(v) => setSensorFailBehavior(v === NONE ? null : v)}>
+                  <SelectTrigger className={sel}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    <SelectItem value="HOLD_LAST">Hold Last</SelectItem>
+                    <SelectItem value="GO_LOW">Go Low</SelectItem>
+                    <SelectItem value="GO_HIGH">Go High</SelectItem>
+                    <SelectItem value="GO_SAFE">Go Safe</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               {numInput("Fail Delay (ms)", sensorFailDelayMs, setSensorFailDelayMs)}
             </div>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -124,16 +125,20 @@ function EngineeringUnitsSection() {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium">PLC Data Type</label>
-            <select
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={form.plcDataTypeId ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, plcDataTypeId: e.target.value ? Number(e.target.value) : null }))}
+            <Select
+              value={form.plcDataTypeId != null ? String(form.plcDataTypeId) : "__none__"}
+              onValueChange={(v) => setForm((f) => ({ ...f, plcDataTypeId: v === "__none__" ? null : Number(v) }))}
             >
-              <option value="">—</option>
-              {(plcDataTypes as PlcDataTypeRow[]).map((t) => (
-                <option key={t.id} value={t.id}>{t.code} — {t.name}</option>
-              ))}
-            </select>
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">—</SelectItem>
+                {(plcDataTypes as PlcDataTypeRow[]).map((t) => (
+                  <SelectItem key={t.id} value={String(t.id)}>{t.code} — {t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         {formError && <p className="text-xs text-destructive">{formError}</p>}

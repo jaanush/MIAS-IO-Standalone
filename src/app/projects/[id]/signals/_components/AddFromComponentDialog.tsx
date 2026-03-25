@@ -10,6 +10,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 
@@ -195,15 +202,16 @@ export function AddFromComponentDialog({ projectId, open, onClose, onAdded }: Pr
                       <label className="text-xs text-muted-foreground whitespace-nowrap" title="Applied to signals that have no origin set on the template">
                         Default Origin
                       </label>
-                      <select
-                        className="h-7 rounded border border-input bg-background px-1.5 text-xs"
-                        value={defaultOrigin}
-                        onChange={(e) => setDefaultOrigin(e.target.value)}
-                      >
-                        {["IEC","CANBUS","CANOPEN","MODBUS_TCP","MODBUS_RTU","PROFINET","PROFIBUS","ETHERNETIP","DEVICENET","BACNET","INTERNAL"].map((o) => (
-                          <option key={o} value={o}>{o}</option>
-                        ))}
-                      </select>
+                      <Select value={defaultOrigin} onValueChange={(v) => setDefaultOrigin(v)}>
+                        <SelectTrigger className="h-7 rounded border border-input bg-background px-1.5 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["IEC","CANBUS","CANOPEN","MODBUS_TCP","MODBUS_RTU","PROFINET","PROFIBUS","ETHERNETIP","DEVICENET","BACNET","INTERNAL"].map((o) => (
+                            <SelectItem key={o} value={o}>{o}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <label className="text-xs text-muted-foreground whitespace-nowrap">Component Tag</label>

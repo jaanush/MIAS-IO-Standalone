@@ -11,10 +11,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SignalRowState } from "./SignalGrid";
 
 const NONE = "__none__";
-const sel = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
 
 type InputType = { id: number; code: string; name: string };
 type Eu = { id: number; symbol: string };
@@ -89,12 +89,17 @@ export function DefaultsDialog({ open, onClose, row, engineeringUnits, inputType
             </div>
             <div className="space-y-1">
               <Label>IO Type</Label>
-              <select className={sel} value={get("ioType")} onChange={(e) => patch("ioType", e.target.value)}>
-                <option value="DI">DI — Digital Input</option>
-                <option value="DO">DO — Digital Output</option>
-                <option value="AI">AI — Analog Input</option>
-                <option value="AO">AO — Analog Output</option>
-              </select>
+              <Select value={get("ioType")} onValueChange={(v) => patch("ioType", v)}>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DI">DI — Digital Input</SelectItem>
+                  <SelectItem value="DO">DO — Digital Output</SelectItem>
+                  <SelectItem value="AI">AI — Analog Input</SelectItem>
+                  <SelectItem value="AO">AO — Analog Output</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="space-y-1">
@@ -113,20 +118,30 @@ export function DefaultsDialog({ open, onClose, row, engineeringUnits, inputType
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Trigger</Label>
-                <select className={sel} value={get("defaultTrigger") ?? NONE} onChange={(e) => patch("defaultTrigger", e.target.value === NONE ? null : e.target.value)}>
-                  <option value={NONE}>— none —</option>
-                  <option value="NO">NO (Normally Open)</option>
-                  <option value="NC">NC (Normally Closed)</option>
-                </select>
+                <Select value={get("defaultTrigger") ?? NONE} onValueChange={(v) => patch("defaultTrigger", v === NONE ? null : v)}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    <SelectItem value="NO">NO (Normally Open)</SelectItem>
+                    <SelectItem value="NC">NC (Normally Closed)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label>Switching Type</Label>
-                <select className={sel} value={get("defaultSwitchingType") ?? NONE} onChange={(e) => patch("defaultSwitchingType", e.target.value === NONE ? null : e.target.value)}>
-                  <option value={NONE}>— none —</option>
-                  <option value="HIGH_SIDE">High Side</option>
-                  <option value="LOW_SIDE">Low Side</option>
-                  <option value="BOTH">Both</option>
-                </select>
+                <Select value={get("defaultSwitchingType") ?? NONE} onValueChange={(v) => patch("defaultSwitchingType", v === NONE ? null : v)}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    <SelectItem value="HIGH_SIDE">High Side</SelectItem>
+                    <SelectItem value="LOW_SIDE">Low Side</SelectItem>
+                    <SelectItem value="BOTH">Both</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -136,10 +151,15 @@ export function DefaultsDialog({ open, onClose, row, engineeringUnits, inputType
               </div>
               <div className="space-y-1">
                 <Label>PLC Data Type</Label>
-                <select className={sel} value={get("plcDataTypeId") != null ? String(get("plcDataTypeId")) : NONE} onChange={(e) => patch("plcDataTypeId", e.target.value === NONE ? null : Number(e.target.value))}>
-                  <option value={NONE}>— none —</option>
-                  {plcDataTypes.map((t) => <option key={t.id} value={String(t.id)}>{t.code}</option>)}
-                </select>
+                <Select value={get("plcDataTypeId") != null ? String(get("plcDataTypeId")) : NONE} onValueChange={(v) => patch("plcDataTypeId", v === NONE ? null : Number(v))}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    {plcDataTypes.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -149,19 +169,29 @@ export function DefaultsDialog({ open, onClose, row, engineeringUnits, inputType
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Input Type</Label>
-                <select className={sel} value={get("defaultInputTypeId") != null ? String(get("defaultInputTypeId")) : NONE} onChange={(e) => patch("defaultInputTypeId", e.target.value === NONE ? null : Number(e.target.value))}>
-                  <option value={NONE}>— none —</option>
-                  {inputTypes.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
-                </select>
+                <Select value={get("defaultInputTypeId") != null ? String(get("defaultInputTypeId")) : NONE} onValueChange={(v) => patch("defaultInputTypeId", v === NONE ? null : Number(v))}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    {inputTypes.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label>Wire Config</Label>
-                <select className={sel} value={get("defaultWireConfig") ?? NONE} onChange={(e) => patch("defaultWireConfig", e.target.value === NONE ? null : e.target.value)}>
-                  <option value={NONE}>— none —</option>
-                  <option value="TWO_WIRE">2-wire</option>
-                  <option value="THREE_WIRE">3-wire</option>
-                  <option value="FOUR_WIRE">4-wire</option>
-                </select>
+                <Select value={get("defaultWireConfig") ?? NONE} onValueChange={(v) => patch("defaultWireConfig", v === NONE ? null : v)}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    <SelectItem value="TWO_WIRE">2-wire</SelectItem>
+                    <SelectItem value="THREE_WIRE">3-wire</SelectItem>
+                    <SelectItem value="FOUR_WIRE">4-wire</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-1">Scaling</p>
@@ -188,17 +218,27 @@ export function DefaultsDialog({ open, onClose, row, engineeringUnits, inputType
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Engineering Unit</Label>
-                <select className={sel} value={get("defaultEuId") != null ? String(get("defaultEuId")) : NONE} onChange={(e) => patch("defaultEuId", e.target.value === NONE ? null : Number(e.target.value))}>
-                  <option value={NONE}>— none —</option>
-                  {engineeringUnits.map((eu) => <option key={eu.id} value={String(eu.id)}>{eu.symbol}</option>)}
-                </select>
+                <Select value={get("defaultEuId") != null ? String(get("defaultEuId")) : NONE} onValueChange={(v) => patch("defaultEuId", v === NONE ? null : Number(v))}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    {engineeringUnits.map((eu) => <SelectItem key={eu.id} value={String(eu.id)}>{eu.symbol}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label>PLC Data Type</Label>
-                <select className={sel} value={get("plcDataTypeId") != null ? String(get("plcDataTypeId")) : NONE} onChange={(e) => patch("plcDataTypeId", e.target.value === NONE ? null : Number(e.target.value))}>
-                  <option value={NONE}>— none —</option>
-                  {plcDataTypes.map((t) => <option key={t.id} value={String(t.id)}>{t.code}</option>)}
-                </select>
+                <Select value={get("plcDataTypeId") != null ? String(get("plcDataTypeId")) : NONE} onValueChange={(v) => patch("plcDataTypeId", v === NONE ? null : Number(v))}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    {plcDataTypes.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-1">Diagnostics</p>
@@ -216,13 +256,18 @@ export function DefaultsDialog({ open, onClose, row, engineeringUnits, inputType
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Fail Behavior</Label>
-                <select className={sel} value={get("defaultSensorFailBehavior") ?? NONE} onChange={(e) => patch("defaultSensorFailBehavior", e.target.value === NONE ? null : e.target.value)}>
-                  <option value={NONE}>— none —</option>
-                  <option value="HOLD_LAST">Hold Last</option>
-                  <option value="GO_LOW">Go Low</option>
-                  <option value="GO_HIGH">Go High</option>
-                  <option value="GO_SAFE">Go Safe</option>
-                </select>
+                <Select value={get("defaultSensorFailBehavior") ?? NONE} onValueChange={(v) => patch("defaultSensorFailBehavior", v === NONE ? null : v)}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    <SelectItem value="HOLD_LAST">Hold Last</SelectItem>
+                    <SelectItem value="GO_LOW">Go Low</SelectItem>
+                    <SelectItem value="GO_HIGH">Go High</SelectItem>
+                    <SelectItem value="GO_SAFE">Go Safe</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               {numField("Fail Delay (ms)", "defaultSensorFailDelayMs")}
             </div>

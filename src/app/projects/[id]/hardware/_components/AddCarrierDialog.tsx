@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Bus } from "@/lib/types/hardware";
 
 type Props = {
@@ -123,11 +124,10 @@ export function AddCarrierDialog({
               <Label>
                 Network{busCouplerMode && <span className="text-destructive"> *</span>}
               </Label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={networkId ?? ""}
-                onChange={(e) => {
-                  setNetworkId(e.target.value ? Number(e.target.value) : null);
+              <Select
+                value={networkId != null ? String(networkId) : "__none__"}
+                onValueChange={(v) => {
+                  setNetworkId(v === "__none__" ? null : Number(v));
                   // Clear coupler when network changes in bus mode
                   if (busCouplerMode) {
                     setSelectedCatalogId(null);
@@ -135,16 +135,21 @@ export function AddCarrierDialog({
                   }
                 }}
               >
-                {!busCouplerMode && <option value="">— Local (no network) —</option>}
-                {busCouplerMode && <option value="">— select network —</option>}
-                {networks.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.plcName ? `${n.plcName} — ` : ""}{n.protocol} / {n.role}
-                    {n.nodeAddress != null ? ` (Node ${n.nodeAddress})` : ""}
-                    {n.description ? ` — ${n.description}` : ""}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {!busCouplerMode && <SelectItem value="__none__">— Local (no network) —</SelectItem>}
+                  {busCouplerMode && <SelectItem value="__none__">— select network —</SelectItem>}
+                  {networks.map((n) => (
+                    <SelectItem key={n.id} value={String(n.id)}>
+                      {n.plcName ? `${n.plcName} — ` : ""}{n.protocol} / {n.role}
+                      {n.nodeAddress != null ? ` (Node ${n.nodeAddress})` : ""}
+                      {n.description ? ` — ${n.description}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

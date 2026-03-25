@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Cpu, Server, Box, Plus, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CAN_ORIGIN_SET, ETHERNET_PROTOCOL_SET, NETWORK_NODE_ROLES, type BusProtocol } from "@/lib/enums";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
@@ -56,23 +57,27 @@ export function NetworkDetail({ network, projectId, onRefresh }: Props) {
       {isEthernet && (
         <div className="flex items-center gap-2">
           <Label className="text-xs shrink-0">IP Network:</Label>
-          <select
-            className="h-8 flex-1 max-w-xs rounded-md border border-input bg-background px-2 text-sm"
-            value={network.ipNetworkId ?? ""}
-            onChange={(e) => {
+          <Select
+            value={network.ipNetworkId != null ? String(network.ipNetworkId) : "__none__"}
+            onValueChange={(v) => {
               busUpdate.mutate({
                 id: network.id,
-                ipNetworkId: e.target.value ? Number(e.target.value) : null,
+                ipNetworkId: v === "__none__" ? null : Number(v),
               });
             }}
           >
-            <option value="">— None —</option>
-            {(ipNetworks as any[]).map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.name ?? `Network #${n.id}`}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="h-8 flex-1 max-w-xs text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— None —</SelectItem>
+              {(ipNetworks as any[]).map((n) => (
+                <SelectItem key={n.id} value={String(n.id)}>
+                  {n.name ?? `Network #${n.id}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
@@ -231,22 +236,26 @@ function ConnectedNodesSection({
                     </td>
                     {!isCan && (
                       <td className="px-3 py-1.5">
-                        <select
-                          className="h-7 w-full rounded border border-input bg-background px-1.5 text-xs"
+                        <Select
                           value={node.role}
-                          onChange={(e) => upsertNode.mutate({
+                          onValueChange={(v) => upsertNode.mutate({
                             busId: network.id,
                             plcId: node.plc?.id ?? undefined,
                             carrierId: node.carrier?.id ?? undefined,
-                            role: e.target.value as any,
+                            role: v as any,
                             nodeAddress: node.nodeAddress,
                             ipAddress: node.ipAddress,
                           })}
                         >
-                          {NETWORK_NODE_ROLES.map((r) => (
-                            <option key={r} value={r}>{r}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-7 w-full text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {NETWORK_NODE_ROLES.map((r) => (
+                              <SelectItem key={r} value={r}>{r}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                     )}
                     <td className="px-3 py-1.5">
@@ -296,21 +305,25 @@ function ConnectedNodesSection({
                   </td>
                   {!isCan && (
                     <td className="px-3 py-1.5">
-                      <select
-                        className="h-7 w-full rounded border border-input bg-background px-1.5 text-xs"
-                        value={inst.nodeRole ?? ""}
-                        onChange={(e) => instanceUpdate.mutate({
+                      <Select
+                        value={inst.nodeRole ?? "__none__"}
+                        onValueChange={(v) => instanceUpdate.mutate({
                           id: inst.id,
                           name: inst.name,
-                          nodeRole: (e.target.value || null) as any,
+                          nodeRole: (v === "__none__" ? null : v) as any,
                           nodeAddress: inst.nodeAddress,
                         })}
                       >
-                        <option value="">—</option>
-                        {NETWORK_NODE_ROLES.map((r) => (
-                          <option key={r} value={r}>{r}</option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="h-7 w-full text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">—</SelectItem>
+                          {NETWORK_NODE_ROLES.map((r) => (
+                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </td>
                   )}
                   <td className="px-3 py-1.5">
@@ -375,38 +388,46 @@ function ConnectedNodesSection({
 
       {/* Add node */}
       <div className="flex items-center gap-2">
-        <select
-          className="h-8 rounded border border-input bg-background px-2 text-xs"
-          value={addType ?? ""}
-          onChange={(e) => { setAddType((e.target.value || null) as any); setAddId(""); }}
+        <Select
+          value={addType ?? "__none__"}
+          onValueChange={(v) => { setAddType((v === "__none__" ? null : v) as any); setAddId(""); }}
         >
-          <option value="">+ Add node...</option>
-          <option value="plc">PLC</option>
-          <option value="carrier">Carrier</option>
-          <option value="component">Component</option>
-          {allIoCards.length > 0 && <option value="module">Module (bus host)</option>}
-        </select>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">+ Add node...</SelectItem>
+            <SelectItem value="plc">PLC</SelectItem>
+            <SelectItem value="carrier">Carrier</SelectItem>
+            <SelectItem value="component">Component</SelectItem>
+            {allIoCards.length > 0 && <SelectItem value="module">Module (bus host)</SelectItem>}
+          </SelectContent>
+        </Select>
         {addType && (
           <>
-            <select
-              className="h-8 flex-1 rounded border border-input bg-background px-2 text-xs"
-              value={addId}
-              onChange={(e) => setAddId(e.target.value)}
+            <Select
+              value={addId || "__none__"}
+              onValueChange={(v) => setAddId(v === "__none__" ? "" : v)}
             >
-              <option value="">Select {addType}...</option>
-              {addType === "plc" && plcs.filter((p) => !connectedPlcIds.has(p.id)).map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-              {addType === "carrier" && allCarriers.filter((c: any) => !connectedCarrierIds.has(c.id)).map((c: any) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-              {addType === "component" && availableComponents.map((c) => (
-                <option key={c.id} value={c.id}>{c.name} ({c._count.signals} signals)</option>
-              ))}
-              {addType === "module" && allIoCards.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.carrierName} / Slot {c.slotPosition + 1} — {c.catalog?.articleNumber}</option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 flex-1 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Select {addType}...</SelectItem>
+                {addType === "plc" && plcs.filter((p) => !connectedPlcIds.has(p.id)).map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                ))}
+                {addType === "carrier" && allCarriers.filter((c: any) => !connectedCarrierIds.has(c.id)).map((c: any) => (
+                  <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                ))}
+                {addType === "component" && availableComponents.map((c) => (
+                  <SelectItem key={c.id} value={String(c.id)}>{c.name} ({c._count.signals} signals)</SelectItem>
+                ))}
+                {addType === "module" && allIoCards.map((c: any) => (
+                  <SelectItem key={c.id} value={String(c.id)}>{c.carrierName} / Slot {c.slotPosition + 1} — {c.catalog?.articleNumber}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button size="sm" className="h-8" disabled={!addId || upsertNode.isPending || instanceCreate.isPending} onClick={handleAdd}>
               <Plus className="h-3.5 w-3.5 mr-1" /> Add
             </Button>

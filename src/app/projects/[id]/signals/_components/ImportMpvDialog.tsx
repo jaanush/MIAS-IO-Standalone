@@ -742,19 +742,23 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
                         return (
                           <div key={carrier.key} className="px-3 py-2 flex items-center gap-3">
                             <span className="font-mono font-semibold w-16 shrink-0">{hwLabel}</span>
-                            <select
-                              className="h-6 rounded border border-input bg-background px-1.5 text-xs w-24 shrink-0"
+                            <Select
                               value={hwType}
-                              onChange={(e) => {
+                              onValueChange={(v) => {
                                 const next = new Map(carrierHwTypes);
-                                next.set(carrier.key, e.target.value as "plc" | "distio");
+                                next.set(carrier.key, v as "plc" | "distio");
                                 setCarrierHwTypes(next);
-                                carrier.hwType = e.target.value as "plc" | "distio";
+                                carrier.hwType = v as "plc" | "distio";
                               }}
                             >
-                              <option value="distio">Dist-IO</option>
-                              <option value="plc">PLC (local)</option>
-                            </select>
+                              <SelectTrigger className="h-6 rounded border border-input bg-background px-1.5 text-xs w-24 shrink-0">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="distio">Dist-IO</SelectItem>
+                                <SelectItem value="plc">PLC (local)</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <span className="text-muted-foreground truncate flex-1">
                               {carrier.slots.length} card{carrier.slots.length !== 1 ? "s" : ""}
                               {carrier.slots.length > 0 && ": "}

@@ -12,6 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/routers/_app";
 import { RAW_DATA_TYPES, PLC_DATA_TYPES, MODBUS_REGISTER_TYPES } from "@/lib/enums";
@@ -175,43 +182,62 @@ export function ProjectBusConfigDialog({ open, onClose, signal, networks, onSave
           {/* Network */}
           <div className="space-y-1">
             <Label>PLC Network <span className="text-destructive">*</span></Label>
-            <select
-              className={sel}
-              value={state.busId ?? NONE}
-              onChange={(e) => patch("busId", e.target.value === NONE ? null : Number(e.target.value))}
+            <Select
+              value={state.busId != null ? String(state.busId) : NONE}
+              onValueChange={(v) => patch("busId", v === NONE ? null : Number(v))}
             >
-              <option value={NONE}>— select network —</option>
-              {networks.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.protocol}{n.description ? ` (${n.description})` : ""}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className={sel}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>— select network —</SelectItem>
+                {networks.map((n) => (
+                  <SelectItem key={n.id} value={String(n.id)}>
+                    {n.protocol}{n.description ? ` (${n.description})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Raw data type + PLC data type */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Raw Data Type</Label>
-              <select className={sel} value={state.rawDataType} onChange={(e) => patch("rawDataType", e.target.value)}>
-                {RAW_DATA_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <Select value={state.rawDataType} onValueChange={(v) => patch("rawDataType", v)}>
+                <SelectTrigger className={sel}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RAW_DATA_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label>PLC Data Type</Label>
-              <select className={sel} value={state.plcDataType} onChange={(e) => patch("plcDataType", e.target.value)}>
-                {PLC_DATA_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <Select value={state.plcDataType} onValueChange={(v) => patch("plcDataType", v)}>
+                <SelectTrigger className={sel}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLC_DATA_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Byte order */}
           <div className="space-y-1">
             <Label>Byte Order</Label>
-            <select className={sel} value={state.byteOrder} onChange={(e) => patch("byteOrder", e.target.value)}>
-              <option value="BIG_ENDIAN">Big Endian</option>
-              <option value="LITTLE_ENDIAN">Little Endian</option>
-            </select>
+            <Select value={state.byteOrder} onValueChange={(v) => patch("byteOrder", v)}>
+              <SelectTrigger className={sel}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BIG_ENDIAN">Big Endian</SelectItem>
+                <SelectItem value="LITTLE_ENDIAN">Little Endian</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Timeout */}
@@ -375,12 +401,17 @@ export function ProjectBusConfigDialog({ open, onClose, signal, networks, onSave
               </div>
               <div className="space-y-1">
                 <Label>Register Type</Label>
-                <select className={sel} value={state.registerType || NONE} onChange={(e) => patch("registerType", e.target.value === NONE ? "" : e.target.value)}>
-                  <option value={NONE}>— none —</option>
-                  {MODBUS_REG_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
+                <Select value={state.registerType || NONE} onValueChange={(v) => patch("registerType", v === NONE ? "" : v)}>
+                  <SelectTrigger className={sel}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— none —</SelectItem>
+                    {MODBUS_REG_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label>Register Offset</Label>
