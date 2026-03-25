@@ -41,7 +41,7 @@ const signalInclude = {
   analogSignal: { include: { engineeringUnit: { include: { plcDataTypeCatalog: true } }, inputType: true, plcDataTypeCatalog: true, alarms: true } },
   busSignal: {
     include: {
-      bus: { select: { id: true, protocol: true, description: true, plc: { select: { name: true } } } },
+      bus: { select: { id: true, protocol: true, description: true } },
     },
   },
   ioCard: {
@@ -74,7 +74,7 @@ const signalInclude = {
           canIdOffset: true,
           functionBlockOverride: true,
           busId: true,
-          bus: { select: { id: true, protocol: true, description: true, plc: { select: { name: true } } } },
+          bus: { select: { id: true, protocol: true, description: true } },
           component: {
             select: { id: true, name: true, functionBlock: true, minCanIdOffset: true, busProtocol: true },
           },
