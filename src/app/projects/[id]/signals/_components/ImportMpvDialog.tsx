@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
-import * as XLSX from "xlsx";
+import { readArrayBuffer } from "@/lib/xlsx-reader";
 import { trpc } from "@/trpc/client";
 import {
   Dialog,
@@ -419,12 +419,12 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
     setImportStatus(null);
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
-        const data = new Uint8Array(ev.target!.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
+        const data = ev.target!.result as ArrayBuffer;
+        const workbook = await readArrayBuffer(data);
 
-        const sheetName = workbook.SheetNames.find(
+        const sheetName = workbook.sheetNames.find(
           (n) => n.trim().toLowerCase() === "hardwired io"
         );
         if (!sheetName) {
@@ -432,18 +432,24 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
           return;
         }
 
-        const ws = workbook.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+        const ws = workbook.getSheet(sheetName);
+        if (!ws) {
+          setParseError('Sheet "Hardwired IO" not found in the workbook.');
+          return;
+        }
+        const rows = ws.toRows();
         const result = parseSheet(rows);
 
         // Also parse Serial IO sheet for bus devices
-        const serialSheetName = workbook.SheetNames.find(
+        const serialSheetName = workbook.sheetNames.find(
           (n) => n.trim().toLowerCase() === "serial io"
         );
         if (serialSheetName) {
-          const serialWs = workbook.Sheets[serialSheetName];
-          const serialRows = XLSX.utils.sheet_to_json(serialWs, { header: 1, defval: "" }) as any[][];
-          result.busDevices = parseSerialIO(serialRows);
+          const serialWs = workbook.getSheet(serialSheetName);
+          if (serialWs) {
+            const serialRows = serialWs.toRows();
+            result.busDevices = parseSerialIO(serialRows);
+          }
         }
 
         if (result.signals.length === 0 && result.busDevices.length === 0) {

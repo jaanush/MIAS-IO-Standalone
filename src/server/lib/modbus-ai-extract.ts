@@ -4,6 +4,8 @@
  * structured register definitions.
  */
 
+import { readBuffer } from "@/lib/xlsx-reader";
+
 export interface ExtractedRegister {
   address: number;
   registerType: "HOLDING_REGISTER" | "INPUT_REGISTER" | "COIL" | "DISCRETE_INPUT";
@@ -65,20 +67,20 @@ Respond with ONLY valid JSON matching this schema:
 async function tryDirectExcelParse(fileBase64: string, fileName: string, selectedSheets?: string[]): Promise<ExtractionResult | null> {
   if (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls")) return null;
 
-  const XLSX = await import("xlsx");
   const buf = Buffer.from(fileBase64, "base64");
-  const wb = XLSX.read(buf, { type: "buffer" });
+  const wb = await readBuffer(buf);
 
   const registers: ExtractedRegister[] = [];
   let deviceName: string | null = null;
 
   const sheetsToProcess = selectedSheets?.length
-    ? wb.SheetNames.filter((n) => selectedSheets.includes(n))
-    : wb.SheetNames;
+    ? wb.sheetNames.filter((n) => selectedSheets.includes(n))
+    : wb.sheetNames;
 
   for (const sheetName of sheetsToProcess) {
-    const ws = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+    const ws = wb.getSheet(sheetName);
+    if (!ws) continue;
+    const rows = ws.toRows();
     if (rows.length < 2) continue;
 
     // Look for header row with "Modbus Address" or "Register" columns
@@ -179,7 +181,7 @@ async function tryDirectExcelParse(fileBase64: string, fileName: string, selecte
     registers,
     deviceName,
     protocol: "MODBUS_RTU",
-    notes: `Direct parse from ${wb.SheetNames.length} sheets, ${registers.length} registers extracted`,
+    notes: `Direct parse from ${wb.sheetNames.length} sheets, ${registers.length} registers extracted`,
   };
 }
 
@@ -218,15 +220,15 @@ export async function extractModbusRegisters(
     fileName.endsWith(".xlsx") ||
     fileName.endsWith(".xls")
   ) {
-    // Excel files: parse server-side with xlsx, convert to readable text for the AI
-    const XLSX = await import("xlsx");
+    // Excel files: parse server-side, convert to readable text for the AI
     const buf = Buffer.from(fileBase64, "base64");
-    const wb = XLSX.read(buf, { type: "buffer" });
+    const wb = await readBuffer(buf);
     const sheets: string[] = [];
-    for (const name of wb.SheetNames) {
-      const ws = wb.Sheets[name];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
-      const lines = rows.map((r) => r.map((c: any) => String(c ?? "")).join("\t")).join("\n");
+    for (const name of wb.sheetNames) {
+      const ws = wb.getSheet(name);
+      if (!ws) continue;
+      const rows = ws.toRows();
+      const lines = rows.map((r) => r.map((c) => String(c ?? "")).join("\t")).join("\n");
       sheets.push(`=== Sheet: ${name} ===\n${lines}`);
     }
     const text = sheets.join("\n\n");

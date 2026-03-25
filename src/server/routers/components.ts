@@ -397,13 +397,13 @@ export const componentsRouter = createTRPCRouter({
       if (!input.fileName.endsWith(".xlsx") && !input.fileName.endsWith(".xls")) {
         return { sheets: [] };
       }
-      const XLSX = await import("xlsx");
+      const { readBuffer } = await import("@/lib/xlsx-reader");
       const buf = Buffer.from(input.fileBase64, "base64");
-      const wb = XLSX.read(buf, { type: "buffer" });
-      const sheets = wb.SheetNames.map((name) => {
-        const ws = wb.Sheets[name];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
-        return { name, rowCount: rows.length };
+      const wb = await readBuffer(buf);
+      const sheets = wb.sheetNames.map((name) => {
+        const ws = wb.getSheet(name);
+        const rowCount = ws ? ws.toRows().length : 0;
+        return { name, rowCount };
       });
       return { sheets };
     }),

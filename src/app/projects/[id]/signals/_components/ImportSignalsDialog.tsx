@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
-import * as XLSX from "xlsx";
+import { readArrayBuffer, type Sheet } from "@/lib/xlsx-reader";
 import { trpc } from "@/trpc/client";
 import {
   Dialog,
@@ -72,20 +72,6 @@ type Props = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function cellString(sheet: XLSX.WorkSheet, row: number, col: number): string {
-  const addr = XLSX.utils.encode_cell({ r: row, c: col });
-  const cell = sheet[addr];
-  if (!cell) return "";
-  return String(cell.v ?? "").trim();
-}
-
-function cellNum(sheet: XLSX.WorkSheet, row: number, col: number): number | null {
-  const addr = XLSX.utils.encode_cell({ r: row, c: col });
-  const cell = sheet[addr];
-  if (!cell) return null;
-  const n = Number(cell.v);
-  return isNaN(n) ? null : n;
-}
 
 function extractCode(text: string): string | null {
   const m = text.match(/\((\d+)\)/);
@@ -117,25 +103,23 @@ function parseCardRef(ref: string): { plcName: string; groupLetter: string; slot
   return { plcName: m[1].trim(), groupLetter: m[2].toUpperCase(), slotPosition: Number(m[3]) };
 }
 
-function parseSheet(sheet: XLSX.WorkSheet): ParseResult {
-  const ref = sheet["!ref"];
-  const range = ref ? XLSX.utils.decode_range(ref) : null;
-  const maxRow = range ? range.e.r : 2000;
+function parseSheet(sheet: Sheet): ParseResult {
+  const maxRow = sheet.rowCount - 1;
 
   const plcMap = new Map<string, { location: string | null; carriers: Map<string, Map<number, string>> }>();
   const signals: ParsedRow[] = [];
 
   for (let rowIdx = 4; rowIdx <= maxRow; rowIdx++) {
-    const plcNameCell = cellString(sheet, rowIdx, 3); // col D
-    const cardRefRaw = cellString(sheet, rowIdx, 5);  // col F
-    const articleNumber = cellString(sheet, rowIdx, 7); // col H
-    const ioType = cellString(sheet, rowIdx, 9).trim().toUpperCase(); // col J
+    const plcNameCell = sheet.cellString(rowIdx, 3); // col D
+    const cardRefRaw = sheet.cellString(rowIdx, 5);  // col F
+    const articleNumber = sheet.cellString(rowIdx, 7); // col H
+    const ioType = sheet.cellString(rowIdx, 9).trim().toUpperCase(); // col J
 
     if (cardRefRaw) {
       const parsed = parseCardRef(cardRefRaw);
       if (parsed && articleNumber) {
         const effectivePlcName = plcNameCell || parsed.plcName;
-        const plcLocation = cellString(sheet, rowIdx, 4) || null; // col E
+        const plcLocation = sheet.cellString(rowIdx, 4) || null; // col E
 
         if (!plcMap.has(effectivePlcName)) {
           plcMap.set(effectivePlcName, { location: plcLocation, carriers: new Map() });
@@ -157,16 +141,16 @@ function parseSheet(sheet: XLSX.WorkSheet): ParseResult {
     const isAnalog = ioType === "AI" || ioType === "AO";
     if (!isDiscrete && !isAnalog) continue;
 
-    const description = cellString(sheet, rowIdx, 2);
+    const description = sheet.cellString(rowIdx, 2);
     if (!description) continue;
 
-    const systemRaw = cellString(sheet, rowIdx, 0);
-    const componentTag = cellString(sheet, rowIdx, 1) || null;
-    const channelRaw = cellNum(sheet, rowIdx, 6);
-    const signalTypeRaw = cellString(sheet, rowIdx, 10);
-    const euSymbol = cellString(sheet, rowIdx, 12) || null;
-    const gvlName = cellString(sheet, rowIdx, 13) || null;
-    const notes = cellString(sheet, rowIdx, 14) || null;
+    const systemRaw = sheet.cellString(rowIdx, 0);
+    const componentTag = sheet.cellString(rowIdx, 1) || null;
+    const channelRaw = sheet.cellNumber(rowIdx, 6);
+    const signalTypeRaw = sheet.cellString(rowIdx, 10);
+    const euSymbol = sheet.cellString(rowIdx, 12) || null;
+    const gvlName = sheet.cellString(rowIdx, 13) || null;
+    const notes = sheet.cellString(rowIdx, 14) || null;
 
     signals.push({
       description,
@@ -275,21 +259,21 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
     setImportStatus(null);
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
-        const data = new Uint8Array(ev.target!.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
+        const data = ev.target!.result as ArrayBuffer;
+        const workbook = await readArrayBuffer(data);
 
-        let sheet: XLSX.WorkSheet | undefined;
-        const targetName = workbook.SheetNames.find(
+        let sheet: Sheet | undefined;
+        const targetName = workbook.sheetNames.find(
           (n) => n.trim().toUpperCase() === "EXTERNAL IO-LIST"
         );
         if (targetName) {
-          sheet = workbook.Sheets[targetName];
-        } else if (workbook.SheetNames.length > 1) {
-          sheet = workbook.Sheets[workbook.SheetNames[1]];
+          sheet = workbook.getSheet(targetName);
+        } else if (workbook.sheetNames.length > 1) {
+          sheet = workbook.getSheet(workbook.sheetNames[1]);
         } else {
-          sheet = workbook.Sheets[workbook.SheetNames[0]];
+          sheet = workbook.getSheet(workbook.sheetNames[0]);
         }
 
         if (!sheet) {

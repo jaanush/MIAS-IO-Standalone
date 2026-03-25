@@ -3,6 +3,8 @@
  * and apply column mapping + row filters to produce structured records.
  */
 
+import { readBuffer } from "@/lib/xlsx-reader";
+
 export interface SheetInfo {
   name: string;
   rowCount: number;
@@ -31,34 +33,33 @@ export interface MappedRow {
  * Read an Excel file and return sheet info with headers and sample data.
  */
 export async function readExcelSheets(fileBase64: string): Promise<SheetInfo[]> {
-  const XLSX = await import("xlsx");
   const buf = Buffer.from(fileBase64, "base64");
-  const wb = XLSX.read(buf, { type: "buffer" });
+  const wb = await readBuffer(buf);
 
-  return wb.SheetNames.map((name) => {
-    const ws = wb.Sheets[name];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+  return wb.sheetNames.map((name) => {
+    const ws = wb.getSheet(name)!;
+    const rows = ws.toRows();
 
     // Find header row: first row with 3+ non-empty cells
     let headerIdx = 0;
     for (let i = 0; i < Math.min(10, rows.length); i++) {
-      const nonEmpty = rows[i].filter((c: any) => String(c ?? "").trim()).length;
+      const nonEmpty = rows[i].filter((c) => String(c ?? "").trim()).length;
       if (nonEmpty >= 3) {
         headerIdx = i;
         break;
       }
     }
 
-    const headers = rows[headerIdx]?.map((c: any) => String(c ?? "").trim()) ?? [];
+    const headers = rows[headerIdx]?.map((c) => String(c ?? "").trim()) ?? [];
     const dataRows = rows.slice(headerIdx + 1);
     const sampleRows = dataRows
-      .filter((r) => r.some((c: any) => String(c ?? "").trim()))
+      .filter((r) => r.some((c) => String(c ?? "").trim()))
       .slice(0, 5)
-      .map((r) => r.map((c: any) => String(c ?? "").trim()));
+      .map((r) => r.map((c) => String(c ?? "").trim()));
 
     return {
       name,
-      rowCount: dataRows.filter((r) => r.some((c: any) => String(c ?? "").trim())).length,
+      rowCount: dataRows.filter((r) => r.some((c) => String(c ?? "").trim())).length,
       headers: headers.filter(Boolean),
       sampleRows,
     };
@@ -74,22 +75,21 @@ export async function getColumnValues(
   columnHeader: string,
   limit: number = 50,
 ): Promise<string[]> {
-  const XLSX = await import("xlsx");
   const buf = Buffer.from(fileBase64, "base64");
-  const wb = XLSX.read(buf, { type: "buffer" });
-  const ws = wb.Sheets[sheetName];
+  const wb = await readBuffer(buf);
+  const ws = wb.getSheet(sheetName);
   if (!ws) return [];
 
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+  const rows = ws.toRows();
 
   // Find header row
   let headerIdx = 0;
   for (let i = 0; i < Math.min(10, rows.length); i++) {
-    const nonEmpty = rows[i].filter((c: any) => String(c ?? "").trim()).length;
+    const nonEmpty = rows[i].filter((c) => String(c ?? "").trim()).length;
     if (nonEmpty >= 3) { headerIdx = i; break; }
   }
 
-  const headers = rows[headerIdx]?.map((c: any) => String(c ?? "").trim()) ?? [];
+  const headers = rows[headerIdx]?.map((c) => String(c ?? "").trim()) ?? [];
   const colIdx = headers.indexOf(columnHeader);
   if (colIdx < 0) return [];
 
@@ -113,22 +113,21 @@ export async function extractMappedRows(
   filters: RowFilter[],
   filterLogic: "AND" | "OR" = "AND",
 ): Promise<{ rows: MappedRow[]; totalRows: number; filteredOut: number }> {
-  const XLSX = await import("xlsx");
   const buf = Buffer.from(fileBase64, "base64");
-  const wb = XLSX.read(buf, { type: "buffer" });
-  const ws = wb.Sheets[sheetName];
+  const wb = await readBuffer(buf);
+  const ws = wb.getSheet(sheetName);
   if (!ws) return { rows: [], totalRows: 0, filteredOut: 0 };
 
-  const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+  const rawRows = ws.toRows();
 
   // Find header row
   let headerIdx = 0;
   for (let i = 0; i < Math.min(10, rawRows.length); i++) {
-    const nonEmpty = rawRows[i].filter((c: any) => String(c ?? "").trim()).length;
+    const nonEmpty = rawRows[i].filter((c) => String(c ?? "").trim()).length;
     if (nonEmpty >= 3) { headerIdx = i; break; }
   }
 
-  const headers = rawRows[headerIdx]?.map((c: any) => String(c ?? "").trim()) ?? [];
+  const headers = rawRows[headerIdx]?.map((c) => String(c ?? "").trim()) ?? [];
 
   // Build column index map for source columns
   const sourceIdxMap = new Map<string, number>();
