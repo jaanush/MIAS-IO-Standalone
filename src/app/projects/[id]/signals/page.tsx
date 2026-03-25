@@ -1255,8 +1255,11 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const rebindSignals = trpc.projectHardware.rebindSignals.useMutation({
     onSuccess: (result) => {
       utils.signal.list.invalidate({ projectId });
-      if (result.rebound > 0 || result.unmatched.length > 0) {
-        toast.success(`Rebound ${result.rebound} signal${result.rebound !== 1 ? "s" : ""}${result.unmatched.length > 0 ? `, ${result.unmatched.length} unmatched` : ""}`);
+      if (result.rebound > 0 || result.unmatched.length > 0 || result.conflicts.length > 0) {
+        const parts = [`Rebound ${result.rebound} signal${result.rebound !== 1 ? "s" : ""}`];
+        if (result.conflicts.length > 0) parts.push(`${result.conflicts.length} conflict${result.conflicts.length !== 1 ? "s" : ""} (channel occupied)`);
+        if (result.unmatched.length > 0) parts.push(`${result.unmatched.length} unmatched`);
+        toast.success(parts.join(", "));
       } else {
         toast.info("No unbound signals to rebind");
       }

@@ -1065,19 +1065,27 @@ export const projectHardwareRouter = createTRPCRouter({
       }
 
       let rebound = 0;
+      const skipped = 0;
       const unmatched: string[] = [];
+      const conflicts: string[] = [];
       for (const sig of unbound) {
         const key = `${sig.hwCabinet}:${sig.hwCarrier}:${sig.hwTypeCode}:${sig.hwInstance}`;
         const cardId = cardLookup.get(key);
         if (cardId) {
-          await db.signal.update({ where: { id: sig.id }, data: { ioCardId: cardId } });
-          rebound++;
+          try {
+            await db.signal.update({ where: { id: sig.id }, data: { ioCardId: cardId } });
+            rebound++;
+          } catch {
+            // Unique constraint conflict — another signal already occupies this card+channel
+            const hwId = `N${sig.hwCabinet}:D${String(sig.hwCarrier).padStart(2, "0")}:${sig.hwTypeCode}${String(sig.hwInstance).padStart(2, "0")}`;
+            if (!conflicts.includes(hwId)) conflicts.push(hwId);
+          }
         } else {
           const hwId = `N${sig.hwCabinet}:D${String(sig.hwCarrier).padStart(2, "0")}:${sig.hwTypeCode}${String(sig.hwInstance).padStart(2, "0")}`;
           if (!unmatched.includes(hwId)) unmatched.push(hwId);
         }
       }
 
-      return { rebound, unmatched };
+      return { rebound, unmatched, conflicts };
     }),
 });
