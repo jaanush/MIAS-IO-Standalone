@@ -4,6 +4,7 @@ import TrpcProvider from "./_trpc/TrpcProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/app-header";
+import { CommandPalette } from "@/components/command-palette";
 import { getSession } from "@/lib/auth";
 import "./globals.css";
 
@@ -37,6 +38,7 @@ export default async function RootLayout({
             <div className="aurora-bg dark:block hidden" aria-hidden="true" />
             <div className="relative z-10 flex h-screen flex-col overflow-hidden">
               {session && <AppHeader user={session} />}
+              {session && <CommandPalette />}
               <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
             </div>
           </TrpcProvider>

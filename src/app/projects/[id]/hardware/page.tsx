@@ -5,6 +5,7 @@ import { trpc } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Plus, Cpu, Network, Server, Box, Workflow } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { HardwareTree } from "./_components/HardwareTree";
 import { PlcDetail } from "./_components/PlcDetail";
 import { CarrierDetail } from "./_components/CarrierDetail";
@@ -89,9 +90,9 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
   ];
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <ResizablePanelGroup  className="flex-1 overflow-hidden">
       {/* Left panel — tree */}
-      <div className="w-[26rem] border-r flex flex-col shrink-0 overflow-y-auto">
+      <ResizablePanel defaultSize={25} minSize={15} maxSize={45} className="flex flex-col">
         <div className="flex items-center justify-between px-3 pt-4 pb-2 border-b">
           <span className="text-sm font-semibold">Hardware</span>
         </div>
@@ -165,10 +166,12 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
             </PopoverContent>
           </Popover>
         </div>
-      </div>
+      </ResizablePanel>
+
+      <ResizableHandle withHandle />
 
       {/* Right panel — detail */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <ResizablePanel defaultSize={75} className="overflow-y-auto p-6">
         {!selected && (
           <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
             Select a PLC, carrier, or instance from the tree.
@@ -218,7 +221,7 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
             onRefresh={refresh}
           />
         )}
-      </div>
+      </ResizablePanel>
 
       {/* Dialogs */}
       <AddPlcDialog
@@ -261,6 +264,6 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
           onCreated={() => { setAddInstanceOpen(false); refresh(); }}
         />
       )}
-    </div>
+    </ResizablePanelGroup>
   );
 }

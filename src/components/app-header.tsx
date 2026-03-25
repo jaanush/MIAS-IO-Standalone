@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FeedbackButton } from "@/components/feedback-dialog";
 import { CodesysIndicator } from "@/components/codesys-indicator";
-import { ChevronDown, User } from "lucide-react";
+import { ChevronDown, Search, User } from "lucide-react";
 
 export type HeaderUser = {
   email: string;
@@ -98,6 +98,18 @@ export function AppHeader({ user }: { user: HeaderUser }) {
 
       {/* Right — user menu */}
       <div className="flex items-center justify-end gap-0.5">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-2 text-muted-foreground text-xs font-normal"
+          onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+        >
+          <Search className="h-3.5 w-3.5" />
+          Search...
+          <kbd className="pointer-events-none inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+            Ctrl+K
+          </kbd>
+        </Button>
         <CodesysIndicator />
         <FeedbackButton />
         <ThemeToggle />

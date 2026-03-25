@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 
 // ── Manual content sections ──────────────────────────────────────────────────
 
@@ -48,9 +49,9 @@ export default function ManualPage() {
   const ActiveComponent = activePage.component;
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <ResizablePanelGroup  className="flex-1 overflow-hidden">
       {/* Left sidebar — page links */}
-      <nav className="w-56 border-r flex flex-col shrink-0 overflow-y-auto bg-muted/20">
+      <ResizablePanel defaultSize={18} minSize={12} maxSize={30} className="flex flex-col bg-muted/20">
         <div className="px-4 pt-5 pb-3">
           <h2 className="text-sm font-semibold tracking-tight">MIAS-IO Manual</h2>
           <p className="text-[10px] text-muted-foreground mt-0.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</p>
@@ -83,14 +84,16 @@ export default function ManualPage() {
             </div>
           ))}
         </div>
-      </nav>
+      </ResizablePanel>
+
+      <ResizableHandle withHandle />
 
       {/* Right pane — content */}
-      <main className="flex-1 overflow-y-auto">
+      <ResizablePanel defaultSize={82} className="overflow-y-auto">
         <div className="max-w-3xl mx-auto px-8 py-8">
           <ActiveComponent />
         </div>
-      </main>
-    </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
