@@ -27,7 +27,7 @@ async function main() {
       analog_signal, discrete_signal, bus_signal, signal,
       pdo_config, instance_signal, component_instance,
       component_analog_alarm, component_discrete_alarm, component_signal, hardware_component,
-      io_card, carrier_port, plc_port, plc_network, io_carrier, plc,
+      io_card, carrier_port, plc_port, network_node, ip_network, plc_network, io_carrier, plc,
       global_variable_list, codesys_settings, codesys_task, codesys_session,
       codesys_fb_connection, codesys_fb_instance, codesys_fb_parameter, codesys_fb_definition,
       codesys_variable, codesys_import,
@@ -35,7 +35,8 @@ async function main() {
       project_approval, project,
       module_catalog_approval, module_catalog_protocol, module_catalog,
       device_catalog_approval, device_catalog_protocol, device_catalog,
-      engineering_unit, input_type_catalog, plc_data_type_catalog, signal_system, approval
+      engineering_unit, input_type_catalog, plc_data_type_catalog, signal_system, approval,
+      module_type_code
     CASCADE;
 
     ${sql}
