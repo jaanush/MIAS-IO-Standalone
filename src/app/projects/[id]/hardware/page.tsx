@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useCallback } from "react";
+import { useQueryState, parseAsString, parseAsInteger } from "nuqs";
 import { trpc } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Plus, Cpu, Network, Server, Box, Workflow } from "lucide-react";
@@ -22,7 +23,24 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
   const projectId = Number(id);
   const utils = trpc.useUtils();
 
-  const [selected, setSelected] = useState<SelectedNode | null>(null);
+  // URL-synced selection state: ?view=plc&nodeId=5
+  const [viewType, setViewType] = useQueryState("view", parseAsString);
+  const [nodeId, setNodeId] = useQueryState("nodeId", parseAsInteger);
+
+  const selected: SelectedNode | null =
+    viewType && nodeId != null
+      ? ({ type: viewType, id: nodeId } as SelectedNode)
+      : null;
+
+  const setSelected = useCallback((node: SelectedNode | null) => {
+    if (node) {
+      setViewType(node.type);
+      setNodeId(node.id);
+    } else {
+      setViewType(null);
+      setNodeId(null);
+    }
+  }, [setViewType, setNodeId]);
   const [addPlcOpen, setAddPlcOpen] = useState(false);
   const [addCarrierForPlc, setAddCarrierForPlc] = useState<number | null>(null);
   const [addBusOpen, setAddBusOpen] = useState(false);

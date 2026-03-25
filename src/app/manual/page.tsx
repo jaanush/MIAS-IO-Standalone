@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
+import { useQueryState, parseAsString } from "nuqs";
 
 // ── Manual content sections ──────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ const sections = pages.reduce<{ section: string; items: ManualPage[] }[]>((acc, 
 }, []);
 
 export default function ManualPage() {
-  const [activeId, setActiveId] = useState("overview");
+  const [activeId, setActiveId] = useQueryState("page", parseAsString.withDefault("overview"));
   const activePage = pages.find((p) => p.id === activeId) ?? pages[0];
   const ActiveComponent = activePage.component;
 

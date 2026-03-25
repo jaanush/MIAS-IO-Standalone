@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/app-header";
 import { CommandPalette } from "@/components/command-palette";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { getSession } from "@/lib/auth";
 import "./globals.css";
 
@@ -34,14 +35,16 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <TrpcProvider>
-            <div className="aurora-bg dark:block hidden" aria-hidden="true" />
-            <div className="relative z-10 flex h-screen flex-col overflow-hidden">
-              {session && <AppHeader user={session} />}
-              {session && <CommandPalette />}
-              <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
-            </div>
-          </TrpcProvider>
+          <NuqsAdapter>
+            <TrpcProvider>
+              <div className="aurora-bg dark:block hidden" aria-hidden="true" />
+              <div className="relative z-10 flex h-screen flex-col overflow-hidden">
+                {session && <AppHeader user={session} />}
+                {session && <CommandPalette />}
+                <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
+              </div>
+            </TrpcProvider>
+          </NuqsAdapter>
           <Toaster richColors closeButton position="bottom-right" />
         </ThemeProvider>
       </body>
