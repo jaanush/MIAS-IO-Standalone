@@ -85,3 +85,39 @@ Each signal now includes a `hwId` field (string or null):
 - **No breaking changes** — all existing fields remain unchanged. These are additive fields.
 - `slotPosition` still exists and is still used for PLC address computation. The new identifiers are for human-readable reference and stable binding.
 - The plugin can use `hwId` for display/logging but does not need to use it for hardware configuration (CODESYS still uses slot position for device tree building).
+
+---
+
+## Network/Bus model restructured — 2026-03-25
+
+The hardware data model has been restructured. **No breaking API changes** — all existing
+contract fields are unchanged. But new data is available if needed.
+
+### What changed internally
+
+1. **IP Networks** are now separate from Buses.
+   - `IpNetwork` = Ethernet infrastructure (subnet CIDR, gateway, DNS)
+   - `Bus` = protocol-specific communication (MODBUS_TCP, CANBUS, etc.)
+   - A Bus can link to an IpNetwork via `ipNetworkId`
+
+2. **BusNodes** replace the old direct PLC→Bus binding.
+   - `BusNode` is a join table: `{ busId, plcId?, carrierId?, role, nodeAddress }`
+   - PLCs and carriers connect to buses via BusNodes (role: SERVER or CLIENT)
+   - The old `Bus.plcId` field has been dropped
+
+3. **Ports** now reference IpNetwork instead of Bus.
+   - `PlcPort.ipNetworkId` and `CarrierPort.ipNetworkId`
+
+### What's NOT changed (existing API)
+
+- `GET /api/codesys/project/:id` signals still return `networkId` and `networkProtocol`
+- `GET /api/codesys/project/:id/hardware` PLCs, carriers, cards structured the same
+- `GET /api/codesys/project/:id/gvl/:gvlId` GVL generation unchanged
+
+### New data available (not yet in API)
+
+If the plugin needs any of these, request via `docs/pending-from-codesys.md`:
+
+- **IP Network details** per bus (subnet, gateway, DNS) — for auto-configuring Ethernet adapters
+- **BusNode topology** — which PLCs/carriers are on which bus, with roles and node addresses
+- **Port assignments** — which PLC/carrier port connects to which IP Network
