@@ -28,6 +28,7 @@ const navItems = [
   { label: "Hardware", href: "/hardware" },
   { label: "Components", href: "/components" },
   { label: "Misc", href: "/misc" },
+  { label: "Manual", href: "/manual" },
 ];
 
 export function AppHeader({ user }: { user: HeaderUser }) {
