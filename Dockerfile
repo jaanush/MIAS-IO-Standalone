@@ -15,28 +15,18 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-# Production — install only prod deps
-FROM base AS proddeps
-COPY package.json package-lock.json ./
-COPY prisma/schema.prisma prisma/schema.prisma
-COPY prisma.config.ts ./
-RUN npm ci --omit=dev
-
 # Production
 FROM base AS runner
 ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
-COPY --from=proddeps /app/node_modules ./node_modules
+# Use full node_modules from builder (includes prisma CLI for migrations)
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/prisma.config.ts ./
-# Include prisma CLI for migrate deploy at startup
-COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
-COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
 
 USER nextjs
 EXPOSE 3000
