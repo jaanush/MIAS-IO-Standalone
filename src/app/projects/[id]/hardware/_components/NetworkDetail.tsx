@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Cpu, Server, Box, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CAN_ORIGIN_SET, ETHERNET_PROTOCOL_SET, NETWORK_NODE_ROLES, type BusProtocol, type NetworkNodeRole } from "@/lib/enums";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -26,8 +27,12 @@ type Props = {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function NetworkDetail({ network, projectId, onRefresh }: Props) {
+  const [confirmProps, confirmAction] = useConfirm();
   const utils = trpc.useUtils();
   const busUpdate = trpc.projectHardware.busUpdate.useMutation({ onSuccess: onRefresh });
+  const busDelete = trpc.projectHardware.busDelete.useMutation({
+    onSuccess: () => { toast.success("Bus deleted"); onRefresh(); },
+  });
   const { data: ipNetworks = [] } = trpc.projectHardware.ipNetworkList.useQuery({ projectId });
 
   const proto = network.protocol as BusProtocol;
@@ -51,6 +56,15 @@ export function NetworkDetail({ network, projectId, onRefresh }: Props) {
         <span className="text-sm text-muted-foreground">
           {(network.nodes ?? []).length} node{(network.nodes ?? []).length !== 1 ? "s" : ""}
         </span>
+        <div className="flex-1" />
+        <Button
+          size="sm"
+          variant="destructive"
+          disabled={busDelete.isPending}
+          onClick={() => confirmAction("Delete this bus and all its node connections?", () => busDelete.mutate({ id: network.id }))}
+        >
+          <Trash2 className="h-4 w-4 mr-1" /> Delete
+        </Button>
       </div>
 
       {/* IP Network assignment (ethernet buses only) */}
@@ -100,6 +114,8 @@ export function NetworkDetail({ network, projectId, onRefresh }: Props) {
 
       {/* CAN ID Spans (CAN protocols only) */}
       {isCan && <CanIdSpanSection networkId={network.id} />}
+
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

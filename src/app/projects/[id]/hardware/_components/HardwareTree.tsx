@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Cpu, Network, Server, Box, Plus, Globe, ArrowUpRight } from "lucide-react";
+import { ChevronRight, ChevronDown, Cpu, Cable, Server, Box, Plus, Globe, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Plc, Bus, Carrier, IpNetwork, SelectedNode } from "@/lib/types/hardware";
 
@@ -100,7 +100,7 @@ function NetworkSubtree({ net, plcName, isSelected, onSelect, onAddInstance }: {
   return (
     <TreeItem
       key={net.id}
-      icon={<Network className="h-3.5 w-3.5" />}
+      icon={<Cable className="h-3.5 w-3.5" />}
       label={net.protocol}
       sublabel={net.description ?? host ?? undefined}
       active={isSelected({ type: "network", id: net.id })}
@@ -180,7 +180,7 @@ export function HardwareTree({ plcs, standaloneNetworks = [], ipNetworks = [], s
           {ipNetworks.map((net) => (
             <TreeItem
               key={`ipnet-${net.id}`}
-              icon={<Network className="h-3.5 w-3.5" />}
+              icon={<Globe className="h-3.5 w-3.5" />}
               label={net.name ?? `Network #${net.id}`}
               sublabel={net.buses && net.buses.length > 0 ? net.buses.map((b) => b.protocol).join(", ") : undefined}
               active={isSelected({ type: "ipNetwork", id: net.id })}
