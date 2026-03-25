@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { BUS_PROTOCOLS, type BusProtocol } from "@/lib/enums";
+import { BUS_PROTOCOLS, ETHERNET_PROTOCOL_SET, type BusProtocol } from "@/lib/enums";
 
 // ── Hardware tree types ────────────────────────────────────────────────────────
 
@@ -233,7 +233,11 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
   const gvlUpsert = trpc.signal.gvlUpsert.useMutation();
   const createPlc = trpc.projectHardware.plcCreate.useMutation();
   const createCarrier = trpc.projectHardware.carrierCreate.useMutation();
-  const createNetwork = trpc.projectHardware.busCreate.useMutation();
+  const createBus = trpc.projectHardware.busCreate.useMutation();
+  const createIpNetwork = trpc.projectHardware.ipNetworkCreate.useMutation();
+  const upsertBusNode = trpc.projectHardware.busNodeUpsert.useMutation();
+  const savePlcPort = trpc.projectHardware.plcPortSave.useMutation();
+  const saveCarrierPort = trpc.projectHardware.carrierPortSave.useMutation();
   const assignCard = trpc.projectHardware.cardAssign.useMutation();
 
   // Auto-detect matched protocols from selected PLC + coupler catalog entries
@@ -320,6 +324,27 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
 
     try {
       // ── Phase 1: Hardware ──────────────────────────────────────────────────
+      const isEthernet = effectiveProtocol && ETHERNET_PROTOCOL_SET.has(effectiveProtocol);
+
+      // For ethernet protocols, create one shared IP Network + Bus
+      let ipNetworkId: number | null = null;
+      let busId: number | null = null;
+      if (effectiveProtocol && parseResult.hardware.some((p) => p.carriers.length > 0)) {
+        if (isEthernet) {
+          setImportStatus("Creating IP Network…");
+          const ipNet = await createIpNetwork.mutateAsync({ projectId, name: `${effectiveProtocol} Network` });
+          ipNetworkId = ipNet.id;
+        }
+        setImportStatus(`Creating ${effectiveProtocol} bus…`);
+        const bus = await createBus.mutateAsync({
+          projectId,
+          protocol: effectiveProtocol,
+          role: "MASTER",
+          ipNetworkId,
+        });
+        busId = bus.id;
+      }
+
       for (const parsedPlc of parseResult.hardware) {
         setImportStatus(`Creating PLC ${parsedPlc.name}…`);
         const plc = await createPlc.mutateAsync({
@@ -329,21 +354,12 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
           notes: parsedPlc.location ? `Location: ${parsedPlc.location}` : null,
         });
 
-        // plcCreate auto-creates a local carrier — no need to create another
-
-        // Create one network for all carrier groups on this PLC (if protocol known)
-        let networkId: number | null = null;
-        if (effectiveProtocol && parsedPlc.carriers.length > 0) {
-          setImportStatus(`Creating ${effectiveProtocol} network on ${parsedPlc.name}…`);
-          const network = await createNetwork.mutateAsync({
-            projectId,
-            plcId: plc.id,
-            protocol: effectiveProtocol,
-            role: "MASTER",
-            ioCardId: null,
-            description: null,
-          });
-          networkId = network.id;
+        // Connect PLC to bus via BusNode + assign IP Network to first port
+        if (busId && parsedPlc.carriers.length > 0) {
+          await upsertBusNode.mutateAsync({ busId, plcId: plc.id, role: "SERVER" });
+          if (ipNetworkId) {
+            await savePlcPort.mutateAsync({ plcId: plc.id, portNumber: 0, ipNetworkId });
+          }
         }
 
         for (const parsedCarrier of parsedPlc.carriers) {
@@ -352,8 +368,16 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
             plcId: plc.id,
             name: parsedCarrier.name,
             catalogId: selectedCouplerCatalogId ?? null,
-            busId: networkId,
+            busId,
           });
+
+          // Connect carrier to bus via BusNode + assign IP Network to first port
+          if (busId) {
+            await upsertBusNode.mutateAsync({ busId, carrierId: carrier.id, role: "CLIENT" });
+            if (ipNetworkId) {
+              await saveCarrierPort.mutateAsync({ carrierId: carrier.id, portNumber: 0, ipNetworkId });
+            }
+          }
 
           for (const parsedSlot of parsedCarrier.slots) {
             const catalogId = moduleMap.get(parsedSlot.articleNumber);

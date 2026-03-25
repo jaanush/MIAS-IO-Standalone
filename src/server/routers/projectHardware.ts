@@ -318,7 +318,6 @@ export const projectHardwareRouter = createTRPCRouter({
     .input(
       z.object({
         projectId: z.number().int(),
-        plcId: z.number().int().optional().nullable(),
         ioCardId: z.number().int().optional().nullable(),
         ipNetworkId: z.number().int().optional().nullable(),
         protocol: z.enum(BUS_PROTOCOLS),

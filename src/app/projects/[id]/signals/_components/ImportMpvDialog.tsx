@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { BUS_PROTOCOLS, type BusProtocol } from "@/lib/enums";
+import { BUS_PROTOCOLS, ETHERNET_PROTOCOL_SET, type BusProtocol } from "@/lib/enums";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -391,7 +391,11 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
   const systemUpsert = trpc.signal.systemUpsert.useMutation();
   const createPlc = trpc.projectHardware.plcCreate.useMutation();
   const createCarrier = trpc.projectHardware.carrierCreate.useMutation();
-  const createNetwork = trpc.projectHardware.busCreate.useMutation();
+  const createBus = trpc.projectHardware.busCreate.useMutation();
+  const createIpNetwork = trpc.projectHardware.ipNetworkCreate.useMutation();
+  const upsertBusNode = trpc.projectHardware.busNodeUpsert.useMutation();
+  const savePlcPort = trpc.projectHardware.plcPortSave.useMutation();
+  const saveCarrierPort = trpc.projectHardware.carrierPortSave.useMutation();
   const assignCard = trpc.projectHardware.cardAssign.useMutation();
   const bulkCreate = trpc.signal.bulkCreate.useMutation();
   const gvlUpsert = trpc.signal.gvlUpsert.useMutation();
@@ -481,6 +485,33 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
 
     try {
       // ── Phase 1: Hardware ──────────────────────────────────────────────
+      const isEthernet = effectiveProtocol && ETHERNET_PROTOCOL_SET.has(effectiveProtocol);
+
+      // For ethernet protocols, create one shared IP Network
+      let ipNetworkId: number | null = null;
+      if (isEthernet && parseResult.hardware.some((p) => p.carriers.length > 0)) {
+        setImportStatus("Creating IP Network...");
+        const ipNet = await createIpNetwork.mutateAsync({
+          projectId,
+          name: `${effectiveProtocol} Network`,
+        });
+        ipNetworkId = ipNet.id;
+      }
+
+      // Create one bus per protocol (shared across all PLCs)
+      let busId: number | null = null;
+      if (effectiveProtocol && parseResult.hardware.some((p) => p.carriers.length > 0)) {
+        setImportStatus(`Creating ${effectiveProtocol} bus...`);
+        const bus = await createBus.mutateAsync({
+          projectId,
+          protocol: effectiveProtocol,
+          role: "MASTER",
+          ipNetworkId: ipNetworkId,
+          description: null,
+        });
+        busId = bus.id;
+      }
+
       for (const parsedPlc of parseResult.hardware) {
         setImportStatus(`Creating PLC ${parsedPlc.name}...`);
         const plc = await createPlc.mutateAsync({
@@ -490,20 +521,14 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
           notes: parsedPlc.cabinet ? `Cabinet: ${parsedPlc.cabinet}` : null,
         });
         if (!firstPlcId) firstPlcId = plc.id;
-        // plcCreate auto-creates a local carrier — no need to create another
 
-        let networkId: number | null = null;
-        if (effectiveProtocol && parsedPlc.carriers.length > 0) {
-          setImportStatus(`Creating ${effectiveProtocol} network on ${parsedPlc.name}...`);
-          const network = await createNetwork.mutateAsync({
-            projectId,
-            plcId: plc.id,
-            protocol: effectiveProtocol,
-            role: "MASTER",
-            ioCardId: null,
-            description: null,
-          });
-          networkId = network.id;
+        // Connect PLC to bus via BusNode
+        if (busId && parsedPlc.carriers.length > 0) {
+          await upsertBusNode.mutateAsync({ busId, plcId: plc.id, role: "SERVER" });
+          // Assign IP Network to PLC's first ethernet port
+          if (ipNetworkId) {
+            await savePlcPort.mutateAsync({ plcId: plc.id, portNumber: 0, ipNetworkId });
+          }
         }
 
         for (const carrier of parsedPlc.carriers) {
@@ -512,10 +537,19 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
             plcId: plc.id,
             name: carrier.name,
             catalogId: selectedCouplerCatalogId ?? null,
-            busId: carrier.hwType === "distio" ? networkId : null,
+            busId: carrier.hwType === "distio" ? busId : null,
             cabinetNumber: carrier.cabinetNumber,
             carrierNumber: carrier.carrierNumber,
           });
+
+          // Connect carrier to bus via BusNode
+          if (busId && carrier.hwType === "distio") {
+            await upsertBusNode.mutateAsync({ busId, carrierId: created.id, role: "CLIENT" });
+            // Assign IP Network to carrier's first ethernet port
+            if (ipNetworkId) {
+              await saveCarrierPort.mutateAsync({ carrierId: created.id, portNumber: 0, ipNetworkId });
+            }
+          }
 
           for (const slot of carrier.slots) {
             const catalogId = moduleMap.get(slot.articleNumber);
@@ -600,41 +634,44 @@ export function ImportMpvDialog({ projectId, open, onClose, onImported }: Props)
       await bulkCreate.mutateAsync({ projectId, signals: signalBatch });
 
       // ── Phase 3: Bus devices (Serial IO) ─────────────────────────────
-      if (parseResult.busDevices.length > 0 && firstPlcId) {
-        // Create one network per protocol, reuse for all devices on that protocol
-        const networkByProtocol = new Map<string, number>();
+      if (parseResult.busDevices.length > 0) {
+        // Create one bus per protocol at project level, connect PLC via BusNode
+        const busByProtocol = new Map<string, number>();
 
-        for (const bus of parseResult.busDevices) {
-          setImportStatus(`Creating bus device: ${bus.systemName}...`);
+        for (const busDevice of parseResult.busDevices) {
+          setImportStatus(`Creating bus device: ${busDevice.systemName}...`);
 
-          let networkId = networkByProtocol.get(bus.protocol);
-          if (!networkId) {
-            const network = await createNetwork.mutateAsync({
+          let devBusId = busByProtocol.get(busDevice.protocol);
+          if (!devBusId) {
+            const devBus = await createBus.mutateAsync({
               projectId,
-              plcId: firstPlcId,
-              protocol: bus.protocol,
+              protocol: busDevice.protocol,
               role: "MASTER",
-              ioCardId: null,
-              description: `${bus.protocol} bus`,
+              description: `${busDevice.protocol} bus`,
             });
-            networkId = network.id;
-            networkByProtocol.set(bus.protocol, networkId);
+            devBusId = devBus.id;
+            busByProtocol.set(busDevice.protocol, devBusId);
+
+            // Connect first PLC as master node on this fieldbus
+            if (firstPlcId) {
+              await upsertBusNode.mutateAsync({ busId: devBusId, plcId: firstPlcId, role: "SERVER" });
+            }
           }
 
           const component = await componentCreate.mutateAsync({
             projectId,
-            name: bus.systemName,
-            busProtocol: bus.protocol,
+            name: busDevice.systemName,
+            busProtocol: busDevice.protocol,
             status: "DRAFT",
-            description: bus.comments ?? `${bus.protocol} device — imported from MPV Serial IO`,
+            description: busDevice.comments ?? `${busDevice.protocol} device — imported from MPV Serial IO`,
           });
 
           await instanceCreate.mutateAsync({
             projectId,
             componentId: component.id,
-            busId: networkId,
-            name: bus.systemName,
-            notes: bus.comments,
+            busId: devBusId,
+            name: busDevice.systemName,
+            notes: busDevice.comments,
           });
         }
       }
