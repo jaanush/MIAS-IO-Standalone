@@ -489,8 +489,8 @@ log "Traefik-labels satta"
 # Auto-detektera Prisma om DB_MIGRATE_CMD inte ar satt manuellt
 if [ -z "$DB_MIGRATE_CMD" ] && [ "$NEEDS_DB" = "true" ]; then
     if [ -f "prisma/schema.prisma" ] || [ -f "schema.prisma" ]; then
-        DB_MIGRATE_CMD="npx prisma migrate deploy; npx prisma db push --accept-data-loss"
-        log "Prisma detekterat -- auto-migration: migrate deploy + db push"
+        DB_MIGRATE_CMD="npx prisma migrate deploy"
+        log "Prisma detekterat -- migrate deploy (migrations only, no db push)"
     fi
 fi
 
