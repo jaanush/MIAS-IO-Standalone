@@ -91,7 +91,7 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Left panel — tree */}
-      <div className="w-64 border-r flex flex-col shrink-0 overflow-y-auto">
+      <div className="w-[26rem] border-r flex flex-col shrink-0 overflow-y-auto">
         <div className="flex items-center justify-between px-3 pt-4 pb-2 border-b">
           <span className="text-sm font-semibold">Hardware</span>
         </div>
