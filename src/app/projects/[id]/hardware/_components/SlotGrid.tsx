@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, ExternalLink } from "lucide-react";
 import { ModulePickerDialog } from "./ModulePickerDialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import { cn, wagoDatasheetUrl } from "@/lib/utils";
 import type { IoCard } from "@/lib/types/hardware";
 
@@ -32,6 +34,7 @@ const CARD_TYPE_COLORS: Record<string, string> = {
 };
 
 export function SlotGrid({ carrierId, projectId, maxSlots, cards, onRefresh }: Props) {
+  const [confirmProps, confirmAction] = useConfirm();
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   const utils = trpc.useUtils();
 
@@ -110,7 +113,7 @@ export function SlotGrid({ carrierId, projectId, maxSlots, cards, onRefresh }: P
                     variant="destructive"
                     className="h-7 text-xs"
                     onClick={() => {
-                      if (confirm("Remove this module?")) deleteCard.mutate({ id: card.id });
+                      confirmAction("Remove this module?", () => deleteCard.mutate({ id: card.id }));
                     }}
                   >
                     <Trash2 className="h-3 w-3 mr-1" /> Remove
@@ -135,6 +138,7 @@ export function SlotGrid({ carrierId, projectId, maxSlots, cards, onRefresh }: P
           }}
         />
       )}
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </>
   );
 }

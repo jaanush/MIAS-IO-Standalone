@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 
 type IpNetworkData = {
   id: number;
@@ -26,6 +28,7 @@ type Props = {
 };
 
 export function IpNetworkDetail({ network, projectId, onRefresh, onDeleted }: Props) {
+  const [confirmProps, confirmAction] = useConfirm();
   const update = trpc.projectHardware.ipNetworkUpdate.useMutation({ onSuccess: onRefresh });
   const deleteNet = trpc.projectHardware.ipNetworkDelete.useMutation({ onSuccess: onDeleted });
   const [name, setName] = useState(network.name ?? "");
@@ -56,7 +59,7 @@ export function IpNetworkDetail({ network, projectId, onRefresh, onDeleted }: Pr
         <Button
           size="sm"
           variant="destructive"
-          onClick={() => { if (confirm("Delete this IP network?")) deleteNet.mutate({ id: network.id }); }}
+          onClick={() => confirmAction("Delete this IP network?", () => deleteNet.mutate({ id: network.id }))}
         >
           <Trash2 className="h-4 w-4 mr-1" /> Delete
         </Button>
@@ -115,6 +118,7 @@ export function IpNetworkDetail({ network, projectId, onRefresh, onDeleted }: Pr
           </div>
         )}
       </div>
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

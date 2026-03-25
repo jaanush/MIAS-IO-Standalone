@@ -4,6 +4,7 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
+import { toast } from "sonner";
 import { trpc } from "@/trpc/client";
 
 function makeQueryClient() {
@@ -11,6 +12,12 @@ function makeQueryClient() {
     defaultOptions: {
       queries: {
         staleTime: 30 * 1000,
+      },
+      mutations: {
+        onError: (error) => {
+          const message = error instanceof Error ? error.message : "An unexpected error occurred";
+          toast.error(message);
+        },
       },
     },
   });

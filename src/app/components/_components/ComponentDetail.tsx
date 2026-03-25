@@ -25,6 +25,8 @@ import { Upload, Network, ChevronRight, FileSpreadsheet } from "lucide-react";
 import { StructuredImportDialog, type TargetField } from "@/components/structured-import-dialog";
 import { cn } from "@/lib/utils";
 import { ImportModbusDialog } from "./ImportModbusDialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import { COMPONENT_STATUS, BUS_PROTOCOLS } from "@/lib/enums";
 
 // ── Structured import helpers ────────────────────────────────────────────────
@@ -93,6 +95,7 @@ interface Props {
 }
 
 export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
+  const [confirmProps, confirmAction] = useConfirm();
   const router = useRouter();
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const [showImportDbc, setShowImportDbc] = useState(false);
@@ -155,8 +158,9 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this component? All signal definitions will be lost.")) return;
-    await remove.mutateAsync({ id });
+    confirmAction("Delete this component? All signal definitions will be lost.", async () => {
+      await remove.mutateAsync({ id });
+    });
   }
 
   if (isLoading) return <div className="p-8 text-muted-foreground">Loading…</div>;
@@ -414,6 +418,7 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
           }}
         />
       )}
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

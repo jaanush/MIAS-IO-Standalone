@@ -52,6 +52,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, UserPlus, X, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import { cn } from "@/lib/utils";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -120,6 +122,7 @@ const columnHelper = createColumnHelper<ProjectWithMembers>();
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export default function ProjectsPage() {
+  const [confirmProps, confirmAction] = useConfirm();
   const utils = trpc.useUtils();
   const { data: projects, isLoading, error } = trpc.project.list.useQuery();
   const { data: users } = trpc.user.list.useQuery();
@@ -238,8 +241,9 @@ export default function ProjectsPage() {
   }
 
   function handleDelete(id: number, name: string) {
-    if (!window.confirm(`Delete project "${name}"? This cannot be undone.`)) return;
-    deleteMutation.mutate({ id });
+    confirmAction(`Delete project "${name}"? This cannot be undone.`, () => {
+      deleteMutation.mutate({ id });
+    });
   }
 
   // ── Columns ──────────────────────────────────────────────────────────────
@@ -595,6 +599,7 @@ export default function ProjectsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

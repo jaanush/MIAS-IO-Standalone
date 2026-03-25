@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import TrpcProvider from "./_trpc/TrpcProvider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/app-header";
 import { getSession } from "@/lib/auth";
 import "./globals.css";
@@ -39,6 +40,7 @@ export default async function RootLayout({
               <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
             </div>
           </TrpcProvider>
+          <Toaster richColors closeButton position="bottom-right" />
         </ThemeProvider>
       </body>
     </html>

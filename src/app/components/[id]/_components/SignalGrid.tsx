@@ -36,6 +36,8 @@ import {
   Columns3, GripVertical,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import { cn } from "@/lib/utils";
 import { DefaultsDialog } from "./DefaultsDialog";
 import { AlarmsDialog } from "./AlarmsDialog";
@@ -1052,6 +1054,7 @@ type NewRow = SignalRowState & { _tempId: string; componentId: number };
 type GroupByOption = "none" | "type" | "origin";
 
 export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
+  const [confirmProps, confirmAction] = useConfirm();
   const [localEdits, setLocalEdits] = useState<Map<string, SignalRowState>>(new Map());
   const [editOriginals, setEditOriginals] = useState<Map<string, SignalRowState>>(new Map());
   const [newRows, setNewRows] = useState<NewRow[]>([]);
@@ -1280,10 +1283,11 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
   }
 
   async function deleteRow(signalId: number) {
-    if (!confirm("Delete this signal?")) return;
-    await deleteMutation.mutateAsync({ id: signalId });
-    utils.components.componentById.invalidate({ id: componentId });
-    onRefresh();
+    confirmAction("Delete this signal?", async () => {
+      await deleteMutation.mutateAsync({ id: signalId });
+      utils.components.componentById.invalidate({ id: componentId });
+      onRefresh();
+    });
   }
 
   async function deleteSelected() {
@@ -1291,13 +1295,14 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
       signals.some((s) => String(s.id) === k)
     );
     if (selectedSavedKeys.length === 0) return;
-    if (!confirm(`Delete ${selectedSavedKeys.length} signal${selectedSavedKeys.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
-    for (const key of selectedSavedKeys) {
-      await deleteMutation.mutateAsync({ id: Number(key) });
-    }
-    setRowSelection(new Set());
-    utils.components.componentById.invalidate({ id: componentId });
-    onRefresh();
+    confirmAction(`Delete ${selectedSavedKeys.length} signal${selectedSavedKeys.length === 1 ? "" : "s"}? This cannot be undone.`, async () => {
+      for (const key of selectedSavedKeys) {
+        await deleteMutation.mutateAsync({ id: Number(key) });
+      }
+      setRowSelection(new Set());
+      utils.components.componentById.invalidate({ id: componentId });
+      onRefresh();
+    });
   }
 
   // Click outside grid → save all dirty rows
@@ -1404,10 +1409,11 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
         {signals.length > 0 && (
           <button
             className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
-            onClick={async () => {
-              if (!confirm(`Delete ALL ${signals.length} signals from this component? This cannot be undone.`)) return;
-              await purgeMutation.mutateAsync({ componentId });
-              onRefresh();
+            onClick={() => {
+              confirmAction(`Delete ALL ${signals.length} signals from this component? This cannot be undone.`, async () => {
+                await purgeMutation.mutateAsync({ componentId });
+                onRefresh();
+              });
             }}
           >
             Purge all
@@ -1690,6 +1696,7 @@ export function SignalGrid({ componentId, signals, onRefresh }: GridProps) {
         <Plus className="mr-1 h-3.5 w-3.5" />
         Add Signal
       </Button>
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

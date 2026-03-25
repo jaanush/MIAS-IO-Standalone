@@ -4,10 +4,13 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/trpc/client";
 import { ModuleForm, type ModuleFormValues } from "../_components/ModuleForm";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 
 export default function EditModulePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const [confirmProps, confirmAction] = useConfirm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const utils = trpc.useUtils();
 
@@ -38,8 +41,9 @@ export default function EditModulePage({ params }: { params: Promise<{ id: strin
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this module? This cannot be undone.")) return;
-    await remove.mutateAsync({ id: Number(id) });
+    confirmAction("Delete this module? This cannot be undone.", async () => {
+      await remove.mutateAsync({ id: Number(id) });
+    });
   }
 
   if (isLoading) {
@@ -94,6 +98,7 @@ export default function EditModulePage({ params }: { params: Promise<{ id: strin
         successorArticle={data.successorArticle}
         manualUrl={data.manualUrl}
       />
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

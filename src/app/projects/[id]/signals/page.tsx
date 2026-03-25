@@ -26,6 +26,8 @@ import { Plus, Check, X, Trash2, Settings2, Upload, Download, Layers, ChevronUp,
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import { AddEditSignalDialog } from "./_components/AddEditSignalDialog";
 import { ImportSignalsDialog } from "./_components/ImportSignalsDialog";
 import { ImportMpvDialog } from "./_components/ImportMpvDialog";
@@ -427,7 +429,7 @@ function Td({ children, className }: { children?: React.ReactNode; className?: s
 
 // ── Display row ───────────────────────────────────────────────────────────────
 
-const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, onEdit, onSignal, onDetail, onHardware, onDelete, onBusConfig, onAlarms, onRevert, isRevertPending, visibleCols }: {
+const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, onEdit, onSignal, onDetail, onHardware, onDelete, onBusConfig, onAlarms, onRevert, isRevertPending, visibleCols, confirmAction }: {
   signal: SignalRow;
   selected: boolean;
   onToggleSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -437,6 +439,7 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
   onRevert?: () => void;
   isRevertPending?: boolean;
   visibleCols: ColDef[];
+  confirmAction: (description: string, onConfirm: () => void) => void;
 }) {
   const ioCode = getSignalIoCode(signal);
   const typeColor = TYPE_COLORS[ioCode] ?? "bg-muted border-border text-muted-foreground";
@@ -567,7 +570,7 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
           )}
           <button type="button" title="Delete"
             className="rounded p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-            onClick={(e) => { e.stopPropagation(); if (confirm(`Delete signal "${signal.tag ?? signal.description ?? `#${signal.id}`}"?`)) onDelete(); }}
+            onClick={(e) => { e.stopPropagation(); confirmAction(`Delete signal "${signal.tag ?? signal.description ?? `#${signal.id}`}"?`, () => onDelete()); }}
           ><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       </Td>;
@@ -974,6 +977,7 @@ function applyDiff(target: EditValues, diff: Partial<EditValues>): EditValues {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function RevisionBadge({ projectId }: { projectId: number }) {
+  const [confirmProps, confirmAction] = useConfirm();
   const { data } = trpc.signal.projectRevision.useQuery({ projectId });
   const utils = trpc.useUtils();
   const bump = trpc.signal.revisionBump.useMutation({
@@ -990,11 +994,12 @@ function RevisionBadge({ projectId }: { projectId: number }) {
       <button
         type="button"
         className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-        onClick={() => { if (confirm(`Bump revision from ${rev} to next?`)) bump.mutate({ projectId }); }}
+        onClick={() => confirmAction(`Bump revision from ${rev} to next?`, () => bump.mutate({ projectId }))}
         disabled={bump.isPending}
       >
         Bump
       </button>
+      <ConfirmDialog {...confirmProps} confirmLabel="Bump" />
     </div>
   );
 }
@@ -1002,6 +1007,7 @@ function RevisionBadge({ projectId }: { projectId: number }) {
 export default function ProjectSignalsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const projectId = Number(id);
+  const [confirmProps, confirmAction] = useConfirm();
   const utils = trpc.useUtils();
 
   const { data: signals = [], isLoading } = trpc.signal.list.useQuery({ projectId });
@@ -1310,8 +1316,9 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   }
 
   async function deleteSelected() {
-    if (!confirm(`Delete ${selectedCount} signal${selectedCount === 1 ? "" : "s"}? This cannot be undone.`)) return;
-    await bulkDel.mutateAsync({ ids: selectedIds });
+    confirmAction(`Delete ${selectedCount} signal${selectedCount === 1 ? "" : "s"}? This cannot be undone.`, async () => {
+      await bulkDel.mutateAsync({ ids: selectedIds });
+    });
   }
 
   function clearFilters() {
@@ -1720,6 +1727,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                           onAlarms={() => setAlarmSignal(signal)}
                           onRevert={signal.instanceSignal ? () => signalRevert.mutate({ signalId: signal.id }) : undefined}
                           isRevertPending={signalRevert.isPending}
+                          confirmAction={confirmAction}
                         />
                       );
                     })}
@@ -1790,6 +1798,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                           onSignal={() => setDefaultsSignal(signal)}
                           onHardware={() => setHardwareSignal(signal)}
                           onAlarms={() => setAlarmSignal(signal)}
+                          confirmAction={confirmAction}
                         />
                       );
                     })}
@@ -1836,6 +1845,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                       onAlarms={() => setAlarmSignal(signal)}
                       onRevert={signal.instanceSignal ? () => signalRevert.mutate({ signalId: signal.id }) : undefined}
                       isRevertPending={signalRevert.isPending}
+                      confirmAction={confirmAction}
                     />
                   );
                 })}
@@ -2003,6 +2013,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
         }}
         onCancel={() => setShowCreateComponent(false)}
       />
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

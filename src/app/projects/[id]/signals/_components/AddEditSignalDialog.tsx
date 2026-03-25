@@ -5,6 +5,8 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import { trpc } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,6 +167,7 @@ export function AddEditSignalDialog({
   onSaved,
 }: Props) {
   const isEdit = signal !== null;
+  const [confirmProps, confirmAction] = useConfirm();
 
   const utils = trpc.useUtils();
 
@@ -261,9 +264,9 @@ export function AddEditSignalDialog({
 
   function handleDelete() {
     if (!signal) return;
-    if (confirm(`Delete signal "${signal.tag ?? signal.id}"? This cannot be undone.`)) {
+    confirmAction(`Delete signal "${signal.tag ?? signal.id}"? This cannot be undone.`, () => {
       del.mutate({ id: signal.id });
-    }
+    });
   }
 
   const isPending = create.isPending || update.isPending || del.isPending;
@@ -412,6 +415,7 @@ export function AddEditSignalDialog({
           </div>
         </form>
       </DialogContent>
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </Dialog>
   );
 }

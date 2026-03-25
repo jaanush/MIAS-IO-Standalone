@@ -13,6 +13,8 @@ import { CardList } from "./CardList";
 import { PortNetworkEditor } from "./PortNetworkEditor";
 import { wagoDatasheetUrl } from "@/lib/utils";
 import type { Carrier } from "@/lib/types/hardware";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 
 const schema = z.object({
   name: z.string().min(1, "Required"),
@@ -32,6 +34,7 @@ type Props = {
 };
 
 export function CarrierDetail({ carrier, projectId, onRefresh }: Props) {
+  const [confirmProps, confirm] = useConfirm();
   const update = trpc.projectHardware.carrierUpdate.useMutation({ onSuccess: onRefresh });
   const deleteCarrier = trpc.projectHardware.carrierDelete.useMutation({ onSuccess: onRefresh });
   const carrierPortSave = trpc.projectHardware.carrierPortSave.useMutation({ onSuccess: onRefresh });
@@ -91,9 +94,7 @@ export function CarrierDetail({ carrier, projectId, onRefresh }: Props) {
         <Button
           size="sm"
           variant="destructive"
-          onClick={() => {
-            if (confirm("Delete this carrier? This cannot be undone.")) deleteCarrier.mutate({ id: carrier.id });
-          }}
+          onClick={() => confirm("Delete this carrier? This cannot be undone.", () => deleteCarrier.mutate({ id: carrier.id }))}
         >
           <Trash2 className="h-4 w-4 mr-1" /> Delete
         </Button>
@@ -172,6 +173,7 @@ export function CarrierDetail({ carrier, projectId, onRefresh }: Props) {
         cards={carrier.cards}
         onRefresh={onRefresh}
       />
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

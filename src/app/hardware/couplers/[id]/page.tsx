@@ -4,10 +4,13 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/trpc/client";
 import { DeviceForm, type DeviceFormValues } from "../../plcs/_components/DeviceForm";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 
 export default function EditCouplerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const [confirmProps, confirmAction] = useConfirm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const utils = trpc.useUtils();
 
@@ -38,8 +41,9 @@ export default function EditCouplerPage({ params }: { params: Promise<{ id: stri
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this coupler? This cannot be undone.")) return;
-    await remove.mutateAsync({ id: Number(id) });
+    confirmAction("Delete this coupler? This cannot be undone.", async () => {
+      await remove.mutateAsync({ id: Number(id) });
+    });
   }
 
   if (isLoading) return <div className="p-8 text-muted-foreground">Loading…</div>;
@@ -92,6 +96,7 @@ export default function EditCouplerPage({ params }: { params: Promise<{ id: stri
         successorArticle={data.successorArticle}
         manualUrl={data.manualUrl}
       />
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

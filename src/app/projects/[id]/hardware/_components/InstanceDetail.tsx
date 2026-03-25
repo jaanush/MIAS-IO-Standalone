@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET } from "@/lib/enums";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import type { ComponentInstance, Bus } from "@/lib/types/hardware";
 
 type Props = {
@@ -17,6 +19,7 @@ type Props = {
 };
 
 export function InstanceDetail({ instance, network, onDeleted, onRefresh }: Props) {
+  const [confirmProps, confirmAction] = useConfirm();
   const [name, setName] = useState(instance.name);
   const [tag, setTag] = useState(instance.tag ?? "");
   const [notes, setNotes] = useState(instance.notes ?? "");
@@ -53,9 +56,10 @@ export function InstanceDetail({ instance, network, onDeleted, onRefresh }: Prop
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete instance "${instance.name}"? This will also delete all its signals.`)) return;
-    await del.mutateAsync({ id: instance.id });
-    onDeleted();
+    confirmAction(`Delete instance "${instance.name}"? This will also delete all its signals.`, async () => {
+      await del.mutateAsync({ id: instance.id });
+      onDeleted();
+    });
   }
 
   const isCan = network && ["CANBUS", "CANOPEN", "J1939"].includes(network.protocol);
@@ -156,6 +160,7 @@ export function InstanceDetail({ instance, network, onDeleted, onRefresh }: Prop
           </Button>
         </div>
       </form>
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

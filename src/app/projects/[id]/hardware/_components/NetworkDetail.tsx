@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Cpu, Server, Box, Plus, Trash2 } from "lucide-react";
 import { CAN_MODES, CAN_ORIGIN_SET, ETHERNET_PROTOCOL_SET, SERIAL_PARITY, NETWORK_NODE_ROLES, type BusProtocol } from "@/lib/enums";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import type { Bus, BusNode, ComponentInstance } from "@/lib/types/hardware";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -108,6 +110,7 @@ function ConnectedNodesSection({
   isCan: boolean;
   onRefresh: () => void;
 }) {
+  const [confirmProps, confirmAction] = useConfirm();
   const upsertNode = trpc.projectHardware.busNodeUpsert.useMutation();
   const deleteNode = trpc.projectHardware.busNodeDelete.useMutation({ onSuccess: onRefresh });
   const instanceCreate = trpc.projectHardware.instanceCreate.useMutation();
@@ -271,7 +274,7 @@ function ConnectedNodesSection({
                         type="button"
                         className="text-muted-foreground hover:text-destructive"
                         title="Remove from bus"
-                        onClick={() => { if (confirm("Remove this node from the bus?")) deleteNode.mutate({ id: node.id }); }}
+                        onClick={() => confirmAction("Remove this node from the bus?", () => deleteNode.mutate({ id: node.id }))}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -354,7 +357,7 @@ function ConnectedNodesSection({
                       type="button"
                       className="text-muted-foreground hover:text-destructive"
                       title="Remove instance"
-                      onClick={() => { if (confirm(`Remove ${inst.name}? This will delete its signals.`)) instanceDelete.mutate({ id: inst.id }); }}
+                      onClick={() => confirmAction(`Remove ${inst.name}? This will delete its signals.`, () => instanceDelete.mutate({ id: inst.id }))}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -408,6 +411,7 @@ function ConnectedNodesSection({
           </>
         )}
       </div>
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

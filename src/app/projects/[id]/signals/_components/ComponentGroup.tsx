@@ -3,6 +3,8 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, Unlink, RotateCcw, ExternalLink, Loader2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import { cn } from "@/lib/utils";
 
 type NetworkOption = { id: number; protocol: string; description: string | null };
@@ -72,6 +74,7 @@ export function ComponentGroup({
   isNetworkUpdatePending,
   defaultCollapsed = false,
 }: ComponentGroupProps) {
+  const [confirmProps, confirmAction] = useConfirm();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(instanceName);
@@ -341,13 +344,12 @@ export function ComponentGroup({
                   title="Disconnect from component template"
                   disabled={isDisconnectPending}
                   onClick={() => {
-                    if (confirm(
-                      `Disconnect "${instanceName}" from its component template?\n\n` +
+                    confirmAction(
+                      `Disconnect "${instanceName}" from its component template? ` +
                       `This will remove the link between ${signalCount} signal${signalCount !== 1 ? "s" : ""} and the "${componentName}" template. ` +
-                      `Signal values will be preserved but will no longer receive template updates or support revert.`
-                    )) {
-                      onDisconnect();
-                    }
+                      `Signal values will be preserved but will no longer receive template updates or support revert.`,
+                      () => onDisconnect()
+                    );
                   }}
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive disabled:opacity-50 ml-1"
                 >
@@ -370,6 +372,7 @@ export function ComponentGroup({
           {renderRows()}
         </tbody>
       )}
+      <ConfirmDialog {...confirmProps} confirmLabel="Disconnect" />
     </>
   );
 }

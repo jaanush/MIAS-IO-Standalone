@@ -14,6 +14,8 @@ import { CardList } from "./CardList";
 import { PortNetworkEditor } from "./PortNetworkEditor";
 import { wagoDatasheetUrl } from "@/lib/utils";
 import type { Plc, Bus, IoCard, Carrier, Port } from "@/lib/types/hardware";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 
 const schema = z.object({
   name: z.string().min(1, "Required"),
@@ -28,6 +30,7 @@ type Props = {
 };
 
 export function PlcDetail({ plc, projectId, onRefresh }: Props) {
+  const [confirmProps, confirm] = useConfirm();
   const update = trpc.projectHardware.plcUpdate.useMutation({ onSuccess: onRefresh });
   const deletePlc = trpc.projectHardware.plcDelete.useMutation({ onSuccess: onRefresh });
   const plcPortSave = trpc.projectHardware.plcPortSave.useMutation({ onSuccess: onRefresh });
@@ -72,9 +75,7 @@ export function PlcDetail({ plc, projectId, onRefresh }: Props) {
         <Button
           size="sm"
           variant="destructive"
-          onClick={() => {
-            if (confirm("Delete this PLC? This cannot be undone.")) deletePlc.mutate({ id: plc.id });
-          }}
+          onClick={() => confirm("Delete this PLC? This cannot be undone.", () => deletePlc.mutate({ id: plc.id }))}
         >
           <Trash2 className="h-4 w-4 mr-1" /> Delete
         </Button>
@@ -174,6 +175,7 @@ export function PlcDetail({ plc, projectId, onRefresh }: Props) {
           ))
         )}
       </div>
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

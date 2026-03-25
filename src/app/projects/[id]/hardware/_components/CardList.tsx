@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, ExternalLink, GripVertical, Zap, AlertTriangle } from "lucide-react";
 import { ModulePickerDialog } from "./ModulePickerDialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import { cn, wagoDatasheetUrl } from "@/lib/utils";
 import type { IoCard } from "@/lib/types/hardware";
 
@@ -85,6 +87,7 @@ function SubgroupHeader({ sg, cards, onAddModule, onDrop }: { sg: string; cards:
 }
 
 export function CardList({ carrierId, projectId, maxSlots, cards, onRefresh }: Props) {
+  const [confirmProps, confirmAction] = useConfirm();
   const [pickerSubgroup, setPickerSubgroup] = useState<string | null>(null);
   const dragIdRef = useRef<number | null>(null);
   const utils = trpc.useUtils();
@@ -267,7 +270,7 @@ export function CardList({ carrierId, projectId, maxSlots, cards, onRefresh }: P
                           type="button"
                           className="opacity-40 hover:text-destructive hover:opacity-100 shrink-0"
                           title="Remove module"
-                          onClick={(e) => { e.stopPropagation(); if (confirm("Remove this module?")) deleteCard.mutate({ id: card.id }); }}
+                          onClick={(e) => { e.stopPropagation(); confirmAction("Remove this module?", () => deleteCard.mutate({ id: card.id })); }}
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -313,6 +316,7 @@ export function CardList({ carrierId, projectId, maxSlots, cards, onRefresh }: P
           }}
         />
       )}
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </>
   );
 }

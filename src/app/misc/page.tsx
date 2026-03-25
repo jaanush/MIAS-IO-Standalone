@@ -4,6 +4,8 @@ import { useState } from "react";
 import { trpc } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -586,6 +588,7 @@ function PlcDataTypesSection() {
 // ── Approvals Section ─────────────────────────────────────────────────────────
 
 function ApprovalsSection() {
+  const [confirmProps, confirmAction] = useConfirm();
   const utils = trpc.useUtils();
   const { data: approvals = [], isLoading } = trpc.hardware.approvalList.useQuery();
   const upsert = trpc.hardware.approvalUpsert.useMutation({
@@ -645,7 +648,7 @@ function ApprovalsSection() {
                     <td className="px-3 py-2">{a.name}</td>
                     <td className="px-3 py-2 flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => startEdit(a)}>Edit</Button>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { if (confirm("Delete this approval?")) deleteApproval.mutate({ id: a.id }); }}>Delete</Button>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => confirmAction("Delete this approval?", () => deleteApproval.mutate({ id: a.id }))}>Delete</Button>
                     </td>
                   </tr>
                 ))
@@ -672,6 +675,7 @@ function ApprovalsSection() {
           {editing && <Button size="sm" variant="outline" onClick={cancelEdit}>Cancel</Button>}
         </div>
       </div>
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }
@@ -683,6 +687,7 @@ type ModuleTypeCodeRow = { id: number; cardType: string; code: string; groupName
 const CARD_TYPE_OPTIONS = ["DI", "DO", "AI", "AO", "MIXED", "COUNTER", "PWM", "SERIAL", "IO_LINK", "SUPPLY", "RELAY"] as const;
 
 function ModuleTypeCodesSection() {
+  const [confirmProps, confirmAction] = useConfirm();
   const utils = trpc.useUtils();
   const { data: codes = [], isLoading } = trpc.hardware.moduleTypeCodeList.useQuery();
   const upsert = trpc.hardware.moduleTypeCodeUpsert.useMutation({
@@ -763,7 +768,7 @@ function ModuleTypeCodesSection() {
                       <td className="px-3 py-2 text-muted-foreground text-xs">{row.description ?? "—"}</td>
                       <td className="px-3 py-2 flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => startEdit(row)}>Edit</Button>
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { if (confirm(`Delete code ${row.code} for ${row.cardType}?`)) deleteMut.mutate({ id: row.id }); }}>Del</Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => confirmAction(`Delete code ${row.code} for ${row.cardType}?`, () => deleteMut.mutate({ id: row.id }))}>Del</Button>
                       </td>
                     </tr>
                   ))
@@ -825,6 +830,7 @@ function ModuleTypeCodesSection() {
           {editing && <Button size="sm" variant="outline" onClick={cancelEdit}>Cancel</Button>}
         </div>
       </div>
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }

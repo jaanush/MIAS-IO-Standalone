@@ -52,6 +52,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/hooks/use-confirm";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -104,6 +106,7 @@ const columnHelper = createColumnHelper<UserRow>();
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
+  const [confirmProps, confirmAction] = useConfirm();
   const utils = trpc.useUtils();
   const { data: users, isLoading, error } = trpc.user.list.useQuery();
 
@@ -176,8 +179,9 @@ export default function UsersPage() {
   }
 
   function handleDelete(id: string, label: string) {
-    if (!window.confirm(`Delete user "${label}"? This cannot be undone.`)) return;
-    deleteMutation.mutate({ id });
+    confirmAction(`Delete user "${label}"? This cannot be undone.`, () => {
+      deleteMutation.mutate({ id });
+    });
   }
 
   // ── Columns ──────────────────────────────────────────────────────────────
@@ -431,6 +435,7 @@ export default function UsersPage() {
           </form>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
 }
