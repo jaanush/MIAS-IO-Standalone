@@ -65,21 +65,39 @@ export const projectRouter = createTRPCRouter({
     .input(z.object({ projectId: z.number().int() }))
     .mutation(async ({ input }) => {
       const { projectId } = input;
-      // Delete in dependency order: signals → component instances → components → PLCs (cascades carriers/cards/networks)
-      const signals = await db.signal.deleteMany({ where: { projectId } });
-      const instances = await db.componentInstance.deleteMany({ where: { projectId } });
-      const components = await db.hardwareComponent.deleteMany({ where: { projectId } });
-      const imports = await db.codesysImport.deleteMany({ where: { projectId } });
-      const recipes = await db.wiringRecipe.deleteMany({ where: { projectId } });
-      const plcs = await db.plc.deleteMany({ where: { projectId } });
-      return {
-        signals: signals.count,
-        instances: instances.count,
-        components: components.count,
-        imports: imports.count,
-        recipes: recipes.count,
-        plcs: plcs.count,
-      };
+      return db.$transaction(async (tx) => {
+        // Delete in dependency order:
+        // 1. Signals (cascades: discrete/analog signal, alarms, bus signal)
+        const signals = await tx.signal.deleteMany({ where: { projectId } });
+        // 2. Instance signals + component instances
+        const instanceSignals = await tx.instanceSignal.deleteMany({
+          where: { instance: { projectId } },
+        });
+        const instances = await tx.componentInstance.deleteMany({ where: { projectId } });
+        // 3. Components (cascades: component signals, alarms, PDO configs)
+        const components = await tx.hardwareComponent.deleteMany({ where: { projectId } });
+        // 4. CODESYS data
+        const imports = await tx.codesysImport.deleteMany({ where: { projectId } });
+        const recipes = await tx.wiringRecipe.deleteMany({ where: { projectId } });
+        // 5. Buses (cascades: bus nodes) — project-level, not under PLCs
+        const buses = await tx.bus.deleteMany({ where: { projectId } });
+        // 6. IP Networks — project-level
+        const ipNetworks = await tx.ipNetwork.deleteMany({ where: { projectId } });
+        // 7. PLCs (cascades: carriers → cards, ports)
+        const plcs = await tx.plc.deleteMany({ where: { projectId } });
+
+        return {
+          signals: signals.count,
+          instanceSignals: instanceSignals.count,
+          instances: instances.count,
+          components: components.count,
+          imports: imports.count,
+          recipes: recipes.count,
+          buses: buses.count,
+          ipNetworks: ipNetworks.count,
+          plcs: plcs.count,
+        };
+      });
     }),
 
   // ── Member management ────────────────────────────────────────────────────
