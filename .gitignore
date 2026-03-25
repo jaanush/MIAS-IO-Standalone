@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
+
+# Persistent storage (uploaded files — not in git)
+storage/
 .pnp
 .pnp.js
 

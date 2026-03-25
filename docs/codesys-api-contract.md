@@ -519,3 +519,53 @@ If the CODESYS script needs data not currently in the response:
 4. Both agents are then on the updated contract
 
 Never consume undocumented fields — they are not guaranteed stable.
+
+---
+
+## Plugin Installer Download
+
+### `GET /api/codesys/plugin/download`
+
+**Auth:** None (public endpoint)
+
+Serves the latest MIAS-Plugin installer `.exe` from `../MIAS-Plugin/build/`.
+
+**Response (success):**
+- `200` with `Content-Type: application/octet-stream`
+- `Content-Disposition: attachment; filename="MIAS-Plugin-Setup-X.Y.Z.exe"`
+
+**Response (no installer):**
+```json
+{ "error": "No installer available — no setup files found" }
+```
+Status: `404`
+
+The endpoint checks `storage/plugin/` (uploaded installers) then falls back to
+`../MIAS-Plugin/build/` (local dev). Returns the latest version by filename sort.
+
+### `POST /api/codesys/plugin/upload`
+
+**Auth:** `X-API-Key` header required
+
+Upload a new installer. Multipart form with a `file` field.
+Filename must match `MIAS-Plugin-Setup-*.exe`. Replaces any existing installer.
+
+**Request:**
+```
+POST /api/codesys/plugin/upload
+Content-Type: multipart/form-data
+X-API-Key: <key>
+
+file: MIAS-Plugin-Setup-1.2.3.exe
+```
+
+**Response (success):**
+```json
+{ "ok": true, "filename": "MIAS-Plugin-Setup-1.2.3.exe", "size": 4521984 }
+```
+
+**Response (error):**
+```json
+{ "error": "Invalid filename — expected MIAS-Plugin-Setup-X.Y.Z.exe" }
+```
+Status: `400`
