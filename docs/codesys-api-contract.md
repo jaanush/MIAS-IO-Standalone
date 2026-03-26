@@ -569,3 +569,25 @@ file: MIAS-Plugin-Setup-1.2.3.exe
 { "error": "Invalid filename — expected MIAS-Plugin-Setup-X.Y.Z.exe" }
 ```
 Status: `400`
+
+### `GET /api/codesys/plugin/repository`
+
+**Auth:** None (public endpoint)
+
+Returns a JSON feed of available plugin packages. Can be polled by CODESYS
+Package Manager or the web UI to check for updates.
+
+**Response:**
+```json
+{
+  "latest": {
+    "version": "1.2.3",
+    "filename": "MIAS-IO-Plugin-1.2.3.package",
+    "size": 4521984,
+    "downloadUrl": "https://io.demo.neptun.ztna/api/codesys/plugin/download"
+  },
+  "packages": [...]
+}
+```
+
+`latest` is `null` when no packages are available.

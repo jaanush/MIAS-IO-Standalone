@@ -1,19 +1,28 @@
 import { NextResponse } from "next/server";
-import { existsSync, readdirSync, readFileSync, mkdirSync } from "fs";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 
-// Check both local dev path and persistent storage
+// Check both persistent storage and local dev path
 const LOCAL_BUILD = join(process.cwd(), "..", "MIAS-Plugin", "build");
 const STORAGE_DIR = join(process.cwd(), "storage", "plugin");
+
+// Match both .package (CODESYS Package Manager) and .exe (legacy installer)
+const PATTERNS = [
+  { prefix: "MIAS-IO-Plugin-", ext: ".package" },
+  { prefix: "MIAS-Plugin-Setup-", ext: ".exe" },
+];
 
 function findLatestInstaller(): { path: string; name: string } | null {
   for (const dir of [STORAGE_DIR, LOCAL_BUILD]) {
     if (!existsSync(dir)) continue;
-    const files = readdirSync(dir)
-      .filter((f) => f.startsWith("MIAS-Plugin-Setup-") && f.endsWith(".exe"))
-      .sort()
-      .reverse();
-    if (files.length > 0) return { path: join(dir, files[0]), name: files[0] };
+    const entries = readdirSync(dir);
+    for (const { prefix, ext } of PATTERNS) {
+      const files = entries
+        .filter((f) => f.startsWith(prefix) && f.endsWith(ext))
+        .sort()
+        .reverse();
+      if (files.length > 0) return { path: join(dir, files[0]), name: files[0] };
+    }
   }
   return null;
 }
