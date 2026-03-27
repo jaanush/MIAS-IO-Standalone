@@ -27,7 +27,7 @@ const navItems = [
   { label: "Projects", href: "/" },
   { label: "Hardware", href: "/hardware" },
   { label: "Components", href: "/components" },
-  { label: "Misc", href: "/misc" },
+  { label: "Settings", href: "/settings" },
   { label: "Manual", href: "/manual" },
 ];
 

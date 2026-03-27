@@ -74,8 +74,8 @@ export function CommandPalette() {
           <CommandItem onSelect={() => go("/components")}>
             <Layers className="mr-2 h-4 w-4" /> Components
           </CommandItem>
-          <CommandItem onSelect={() => go("/misc")}>
-            <Settings className="mr-2 h-4 w-4" /> Misc (Units, Systems, GVLs)
+          <CommandItem onSelect={() => go("/settings")}>
+            <Settings className="mr-2 h-4 w-4" /> Settings (Units, Systems, GVLs)
           </CommandItem>
           <CommandItem onSelect={() => go("/manual")}>
             <BookOpen className="mr-2 h-4 w-4" /> Manual

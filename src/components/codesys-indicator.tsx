@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { trpc } from "@/trpc/client";
 import { Network } from "lucide-react";
 import {
@@ -21,12 +22,12 @@ export function CodesysIndicator() {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="relative flex items-center justify-center h-8 w-8 cursor-default">
+          <Link href="/settings/remote" className="relative flex items-center justify-center h-8 w-8">
             <Network className={`h-4 w-4 ${connected ? "text-green-500" : "text-muted-foreground/30"}`} />
             {connected && (
               <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
             )}
-          </div>
+          </Link>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="text-xs">
           {connected ? (

@@ -648,7 +648,8 @@ function EditRow({
     const row = e.currentTarget;
     const snap = valuesRef.current;
     setTimeout(() => {
-      if (!row.contains(document.activeElement)) {
+      const active = document.activeElement;
+      if (!row.contains(active) && !active?.closest('[data-radix-popper-content-wrapper]')) {
         onBlurSave(snap);
       }
     }, 150);
@@ -1195,7 +1196,8 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
       const target = e.target as Element;
       const inGrid = scrollRef.current?.contains(target) ?? false;
       const inDialog = !!target.closest('[role="dialog"]');
-      if (inGrid || inDialog) return;
+      const inPopover = !!target.closest('[data-radix-popper-content-wrapper]');
+      if (inGrid || inDialog || inPopover) return;
       if (editingId && editValues) {
         const capturedId = editingId;
         const capturedOriginal = editOriginalValues;
