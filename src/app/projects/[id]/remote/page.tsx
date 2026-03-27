@@ -145,7 +145,7 @@ function PluginDownload() {
           <li>Select the downloaded file, check &quot;Allow unsigned and self-signed packages&quot;</li>
           <li>Restart CODESYS</li>
         </ol>
-        <p className="mt-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-2 py-1.5 text-amber-700 dark:text-amber-400">
+        <p className="mt-2 text-amber-600 dark:text-amber-400">
           On first launch CODESYS may warn &quot;plug-in does not have a plug-in key&quot; &mdash; click No to continue. This is expected for unsigned plugins.
         </p>
       </div>
