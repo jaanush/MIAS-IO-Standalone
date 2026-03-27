@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 
 const CLIENT_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown";
-const CHECK_INTERVAL = 60_000; // 1 minute
+const CHECK_INTERVAL = 30_000; // 30 seconds
+
+type Status = "current" | "deploy-pending" | "update-available";
 
 export function VersionCheck() {
-  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [status, setStatus] = useState<Status>("current");
   const [serverVersion, setServerVersion] = useState<string | null>(null);
+  const [deployMessage, setDeployMessage] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -18,17 +21,26 @@ export function VersionCheck() {
         const res = await fetch("/api/health");
         if (!res.ok) return;
         const data = await res.json();
-        if (mounted && data.version && data.version !== CLIENT_VERSION) {
+        if (!mounted) return;
+
+        if (data.version && data.version !== CLIENT_VERSION) {
           setServerVersion(data.version);
-          setUpdateAvailable(true);
+          setStatus("update-available");
+        } else if (data.deployPending) {
+          setDeployMessage(data.deployMessage ?? "A new version is being deployed.");
+          setStatus("deploy-pending");
+        } else {
+          // Only reset if we haven't already seen an update
+          if (status === "deploy-pending" || status === "current") {
+            setStatus("current");
+          }
         }
       } catch {
-        // Ignore — server might be restarting
+        // Server might be restarting during deploy
       }
     }
 
-    // First check after 10s (let the page settle)
-    const initial = setTimeout(check, 10_000);
+    const initial = setTimeout(check, 5_000);
     const interval = setInterval(check, CHECK_INTERVAL);
 
     return () => {
@@ -36,9 +48,18 @@ export function VersionCheck() {
       clearTimeout(initial);
       clearInterval(interval);
     };
-  }, []);
+  }, [status]);
 
-  if (!updateAvailable) return null;
+  if (status === "current") return null;
+
+  if (status === "deploy-pending") {
+    return (
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-white shadow-lg animate-in fade-in slide-in-from-bottom-4">
+        <AlertTriangle className="h-4 w-4" />
+        {deployMessage}
+      </div>
+    );
+  }
 
   return (
     <button

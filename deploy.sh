@@ -619,6 +619,16 @@ fi
 echo ""
 echo "[4/5] Startar deploy..."
 
+# Notify active users that a deploy is starting
+if [ -n "${DEPLOY_API_KEY:-}" ]; then
+    curl -sf -X POST "https://$DOMAIN/api/deploy/notify" \
+        -H "X-API-Key: $DEPLOY_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '{"message":"A new version is being deployed. Please save your work."}' \
+        > /dev/null 2>&1 && log "Deploy-notifiering skickad till aktiva anvandare" \
+        || warn "Kunde inte skicka deploy-notifiering (ej kritiskt)"
+fi
+
 # Forsok 1
 DEPLOY_UUID=$(trigger_deploy) || fail "Kunde inte trigga deploy"
 if [ -z "$DEPLOY_UUID" ]; then
