@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/app-header";
 import { CommandPalette } from "@/components/command-palette";
+import { VersionCheck } from "@/components/version-check";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { getSession } from "@/lib/auth";
 import "./globals.css";
@@ -46,6 +47,7 @@ export default async function RootLayout({
             </TrpcProvider>
           </NuqsAdapter>
           <Toaster richColors closeButton position="bottom-right" />
+          <VersionCheck />
         </ThemeProvider>
       </body>
     </html>
