@@ -25,6 +25,16 @@ export default function RemotePage({ params }: { params: Promise<{ id: string }>
     { refetchInterval: 5_000 }
   );
 
+  const [repoInfo, setRepoInfo] = useState<RepoInfo | null>(null);
+  useEffect(() => {
+    fetch("/api/codesys/plugin/repository")
+      .then((r) => r.ok ? r.json() : null)
+      .then(setRepoInfo)
+      .catch(() => {});
+  }, []);
+
+  const latestVersion = repoInfo?.latest?.version ?? null;
+
   return (
     <div className="flex-1 overflow-auto p-6 space-y-6 max-w-4xl">
       <div>
@@ -65,6 +75,11 @@ export default function RemotePage({ params }: { params: Promise<{ id: string }>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                   <Badge variant="outline" className="text-[10px]">v{s.pluginVersion}</Badge>
+                  {latestVersion && s.pluginVersion !== latestVersion && (
+                    <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-700">
+                      v{latestVersion} available
+                    </Badge>
+                  )}
                   {s.projectOpen && (
                     <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
                       Project Open
@@ -92,7 +107,7 @@ export default function RemotePage({ params }: { params: Promise<{ id: string }>
       </section>
 
       {/* Plugin download */}
-      <PluginDownload />
+      <PluginDownload info={repoInfo} />
 
       {/* Settings */}
       <CodesysSettingsForm projectId={projectId} />
@@ -105,16 +120,7 @@ export default function RemotePage({ params }: { params: Promise<{ id: string }>
 
 type RepoInfo = { latest: { version: string; filename: string; size: number; downloadUrl: string } | null };
 
-function PluginDownload() {
-  const [info, setInfo] = useState<RepoInfo | null>(null);
-
-  useEffect(() => {
-    fetch("/api/codesys/plugin/repository")
-      .then((r) => r.ok ? r.json() : null)
-      .then(setInfo)
-      .catch(() => {});
-  }, []);
-
+function PluginDownload({ info }: { info: RepoInfo | null }) {
   if (!info?.latest) return null;
 
   const sizeMB = (info.latest.size / 1024 / 1024).toFixed(1);
