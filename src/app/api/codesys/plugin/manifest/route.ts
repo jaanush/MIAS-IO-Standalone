@@ -5,7 +5,9 @@ import { createHash } from "crypto";
 import { join, relative } from "path";
 
 const PLUGIN_ROOT = join(process.cwd(), "..", "MIAS-Plugin");
-const MANAGED_DIRS = ["lib", "scripts"];
+const MANAGED_DIRS = ["lib", "scripts", "staging"];
+// Individual root-level files to include in the manifest
+const MANAGED_FILES = ["VERSION", "MetsPlugin.Views.dll"];
 
 function getPluginVersion(): string {
   // Try VERSION file first
@@ -25,7 +27,7 @@ function collectFiles(dir: string, base: string): { path: string; sha256: string
     if (entry.isDirectory()) {
       if (entry.name === "__pycache__" || entry.name === ".git") continue;
       results.push(...collectFiles(fullPath, base));
-    } else if (entry.isFile() && entry.name.endsWith(".py")) {
+    } else if (entry.isFile()) {
       const content = readFileSync(fullPath);
       const sha256 = createHash("sha256").update(content).digest("hex");
       const relPath = relative(base, fullPath).replace(/\\/g, "/");
@@ -51,6 +53,16 @@ export async function GET(req: NextRequest) {
 
   for (const dir of MANAGED_DIRS) {
     files.push(...collectFiles(join(PLUGIN_ROOT, dir), PLUGIN_ROOT));
+  }
+
+  // Add individual root-level managed files
+  for (const fname of MANAGED_FILES) {
+    const fullPath = join(PLUGIN_ROOT, fname);
+    if (existsSync(fullPath) && statSync(fullPath).isFile()) {
+      const content = readFileSync(fullPath);
+      const sha256 = createHash("sha256").update(content).digest("hex");
+      files.push({ path: fname, sha256, size: content.length });
+    }
   }
 
   files.sort((a, b) => a.path.localeCompare(b.path));
