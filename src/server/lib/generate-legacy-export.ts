@@ -348,8 +348,8 @@ export async function generateLegacyExport(projectId: number): Promise<Map<strin
     const tag = sig.tag;
     if (!tag) continue;
 
-    const gvlName = sig.gvl?.name ?? null;
-    const plcDataType = sig.analogSignal?.plcDataTypeCatalog?.code ?? sig.discreteSignal?.plcDataType?.code ?? null;
+    const gvlName = sig.gvl?.name ?? "GVL_Unassigned";
+    const plcDataType = sig.analogSignal?.plcDataTypeCatalog?.code ?? sig.discreteSignal?.plcDataType?.code ?? (sig.signalType === "DISCRETE" ? "BOOL" : "REAL");
     let ioType: string | null = null;
     if (sig.signalType === "ANALOG") ioType = sig.direction === "OUTPUT" ? "AO" : "AI";
     else if (sig.signalType === "DISCRETE") ioType = sig.direction === "OUTPUT" ? "DO" : "DI";
