@@ -174,6 +174,11 @@ export type PlcSeries = (typeof PLC_SERIES)[number];
 export const PDO_DIRECTIONS = ["TPDO", "RPDO"] as const;
 export type PdoDirection = (typeof PDO_DIRECTIONS)[number];
 
+// ── Wiring Recipes ───────────────────────────────────────────────────────────
+
+export const WIRING_SOURCE_TYPES = ["SIGNAL", "SIGNAL_RAW", "SIGNAL_SENSOR_FAULT", "INSTANCE_FB", "LITERAL", "EXPRESSION"] as const;
+export type WiringSourceType = (typeof WIRING_SOURCE_TYPES)[number];
+
 // ── CODESYS integration ───────────────────────────────────────────────────────
 
 export const CODESYS_TASK_STATUSES = ["QUEUED", "CLAIMED", "SUCCESS", "FAILURE"] as const;

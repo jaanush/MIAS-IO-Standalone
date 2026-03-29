@@ -2,8 +2,8 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import { extractModbusRegisters, type ExtractedRegister } from "../lib/modbus-ai-extract";
-import { getEffectiveSignals, syncNewSignalToInstances, removeSignalFromInstances } from "../lib/component-signals";
-import { SIGNAL_ORIGINS, IO_TYPES, RAW_DATA_TYPES, BYTE_ORDERS, MODBUS_REGISTER_TYPES, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, DISCRETE_ALARM_CONDITIONS, ANALOG_ALARM_CONDITIONS, ALARM_SEVERITIES, COMPONENT_STATUS, BUS_PROTOCOLS } from "@/lib/enums";
+import { getEffectiveSignals, getEffectivePdoConfigs, syncNewSignalToInstances, removeSignalFromInstances } from "../lib/component-signals";
+import { SIGNAL_ORIGINS, IO_TYPES, RAW_DATA_TYPES, BYTE_ORDERS, MODBUS_REGISTER_TYPES, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, DISCRETE_ALARM_CONDITIONS, ANALOG_ALARM_CONDITIONS, ALARM_SEVERITIES, COMPONENT_STATUS, BUS_PROTOCOLS, WIRING_SOURCE_TYPES } from "@/lib/enums";
 
 /** Recompute minCanIdOffset = max(canId) - min(canId) + 1 across active signals */
 async function refreshMinCanIdOffset(componentId: number) {
@@ -138,6 +138,19 @@ const componentInclude = {
   },
   parent: { select: { id: true, name: true } },
   children: { select: { id: true, name: true, status: true, _count: { select: { signals: true, instances: true } } }, orderBy: { name: "asc" as const } },
+  pdoConfigs: {
+    orderBy: [{ direction: "asc" as const }, { pdoNumber: "asc" as const }],
+    include: {
+      signals: {
+        select: {
+          id: true, channelOffset: true, tagSuffix: true, description: true,
+          ioType: true, rawDataType: true, bitOffset: true, bitLength: true,
+          canopenIndex: true, canopenSubIndex: true,
+        },
+        orderBy: { bitOffset: "asc" as const },
+      },
+    },
+  },
 };
 
 export const componentsRouter = createTRPCRouter({
@@ -153,9 +166,25 @@ export const componentsRouter = createTRPCRouter({
     })
   ),
 
+  componentMeta: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .query(({ input }) =>
+      db.hardwareComponent.findUniqueOrThrow({
+        where: { id: input.id },
+        select: {
+          id: true, name: true, manufacturer: true, model: true,
+          busProtocol: true, functionBlock: true, parentId: true, status: true,
+        },
+      })
+    ),
+
   effectiveSignals: protectedProcedure
     .input(z.object({ componentId: z.number().int() }))
     .query(({ input }) => getEffectiveSignals(input.componentId)),
+
+  effectivePdoConfigs: protectedProcedure
+    .input(z.object({ componentId: z.number().int() }))
+    .query(({ input }) => getEffectivePdoConfigs(input.componentId)),
 
   projectComponentList: protectedProcedure
     .input(z.object({ projectId: z.number().int() }))
@@ -930,6 +959,254 @@ export const componentsRouter = createTRPCRouter({
         return { componentId: component.id, instanceId: instance.id };
       });
     }),
+
+  // ── PDO Configuration (CANopen) ──────────────────────────────────
+
+  pdoCreate: protectedProcedure
+    .input(z.object({
+      componentId: z.number().int(),
+      direction: z.enum(["TPDO", "RPDO"]),
+      pdoNumber: z.number().int().min(1),
+      cobId: z.number().int().optional().nullable(),
+      transmissionType: z.number().int().min(0).max(255).optional().nullable(),
+      eventTimerMs: z.number().int().min(0).optional().nullable(),
+      inhibitTimeUs: z.number().int().min(0).optional().nullable(),
+      syncWindowUs: z.number().int().min(0).optional().nullable(),
+      timeoutMs: z.number().int().min(0).optional().nullable(),
+      nodeId: z.number().int().optional().nullable(),
+      description: z.string().max(255).optional().nullable(),
+    }))
+    .mutation(async ({ input }) => {
+      const { componentId, ...data } = input;
+      return db.pdoConfig.create({
+        data: { componentId, ...data },
+        include: {
+          signals: {
+            select: {
+              id: true, channelOffset: true, tagSuffix: true, description: true,
+              ioType: true, rawDataType: true, bitOffset: true, bitLength: true,
+              canopenIndex: true, canopenSubIndex: true,
+            },
+            orderBy: { bitOffset: "asc" },
+          },
+        },
+      });
+    }),
+
+  pdoUpdate: protectedProcedure
+    .input(z.object({
+      id: z.number().int(),
+      direction: z.enum(["TPDO", "RPDO"]).optional(),
+      pdoNumber: z.number().int().min(1).optional(),
+      cobId: z.number().int().optional().nullable(),
+      transmissionType: z.number().int().min(0).max(255).optional().nullable(),
+      eventTimerMs: z.number().int().min(0).optional().nullable(),
+      inhibitTimeUs: z.number().int().min(0).optional().nullable(),
+      syncWindowUs: z.number().int().min(0).optional().nullable(),
+      timeoutMs: z.number().int().min(0).optional().nullable(),
+      nodeId: z.number().int().optional().nullable(),
+      description: z.string().max(255).optional().nullable(),
+    }))
+    .mutation(async ({ input }) => {
+      const { id, ...data } = input;
+      return db.pdoConfig.update({
+        where: { id },
+        data,
+        include: {
+          signals: {
+            select: {
+              id: true, channelOffset: true, tagSuffix: true, description: true,
+              ioType: true, rawDataType: true, bitOffset: true, bitLength: true,
+              canopenIndex: true, canopenSubIndex: true,
+            },
+            orderBy: { bitOffset: "asc" },
+          },
+        },
+      });
+    }),
+
+  pdoDelete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input }) => {
+      await db.$transaction([
+        // Clear FK on all signals pointing to this PDO
+        db.componentSignal.updateMany({
+          where: { pdoConfigId: input.id },
+          data: { pdoConfigId: null },
+        }),
+        db.pdoConfig.delete({ where: { id: input.id } }),
+      ]);
+    }),
+
+  pdoAssignSignals: protectedProcedure
+    .input(z.object({
+      pdoConfigId: z.number().int(),
+      assignments: z.array(z.object({
+        signalId: z.number().int(),
+        bitOffset: z.number().int().min(0),
+      })),
+    }))
+    .mutation(async ({ input }) => {
+      const { pdoConfigId, assignments } = input;
+
+      // Validate total bits fit in CAN frame
+      if (assignments.length > 0) {
+        const signals = await db.componentSignal.findMany({
+          where: { id: { in: assignments.map((a) => a.signalId) } },
+          select: { id: true, bitLength: true },
+        });
+        const bitMap = new Map(signals.map((s) => [s.id, s.bitLength ?? 0]));
+        const totalBits = assignments.reduce((sum, a) => sum + (bitMap.get(a.signalId) ?? 0), 0);
+        if (totalBits > 64) {
+          // Return warning but don't block (CAN FD supports larger frames)
+          console.warn(`PDO ${pdoConfigId}: total bits ${totalBits} exceeds standard 64-bit CAN frame`);
+        }
+      }
+
+      await db.$transaction(async (tx) => {
+        // Clear all existing signals for this PDO
+        await tx.componentSignal.updateMany({
+          where: { pdoConfigId },
+          data: { pdoConfigId: null, bitOffset: null },
+        });
+        // Assign new signals with their bit offsets
+        for (const { signalId, bitOffset } of assignments) {
+          await tx.componentSignal.update({
+            where: { id: signalId },
+            data: { pdoConfigId, bitOffset },
+          });
+        }
+      });
+
+      return db.pdoConfig.findUniqueOrThrow({
+        where: { id: pdoConfigId },
+        include: {
+          signals: {
+            select: {
+              id: true, channelOffset: true, tagSuffix: true, description: true,
+              ioType: true, rawDataType: true, bitOffset: true, bitLength: true,
+              canopenIndex: true, canopenSubIndex: true,
+            },
+            orderBy: { bitOffset: "asc" },
+          },
+        },
+      });
+    }),
+
+  pdoUnassignSignal: protectedProcedure
+    .input(z.object({ signalId: z.number().int() }))
+    .mutation(({ input }) =>
+      db.componentSignal.update({
+        where: { id: input.signalId },
+        data: { pdoConfigId: null, bitOffset: null },
+      })
+    ),
+
+  // ── FB Definitions ──────────────────────────────────────────────
+
+  fbDefinitionsForComponent: protectedProcedure
+    .input(z.object({ componentId: z.number().int() }))
+    .query(async ({ input }) => {
+      // Get the component's functionBlock name
+      const comp = await db.hardwareComponent.findUnique({
+        where: { id: input.componentId },
+        select: { functionBlock: true },
+      });
+      if (!comp?.functionBlock) return [];
+
+      // Find FB definitions matching the functionBlock name
+      return db.codesysFbDefinition.findMany({
+        where: {
+          OR: [
+            { componentId: input.componentId },
+            { name: comp.functionBlock },
+          ],
+        },
+        include: {
+          parameters: { orderBy: { name: "asc" } },
+        },
+      });
+    }),
+
+  // ── Wiring Recipes ───────────────────────────────────────────────
+
+  wiringRecipeList: protectedProcedure
+    .input(z.object({ componentId: z.number().int() }))
+    .query(({ input }) =>
+      db.wiringRecipe.findMany({
+        where: { componentId: input.componentId },
+        orderBy: { sortOrder: "asc" },
+        include: {
+          params: { orderBy: { sortOrder: "asc" } },
+        },
+      })
+    ),
+
+  wiringRecipeCreate: protectedProcedure
+    .input(z.object({
+      componentId: z.number().int(),
+      fbName: z.string().min(1).max(255),
+      targetGvl: z.string().min(1).max(100),
+      instanceNamePattern: z.string().min(1).max(500),
+      description: z.string().optional().nullable(),
+      sortOrder: z.number().int().default(0),
+    }))
+    .mutation(({ input }) =>
+      db.wiringRecipe.create({
+        data: input,
+        include: { params: { orderBy: { sortOrder: "asc" } } },
+      })
+    ),
+
+  wiringRecipeUpdate: protectedProcedure
+    .input(z.object({
+      id: z.number().int(),
+      fbName: z.string().min(1).max(255).optional(),
+      targetGvl: z.string().min(1).max(100).optional(),
+      instanceNamePattern: z.string().min(1).max(500).optional(),
+      description: z.string().optional().nullable(),
+      sortOrder: z.number().int().optional(),
+    }))
+    .mutation(({ input }) => {
+      const { id, ...data } = input;
+      return db.wiringRecipe.update({
+        where: { id },
+        data,
+        include: { params: { orderBy: { sortOrder: "asc" } } },
+      });
+    }),
+
+  wiringRecipeDelete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(({ input }) =>
+      db.wiringRecipe.delete({ where: { id: input.id } })
+    ),
+
+  wiringParamUpsert: protectedProcedure
+    .input(z.object({
+      recipeId: z.number().int(),
+      parameterName: z.string().min(1).max(255),
+      direction: z.string().max(10),
+      sourceType: z.enum(WIRING_SOURCE_TYPES),
+      channelOffset: z.number().int().optional().nullable(),
+      signalTag: z.string().max(255).optional().nullable(),
+      literalValue: z.string().max(500).optional().nullable(),
+      expression: z.string().max(500).optional().nullable(),
+      sortOrder: z.number().int().default(0),
+    }))
+    .mutation(({ input }) =>
+      db.wiringRecipeParam.upsert({
+        where: { recipeId_parameterName: { recipeId: input.recipeId, parameterName: input.parameterName } },
+        create: input,
+        update: input,
+      })
+    ),
+
+  wiringParamDelete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(({ input }) =>
+      db.wiringRecipeParam.delete({ where: { id: input.id } })
+    ),
 
   // ── Engineering units (for analog defaults) ───────────────────────
   euList: protectedProcedure.query(() =>

@@ -85,6 +85,110 @@ export async function getEffectiveSignals(componentId: number): Promise<Resolved
   return result;
 }
 
+// ── PDO Inheritance ──────────────────────────────────────────────────
+
+type PdoConfigRow = {
+  id: number;
+  componentId: number;
+  direction: string;
+  pdoNumber: number;
+  cobId: number | null;
+  transmissionType: number | null;
+  eventTimerMs: number | null;
+  inhibitTimeUs: number | null;
+  syncWindowUs: number | null;
+  nodeId: number | null;
+  description: string | null;
+  signals: {
+    id: number;
+    channelOffset: number;
+    tagSuffix: string | null;
+    description: string | null;
+    ioType: string;
+    rawDataType: string | null;
+    bitOffset: number | null;
+    bitLength: number | null;
+    canopenIndex: number | null;
+    canopenSubIndex: number | null;
+  }[];
+};
+
+export type ResolvedPdoConfig = PdoConfigRow & {
+  sourceComponentId: number;
+  sourceComponentName: string;
+  inherited: boolean;
+};
+
+/**
+ * Get the effective PDO configs for a component, including inherited PDOs
+ * from the parent chain. A child PDO with the same direction+pdoNumber
+ * overrides the parent's PDO.
+ */
+export async function getEffectivePdoConfigs(componentId: number): Promise<ResolvedPdoConfig[]> {
+  // Build ancestor chain (child → parent → grandparent → ...)
+  const chain: { id: number; name: string }[] = [];
+  let currentId: number | null = componentId;
+
+  while (currentId != null) {
+    const comp: { id: number; name: string; parentId: number | null } | null =
+      await db.hardwareComponent.findUnique({
+        where: { id: currentId },
+        select: { id: true, name: true, parentId: true },
+      });
+    if (!comp) break;
+    chain.push({ id: comp.id, name: comp.name });
+    currentId = comp.parentId;
+    if (chain.length > 10) break;
+  }
+
+  // Fetch PDO configs for all components in the chain
+  const allIds = chain.map((c) => c.id);
+  const allPdos = await db.pdoConfig.findMany({
+    where: { componentId: { in: allIds } },
+    orderBy: [{ direction: "asc" }, { pdoNumber: "asc" }],
+    include: {
+      signals: {
+        select: {
+          id: true, channelOffset: true, tagSuffix: true, description: true,
+          ioType: true, rawDataType: true, bitOffset: true, bitLength: true,
+          canopenIndex: true, canopenSubIndex: true,
+        },
+        orderBy: { bitOffset: "asc" },
+      },
+    },
+  });
+
+  const nameMap = new Map(chain.map((c) => [c.id, c.name]));
+
+  // Process from root to leaf: root PDOs first, then intermediate, then own.
+  // Child PDOs override parent PDOs with same direction+pdoNumber.
+  const pdoMap = new Map<string, ResolvedPdoConfig>(); // key = "TPDO:1"
+
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const comp = chain[i];
+    const pdos = allPdos.filter((p) => p.componentId === comp.id);
+
+    for (const pdo of pdos) {
+      const key = `${pdo.direction}:${pdo.pdoNumber}`;
+      pdoMap.set(key, {
+        ...pdo,
+        sourceComponentId: comp.id,
+        sourceComponentName: nameMap.get(comp.id) ?? "",
+        inherited: comp.id !== componentId,
+      });
+    }
+  }
+
+  // Sort by direction (RPDO before TPDO alphabetically, but we want TPDO first)
+  const result = Array.from(pdoMap.values());
+  result.sort((a, b) => {
+    if (a.direction !== b.direction) return a.direction === "TPDO" ? -1 : 1;
+    return a.pdoNumber - b.pdoNumber;
+  });
+
+  return result;
+}
+
 /**
  * Get all component IDs that inherit from the given component
  * (the component itself + all descendants in the hierarchy).

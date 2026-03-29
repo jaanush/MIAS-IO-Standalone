@@ -28,6 +28,7 @@ import { ImportModbusDialog } from "./ImportModbusDialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 import { COMPONENT_STATUS, BUS_PROTOCOLS } from "@/lib/enums";
+import { PdoConfigSection } from "../[id]/_components/PdoConfigSection";
 
 // ── Structured import helpers ────────────────────────────────────────────────
 
@@ -302,7 +303,16 @@ export function ComponentDetail({ id, onDeleted, onListRefresh }: Props) {
 
       <div className="border-t" />
 
-      {/* Signal grid — full width */}
+      {/* PDO Configuration — CANopen/CANBUS only */}
+      {(data.busProtocol === "CANOPEN" || data.busProtocol === "CANBUS") && (
+        <PdoConfigSection
+          componentId={id}
+          hasParent={!!data.parentId}
+          signals={data.signals as any}
+          onRefresh={() => refetch()}
+        />
+      )}
+
       {/* Children */}
       {data.children && data.children.length > 0 && (
         <section className="px-8 py-4 space-y-2">

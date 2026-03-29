@@ -1296,6 +1296,7 @@ model PdoConfig {
   eventTimerMs    Int?          @map("event_timer_ms")                 // ms — written to device object 0x1800+/0x1400+ sub5
   inhibitTimeUs   Int?          @map("inhibit_time_us")                // μs — written to device sub3
   syncWindowUs    Int?          @map("sync_window_us")                 // μs — sync window length sub6
+  timeoutMs       Int?          @map("timeout_ms")                     // ms — PLC monitoring threshold (commFault after this)
   description     String?       @db.VarChar(255)
 
   component HardwareComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
@@ -1488,18 +1489,19 @@ model CodesysImport {
 
 model CodesysFbDefinition {
   id          Int      @id @default(autoincrement())
-  importId    Int      @map("import_id")
+  importId    Int?     @map("import_id")              // null = standalone (pushed via API)
   componentId Int?     @map("component_id")
   name        String   @db.VarChar(255)
   extendsName String?  @db.VarChar(255) @map("extends_name")
   sourceFile  String   @db.VarChar(500) @map("source_file")
 
-  import      CodesysImport        @relation(fields: [importId], references: [id], onDelete: Cascade)
+  import      CodesysImport?       @relation(fields: [importId], references: [id], onDelete: Cascade)
   component   HardwareComponent?   @relation(fields: [componentId], references: [id], onDelete: SetNull)
   parameters  CodesysFbParameter[]
   instances   CodesysFbInstance[]
 
   @@unique([importId, name])
+  @@unique([name, sourceFile])       // standalone FB uniqueness (when importId is null)
   @@map("codesys_fb_definition")
 }
 

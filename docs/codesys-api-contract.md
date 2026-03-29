@@ -354,6 +354,109 @@ compare it against the configured hardware and flag mismatches. This is a
 
 ---
 
+### `GET /api/codesys/project/{id}/components`
+
+Returns all component instances in a project with their PDO configurations
+(CANopen mapped objects) and wiring recipes. This is the primary endpoint for
+CAN configuration and FB wiring code generation.
+
+**Path parameter:** `id` — integer project ID
+
+**Response: `200 OK`**
+
+```json
+{
+  "instances": [
+    {
+      "id": 42,
+      "name": "EDR_Port01",
+      "tag": "861-M01",
+      "componentId": 4,
+      "componentName": "Editron Converter FW11 MC",
+      "functionBlock": "Editron_Converter_FW11_MC",
+      "functionBlockOverride": null,
+      "busId": 7,
+      "busProtocol": "CANOPEN",
+      "nodeAddress": 5,
+      "canIdOffset": 0,
+      "byteOrder": "LITTLE_ENDIAN",
+      "pdoConfigs": [
+        {
+          "id": 17,
+          "direction": "TPDO",
+          "pdoNumber": 1,
+          "cobIdBase": 384,
+          "cobIdResolved": 389,
+          "transmissionType": 254,
+          "eventTimerMs": 100,
+          "inhibitTimeUs": null,
+          "syncWindowUs": null,
+          "timeoutMs": 3000,
+          "description": "System status, fault words, DC link voltage",
+          "mappedObjects": [
+            {
+              "position": 0,
+              "bitOffset": 0,
+              "bitLength": 8,
+              "canopenIndex": 8320,
+              "canopenIndexHex": "0x2080",
+              "canopenSubIndex": 0,
+              "mappingDword": "0x20800008",
+              "signalId": 249,
+              "signalTag": "861-M01_Running",
+              "rawDataType": "UINT8",
+              "description": "System status"
+            }
+          ]
+        }
+      ],
+      "wiring": [
+        {
+          "fbName": "Editron_Converter_FW11_MC",
+          "instanceName": "GVL_CAN.861_M01",
+          "targetGvl": "GVL_CAN",
+          "parameters": [
+            {
+              "name": "Enable",
+              "direction": "INPUT",
+              "sourceType": "LITERAL",
+              "value": "TRUE"
+            },
+            {
+              "name": "Speed_reference_RPM",
+              "direction": "INPUT",
+              "sourceType": "SIGNAL",
+              "signalTag": "861-M01_SpeedReferenceRPM",
+              "gvlName": "GVL_CAN"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `instances[].functionBlock` | string\|null | Resolved: `functionBlockOverride ?? component.functionBlock` |
+| `instances[].cobIdResolved` | int | `cobIdBase + nodeAddress` — actual 11-bit COB-ID on the bus |
+| `instances[].pdoConfigs[].mappedObjects[].mappingDword` | string | Standard CANopen encoding: `(index << 16) \| (subindex << 8) \| bitLength` |
+| `instances[].pdoConfigs[].mappedObjects[].signalId` | int\|null | Project signal ID for cross-referencing with main signals array |
+| `instances[].pdoConfigs[].mappedObjects[].signalTag` | string\|null | Resolved project signal tag (GVL variable name) |
+| `instances[].pdoConfigs[].timeoutMs` | int\|null | PLC monitoring threshold — commFault after this duration |
+| `instances[].wiring` | array | Resolved from WiringRecipe + WiringRecipeParam; empty if no recipe defined |
+
+**Errors:**
+
+| Status | Meaning |
+|---|---|
+| `400` | Invalid project id |
+| `401` | Missing or invalid `X-API-Key` |
+| `404` | Project not found |
+
+---
+
 ### `GET /api/codesys/project/{id}/gvl/{gvlId}`
 
 Returns a single GVL's signals as a ready-to-paste CODESYS GVL declaration (plain
@@ -378,6 +481,51 @@ Rules for variable name generation:
 **Generation modes:**
 - `FLAT_VARS` (default): One variable per signal — `tag : plcDataType;`
 - `FB_INSTANCES`: One FB instance per component instance — `instanceTag : functionBlock;`
+
+---
+
+### `POST /api/codesys/fb-definitions`
+
+Push FB pin definitions from the plugin. Upserts by `(fbName, sourceFile)`.
+Auto-links to HardwareComponent where `functionBlock` matches `fbName`.
+
+**Auth:** `X-API-Key` header
+
+**Request body** — single object or array:
+
+```json
+[
+  {
+    "fbName": "Editron_Converter_FW11_MC",
+    "extendsName": "Editron_Converter_FW11",
+    "sourceFile": "METS-LIB.fbslib",
+    "parameters": [
+      { "name": "Enable", "direction": "VAR_INPUT", "dataType": "BOOL" },
+      { "name": "Speed_Actual_RPM", "direction": "VAR_OUTPUT", "dataType": "INT" }
+    ]
+  }
+]
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `fbName` | yes | FB type name |
+| `extendsName` | no | Parent FB (inheritance) |
+| `sourceFile` | no | Default `"plugin-api"` |
+| `parameters[].name` | yes | Parameter name |
+| `parameters[].direction` | yes | `VAR_INPUT`, `VAR_OUTPUT`, `VAR_IN_OUT`, `VAR` |
+| `parameters[].dataType` | yes | IEC 61131-3 type |
+
+**Response: `200 OK`**
+
+```json
+{
+  "accepted": true,
+  "definitions": [
+    { "id": 42, "fbName": "Editron_Converter_FW11_MC", "componentId": 4, "componentMatched": true, "parametersCount": 2 }
+  ]
+}
+```
 
 ---
 
