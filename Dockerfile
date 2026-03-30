@@ -28,6 +28,9 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/prisma.config.ts ./
 
+# Create writable storage directory for plugin uploads
+RUN mkdir -p /app/storage/plugin && chown -R nextjs:nodejs /app/storage
+
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
