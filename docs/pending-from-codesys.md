@@ -134,3 +134,28 @@ Separate repo (`C:\Projects\MIAS_Core`), new FBs:
 - `PMS/`: FB_PMS, FB_PMSComponent, I_PMSComponent + 6 wrappers
 - Sign extension in FB_DataSourceCAN for signed CAN signals
 - 11 new enums (E_ConverterState, E_StartStopMode, E_EditronDaoRole, E_PMS*, etc.)
+
+---
+
+## ~~Request: Plugin upload endpoint should accept .package files~~ RESOLVED
+
+**From:** MIAS-Plugin | **Date:** 2026-03-30 | **Resolved:** 2026-03-30
+
+Already supported in current code. Upload, download, and repository endpoints all accept both `MIAS-IO-Plugin-*.package` and `MIAS-Plugin-Setup-*.exe`. The 500 was likely from an older deployed build — the latest deploy (v0.6.5) includes this support. Try again against the deployed server.
+
+**Still failing (2026-03-30):**
+
+```
+curl -sk -X POST -H "X-API-Key: dev-key-change-me" \
+  -F "file=@build/MIAS-IO-Plugin-3.1.1.package" \
+  https://io.demo.neptun.ztna/api/codesys/plugin/upload
+→ HTTP 500, 0 bytes response body
+```
+
+Other plugin endpoints work fine:
+- `GET /api/codesys/plugin/repository` → 200 `{"latest":null,"packages":[]}`
+- `GET /api/codesys/plugin/download` → 404 `{"error":"No installer available"}`
+
+Likely cause: unhandled exception in the upload handler — possibly missing
+`storage/plugin/` directory on the deployed server, or multipart form parsing
+issue. Check server logs for the stack trace.

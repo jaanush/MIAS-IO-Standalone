@@ -19,40 +19,48 @@ export async function POST(req: NextRequest) {
   const authError = requireApiKey(req);
   if (authError) return authError;
 
-  const formData = await req.formData();
-  const file = formData.get("file") as File | null;
-  if (!file) {
-    return NextResponse.json({ error: "No file provided" }, { status: 400 });
-  }
+  try {
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+    if (!file) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
 
-  if (!isValidFilename(file.name)) {
+    if (!isValidFilename(file.name)) {
+      return NextResponse.json(
+        { error: `Invalid filename "${file.name}" — expected MIAS-IO-Plugin-*.package or MIAS-Plugin-Setup-*.exe` },
+        { status: 400 }
+      );
+    }
+
+    // Ensure storage dir exists
+    if (!existsSync(STORAGE_DIR)) {
+      mkdirSync(STORAGE_DIR, { recursive: true });
+    }
+
+    // Remove old installers of the same type (keep only the new one)
+    const pattern = VALID_PATTERNS.find((p) => file.name.startsWith(p.prefix))!;
+    const existing = readdirSync(STORAGE_DIR).filter(
+      (f) => f.startsWith(pattern.prefix) && f.endsWith(pattern.ext)
+    );
+    for (const old of existing) {
+      unlinkSync(join(STORAGE_DIR, old));
+    }
+
+    // Write new installer
+    const buffer = Buffer.from(await file.arrayBuffer());
+    writeFileSync(join(STORAGE_DIR, file.name), buffer);
+
+    return NextResponse.json({
+      ok: true,
+      filename: file.name,
+      size: buffer.length,
+    });
+  } catch (err: any) {
+    console.error("plugin upload error:", err);
     return NextResponse.json(
-      { error: "Invalid filename — expected MIAS-IO-Plugin-*.package or MIAS-Plugin-Setup-*.exe" },
-      { status: 400 }
+      { error: err.message ?? "Upload failed", storageDir: STORAGE_DIR },
+      { status: 500 }
     );
   }
-
-  // Ensure storage dir exists
-  if (!existsSync(STORAGE_DIR)) {
-    mkdirSync(STORAGE_DIR, { recursive: true });
-  }
-
-  // Remove old installers of the same type (keep only the new one)
-  const pattern = VALID_PATTERNS.find((p) => file.name.startsWith(p.prefix))!;
-  const existing = readdirSync(STORAGE_DIR).filter(
-    (f) => f.startsWith(pattern.prefix) && f.endsWith(pattern.ext)
-  );
-  for (const old of existing) {
-    unlinkSync(join(STORAGE_DIR, old));
-  }
-
-  // Write new installer
-  const buffer = Buffer.from(await file.arrayBuffer());
-  writeFileSync(join(STORAGE_DIR, file.name), buffer);
-
-  return NextResponse.json({
-    ok: true,
-    filename: file.name,
-    size: buffer.length,
-  });
 }
