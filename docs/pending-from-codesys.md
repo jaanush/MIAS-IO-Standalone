@@ -156,6 +156,10 @@ Other plugin endpoints work fine:
 - `GET /api/codesys/plugin/repository` → 200 `{"latest":null,"packages":[]}`
 - `GET /api/codesys/plugin/download` → 404 `{"error":"No installer available"}`
 
-Likely cause: unhandled exception in the upload handler — possibly missing
-`storage/plugin/` directory on the deployed server, or multipart form parsing
-issue. Check server logs for the stack trace.
+**Root cause found:**
+```json
+{"error":"EACCES: permission denied, mkdir '/app/storage/plugin'","storageDir":"/app/storage/plugin"}
+```
+The deployed container doesn't have `/app/storage/plugin/` and can't create it.
+Fix: create the directory in the Dockerfile or ensure the app has write access
+to `/app/storage/`.
