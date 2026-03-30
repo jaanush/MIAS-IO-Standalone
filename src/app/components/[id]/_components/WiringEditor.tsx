@@ -121,6 +121,7 @@ export function WiringEditor({ componentId, functionBlock, recipes, signals, onR
           onClose={() => setShowCreate(false)}
           componentId={componentId}
           functionBlock={functionBlock}
+          fbDefs={fbDefs}
           onCreated={onRefresh}
         />
       )}
@@ -128,6 +129,35 @@ export function WiringEditor({ componentId, functionBlock, recipes, signals, onR
       <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );
+}
+
+// ── Auto-matching helpers ────────────────────────────────────────────
+
+/** Normalize a name for comparison: lowercase, remove underscores/spaces */
+function normalize(name: string): string {
+  return name.toLowerCase().replace(/[_\s-]/g, "");
+}
+
+/** Find the best matching signal by comparing normalized pin name to signal tagSuffixes */
+function findBestMatch(normPin: string, signalMap: Map<string, { id: number; channelOffset: number; tagSuffix: string | null; description: string | null; ioType: string }>): { channelOffset: number; tagSuffix: string | null } | undefined {
+  // Try: signal tagSuffix contains the pin name, or pin name contains the tagSuffix
+  let bestMatch: { channelOffset: number; tagSuffix: string | null } | undefined;
+  let bestScore = 0;
+
+  for (const [normTag, sig] of signalMap) {
+    // Exact match already handled by caller
+    // Check if one contains the other
+    if (normTag.includes(normPin) || normPin.includes(normTag)) {
+      // Score by how close the lengths are (prefer closer matches)
+      const score = Math.min(normTag.length, normPin.length) / Math.max(normTag.length, normPin.length);
+      if (score > bestScore && score > 0.5) { // require >50% overlap
+        bestScore = score;
+        bestMatch = sig;
+      }
+    }
+  }
+
+  return bestMatch;
 }
 
 // ── Recipe Card ──────────────────────────────────────────────────────
@@ -166,14 +196,30 @@ function RecipeCard({
 
   async function handleImportFromFb() {
     if (!matchingFb) return;
-    // Import all pins that don't already exist as params
+
+    // Build a lookup for auto-matching: normalize signal tagSuffix for comparison
+    const signalByNorm = new Map<string, Signal>();
+    for (const s of signals) {
+      if (s.tagSuffix) {
+        signalByNorm.set(normalize(s.tagSuffix), s);
+      }
+    }
+
     for (const pin of newPins) {
       const dir = pin.direction === "VAR_OUTPUT" ? "OUTPUT" : "INPUT";
+      const normPin = normalize(pin.name);
+
+      // Try to auto-match: exact normalized match, or partial match
+      const match = signalByNorm.get(normPin)
+        ?? findBestMatch(normPin, signalByNorm);
+
       await upsertParam.mutateAsync({
         recipeId: recipe.id,
         parameterName: pin.name,
         direction: dir,
-        sourceType: "SIGNAL",
+        sourceType: match ? "SIGNAL" : "SIGNAL", // default to SIGNAL, user can change
+        channelOffset: match?.channelOffset ?? null,
+        signalTag: match ? `{{instance.tag}}_${match.tagSuffix}` : null,
         sortOrder: 0,
       });
     }
@@ -312,12 +358,14 @@ function CreateRecipeDialog({
   onClose,
   componentId,
   functionBlock,
+  fbDefs,
   onCreated,
 }: {
   open: boolean;
   onClose: () => void;
   componentId: number;
   functionBlock: string | null;
+  fbDefs: FbDef[];
   onCreated: () => void;
 }) {
   const [fbName, setFbName] = useState(functionBlock ?? "");
@@ -337,8 +385,30 @@ function CreateRecipeDialog({
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1">
-            <Label className="text-xs">Function Block Name</Label>
-            <Input value={fbName} onChange={(e) => setFbName(e.target.value)} className="font-mono" placeholder="e.g. FB_Pump" />
+            <Label className="text-xs">Function Block</Label>
+            {fbDefs.length > 0 ? (
+              <>
+                <Select
+                  value={fbName || NONE}
+                  onValueChange={(v) => setFbName(v === NONE ? "" : v)}
+                >
+                  <SelectTrigger className="h-9 font-mono"><SelectValue placeholder="Select FB…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— custom —</SelectItem>
+                    {fbDefs.map((d) => (
+                      <SelectItem key={d.id} value={d.name}>
+                        {d.name} ({d.parameters.length} pins)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fbName === "" && (
+                  <Input value={fbName} onChange={(e) => setFbName(e.target.value)} className="font-mono mt-1" placeholder="e.g. FB_Pump" />
+                )}
+              </>
+            ) : (
+              <Input value={fbName} onChange={(e) => setFbName(e.target.value)} className="font-mono" placeholder="e.g. FB_Pump" />
+            )}
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Target GVL</Label>
@@ -449,25 +519,20 @@ function ParamDialog({
 
           {isSignalSource && (
             <div className="space-y-1">
-              <Label className="text-xs">Signal (by channel offset)</Label>
-              <Select
-                value={channelOffset || NONE}
-                onValueChange={(v) => {
-                  setChannelOffset(v === NONE ? "" : v);
-                  const sig = signals.find((s) => String(s.channelOffset) === v);
-                  if (sig?.tagSuffix) setSignalTag(`{{instance.tag}}_${sig.tagSuffix}`);
+              <Label className="text-xs">Signal</Label>
+              <SignalPicker
+                signals={signals}
+                selectedOffset={channelOffset ? Number(channelOffset) : null}
+                onSelect={(sig) => {
+                  if (sig) {
+                    setChannelOffset(String(sig.channelOffset));
+                    if (sig.tagSuffix) setSignalTag(`{{instance.tag}}_${sig.tagSuffix}`);
+                  } else {
+                    setChannelOffset("");
+                    setSignalTag("");
+                  }
                 }}
-              >
-                <SelectTrigger className="h-9"><SelectValue placeholder="Select signal…" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>— none (use tag pattern) —</SelectItem>
-                  {signals.map((s) => (
-                    <SelectItem key={s.id} value={String(s.channelOffset)}>
-                      {s.channelOffset}: {s.tagSuffix ?? "(unnamed)"} ({s.ioType})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
               <div className="space-y-1 mt-2">
                 <Label className="text-xs">Or tag pattern</Label>
                 <Input value={signalTag} onChange={(e) => setSignalTag(e.target.value)} className="font-mono text-xs" placeholder={"{{instance.tag}}_SpeedRPM"} />
@@ -498,5 +563,88 @@ function ParamDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── Filterable Signal Picker ─────────────────────────────────────────
+
+function SignalPicker({
+  signals,
+  selectedOffset,
+  onSelect,
+}: {
+  signals: Signal[];
+  selectedOffset: number | null;
+  onSelect: (sig: Signal | null) => void;
+}) {
+  const [filter, setFilter] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const selected = selectedOffset != null ? signals.find((s) => s.channelOffset === selectedOffset) : null;
+
+  const filtered = signals.filter((s) => {
+    if (!filter) return true;
+    const q = filter.toLowerCase();
+    return (
+      (s.tagSuffix ?? "").toLowerCase().includes(q) ||
+      (s.description ?? "").toLowerCase().includes(q) ||
+      String(s.channelOffset).includes(q) ||
+      s.ioType.toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <div className="relative">
+      <div
+        className="flex items-center h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm cursor-pointer hover:bg-accent/30"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {selected ? (
+          <span className="font-mono truncate">{selected.channelOffset}: {selected.tagSuffix ?? "(unnamed)"} <span className="text-muted-foreground">({selected.ioType})</span></span>
+        ) : (
+          <span className="text-muted-foreground">Select signal…</span>
+        )}
+      </div>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+          <div className="p-1.5">
+            <Input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter signals…"
+              className="h-8 text-xs"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            <button
+              type="button"
+              className="w-full px-3 py-1.5 text-left text-xs hover:bg-accent/50 text-muted-foreground"
+              onClick={() => { onSelect(null); setOpen(false); setFilter(""); }}
+            >
+              — none (use tag pattern) —
+            </button>
+            {filtered.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className={cn(
+                  "w-full px-3 py-1.5 text-left text-xs hover:bg-accent/50 font-mono",
+                  selectedOffset === s.channelOffset && "bg-accent"
+                )}
+                onClick={() => { onSelect(s); setOpen(false); setFilter(""); }}
+              >
+                {s.channelOffset}: {s.tagSuffix ?? "(unnamed)"} <span className="text-muted-foreground">({s.ioType})</span>
+                {s.description && <span className="text-muted-foreground ml-2 font-sans">— {s.description}</span>}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-2 text-xs text-muted-foreground">No signals match</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

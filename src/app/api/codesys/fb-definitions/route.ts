@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
 
   const results = [];
 
+  try {
   for (const def of definitions) {
     const sourceFile = def.sourceFile ?? "plugin-api";
 
@@ -56,20 +57,28 @@ export async function POST(req: NextRequest) {
     });
     if (matchingComponent) componentId = matchingComponent.id;
 
-    // Upsert the FB definition
-    const fbDef = await db.codesysFbDefinition.upsert({
-      where: { name_sourceFile: { name: def.fbName, sourceFile } },
-      create: {
-        name: def.fbName,
-        extendsName: def.extendsName ?? null,
-        sourceFile,
-        componentId,
-      },
-      update: {
-        extendsName: def.extendsName ?? null,
-        componentId: componentId ?? undefined,
-      },
+    // Find or create the FB definition
+    let fbDef = await db.codesysFbDefinition.findFirst({
+      where: { name: def.fbName, sourceFile },
     });
+    if (fbDef) {
+      fbDef = await db.codesysFbDefinition.update({
+        where: { id: fbDef.id },
+        data: {
+          extendsName: def.extendsName ?? null,
+          componentId: componentId ?? fbDef.componentId,
+        },
+      });
+    } else {
+      fbDef = await db.codesysFbDefinition.create({
+        data: {
+          name: def.fbName,
+          extendsName: def.extendsName ?? null,
+          sourceFile,
+          componentId,
+        },
+      });
+    }
 
     // Delete existing parameters and re-create (full replacement)
     await db.codesysFbParameter.deleteMany({
@@ -100,6 +109,10 @@ export async function POST(req: NextRequest) {
     accepted: true,
     definitions: results,
   });
+  } catch (err: any) {
+    console.error("fb-definitions error:", err);
+    return NextResponse.json({ error: err.message ?? "Internal error", code: err.code }, { status: 500 });
+  }
 }
 
 // ── Types ─────────────────────────────────────────────────────────

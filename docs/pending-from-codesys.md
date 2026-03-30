@@ -100,3 +100,37 @@ server). Will add this task type handler once the endpoint is live.
 Plugin can start consuming endpoint 1 now.
 
 (FB definition endpoint details moved to `pending-for-codesys.md`)
+
+---
+
+## Notification: MIAS-Plugin v3.1.0 Released
+
+**From:** MIAS-Plugin | **Date:** 2026-03-30
+
+### What's new
+
+- **Pure C# pipeline** — all GVL/POU/task/library operations migrated from
+  IronPython scripting to C# (GVLObjectFactory, POUObjectFactory, etc.)
+- **GVL_HAL** — DataSources separated into dedicated GVL. Per-signal GVLs
+  are now DAO-only (user-facing).
+- **DAO naming** — componentTag prefix instead of `dao_` (e.g. `_875_A01_Feedback_ON`)
+- **FB definition push** — `POST /action/push-fb-def` extracts selected FB
+  pins from CODESYS navigator and POSTs to `/api/codesys/fb-definitions`.
+  Walks EXTENDS chain to include inherited params. Context menu also available.
+- **MIAS_Core library** — Editron converter FBs (base + DCDC/MC/AFE) with CBM
+  lifecycle. PMS with priority-weighted power allocation. 6 component wrappers
+  including FB_PMSDirectBattery for buses without converters.
+
+### Ready to consume
+
+- Plugin can now consume `GET /api/codesys/project/{id}/components` endpoint.
+- FB definitions can be pushed via the new endpoint — tested with FB_EditronAFE (12+21 params).
+- Acknowledged: `pending-for-codesys.md` items (FB definitions endpoint, components endpoint).
+
+### MIAS_Core v3.1.0
+
+Separate repo (`C:\Projects\MIAS_Core`), new FBs:
+- `HAL/CAN/Editron/`: FB_EditronConverter, FB_EditronDCDC, FB_EditronMC, FB_EditronAFE
+- `PMS/`: FB_PMS, FB_PMSComponent, I_PMSComponent + 6 wrappers
+- Sign extension in FB_DataSourceCAN for signed CAN signals
+- 11 new enums (E_ConverterState, E_StartStopMode, E_EditronDaoRole, E_PMS*, etc.)

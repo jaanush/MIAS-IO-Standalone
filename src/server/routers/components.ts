@@ -1112,19 +1112,23 @@ export const componentsRouter = createTRPCRouter({
         where: { id: input.componentId },
         select: { functionBlock: true },
       });
-      if (!comp?.functionBlock) return [];
 
-      // Find FB definitions matching the functionBlock name
+      // Find FB definitions: matching component, matching functionBlock name, or all standalone
+      const conditions: any[] = [
+        { componentId: input.componentId },
+      ];
+      if (comp?.functionBlock) {
+        conditions.push({ name: comp.functionBlock });
+      }
+      // Also include all standalone (no import) FB definitions for the picker
+      conditions.push({ importId: null });
+
       return db.codesysFbDefinition.findMany({
-        where: {
-          OR: [
-            { componentId: input.componentId },
-            { name: comp.functionBlock },
-          ],
-        },
+        where: { OR: conditions },
         include: {
           parameters: { orderBy: { name: "asc" } },
         },
+        orderBy: { name: "asc" },
       });
     }),
 
