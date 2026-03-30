@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { existsSync, readdirSync, statSync } from "fs";
 import { join } from "path";
+import { STORAGE_DIR } from "../_storage";
 
 const LOCAL_BUILD = join(process.cwd(), "..", "MIAS-Plugin", "build");
-const STORAGE_DIR = join(process.cwd(), "storage", "plugin");
 
 function extractVersion(filename: string): string | null {
   // MIAS-IO-Plugin-1.2.3.package or MIAS-Plugin-Setup-1.2.3.exe

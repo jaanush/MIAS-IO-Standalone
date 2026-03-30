@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiKey } from "../../_auth";
-import { existsSync, mkdirSync, writeFileSync, readdirSync, unlinkSync } from "fs";
+import { writeFileSync, readdirSync, unlinkSync } from "fs";
 import { join } from "path";
-
-const STORAGE_DIR = join(process.cwd(), "storage", "plugin");
+import { STORAGE_DIR } from "../_storage";
 
 const VALID_PATTERNS = [
   { prefix: "MIAS-IO-Plugin-", ext: ".package" },
@@ -31,11 +30,6 @@ export async function POST(req: NextRequest) {
         { error: `Invalid filename "${file.name}" — expected MIAS-IO-Plugin-*.package or MIAS-Plugin-Setup-*.exe` },
         { status: 400 }
       );
-    }
-
-    // Ensure storage dir exists
-    if (!existsSync(STORAGE_DIR)) {
-      mkdirSync(STORAGE_DIR, { recursive: true });
     }
 
     // Remove old installers of the same type (keep only the new one)

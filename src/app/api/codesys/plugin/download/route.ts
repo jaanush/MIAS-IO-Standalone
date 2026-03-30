@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
+import { STORAGE_DIR } from "../_storage";
 
 // Check both persistent storage and local dev path
 const LOCAL_BUILD = join(process.cwd(), "..", "MIAS-Plugin", "build");
-const STORAGE_DIR = join(process.cwd(), "storage", "plugin");
 
 // Match both .package (CODESYS Package Manager) and .exe (legacy installer)
 const PATTERNS = [
