@@ -11,6 +11,7 @@ export type IoCardCatalog = {
   id: number;
   articleNumber: string;
   vendorName: string;
+  description: string | null;
   cardType: string;
   maxInputChannels: number | null;
   maxOutputChannels: number | null;

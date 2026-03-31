@@ -272,3 +272,225 @@ be ready for them.
 - WAGO 750-496 manual: 8AI 0/4-20mA with status bytes
   (status byte Table 18, bit definitions §6)
 - Standard across all WAGO 750 series analog input modules with diagnostics
+
+---
+
+## Specification: MIAS DevTools — Live PLC Monitoring & IO-Check
+
+**From:** MIAS-Plugin | **Date:** 2026-03-31
+
+### Purpose
+
+A mobile-first web tool for **development and commissioning** of MIAS PLC
+systems. Two core use cases:
+
+1. **Live monitoring** — real-time variable display with value-change logging
+   during development (replaces staring at CODESYS online view)
+2. **IO-check** — walk-around commissioning tool on a phone/tablet, verifying
+   physical wiring signal by signal with pass/fail tracking
+
+### Why MIAS-IO should build this
+
+MIAS-IO already has: Node.js backend, React frontend, signal metadata (tags,
+GVL grouping, ioCard, channelPosition, data types, units), project/PLC model,
+and user auth. Building the devtools frontend here avoids duplicating all of
+that. The CODESYS plugin side will handle the PLC-facing parts (OPC UA symbol
+configuration, variable pragmas).
+
+### Architecture
+
+```
+Phone/Tablet (vessel WiFi or VPN)
+    │ HTTPS
+    ▼
+MIAS-IO (Node.js backend)
+    ├── React frontend (new DevTools pages)
+    ├── node-opcua client (new backend module)
+    │       │ opc.tcp://<plc-ip>:4840
+    │       ▼
+    │   CODESYS Runtime on WAGO PFC200
+    │   (free OPC UA server, port 4840)
+    │
+    └── Existing signal metadata from database
+```
+
+**Key design point**: MIAS-IO maintains a single OPC UA session per PLC and
+fans out to multiple browser clients via Socket.IO/WebSocket. This keeps PLC
+load minimal (1 subscription regardless of how many browser tabs are open).
+
+### OPC UA Connection
+
+- **Free CODESYS OPC UA server** — no license cost, limited to fewer
+  simultaneous clients but sufficient for dev/commissioning
+- **Endpoint**: `opc.tcp://<plc-ip>:4840`
+- **Security**: `None` for development on isolated vessel networks. Optional
+  `Basic256Sha256` for networks with external access.
+- **Node ID format**: `ns=4;s=|var|Application.GVL_xxx.SignalName`
+  (CODESYS convention — namespace 4, string node ID with pipe-delimited path)
+- **Recommended library**: `node-opcua` (npm) — mature, MIT licensed, full
+  subscription support
+
+### What the plugin provides (PLC side)
+
+The MIAS-Plugin / GVL generator will:
+
+1. **Add `{attribute 'symbol' := 'readwrite'}` pragma** to all generated GVL
+   variables so they appear in the OPC UA address space. This is a one-line
+   addition per variable block in the GVL text output.
+
+2. **Add a Symbol Configuration object** to the CODESYS project (via C#
+   plugin) that includes the generated GVLs. This is required for the OPC UA
+   server to serve the variables.
+
+3. **Expose the OPC UA node ID mapping**: The node ID for each signal follows
+   a deterministic pattern:
+   ```
+   ns=4;s=|var|Application.{gvlName}.{variableName}
+   ```
+   MIAS-IO can construct the node ID from existing signal metadata (gvlName +
+   tag) without any new API endpoint.
+
+### What MIAS-IO should build
+
+#### Backend: OPC UA Bridge Module
+
+New module in the MIAS-IO backend that:
+
+1. **Connects to PLC OPC UA servers** — one connection per PLC in the project.
+   Connection parameters (IP, port) come from the existing PLC model in MIAS-IO.
+
+2. **Subscription management**:
+   - Creates one `ClientSubscription` per PLC with configurable publishing
+     interval (default 250ms, configurable per session)
+   - Adds `MonitoredItem` for each signal the frontend requests
+   - Pushes value changes to frontend via Socket.IO
+   - Single subscription shared across all browser clients (fan-out pattern)
+
+3. **Value write** — accepts write requests from the frontend, validates
+   against signal metadata (data type, read/write flag), calls
+   `session.write()` on OPC UA
+
+4. **Connection lifecycle**:
+   - Connect on first browser request (lazy)
+   - Reconnect automatically on connection loss (node-opcua has built-in
+     reconnection strategy)
+   - Disconnect after configurable idle timeout (no browsers watching)
+   - Expose connection status via Socket.IO event
+
+5. **REST endpoints** (under `/api/devtools/`):
+   ```
+   GET  /api/devtools/plc/:plcId/status        — connection status
+   POST /api/devtools/plc/:plcId/connect        — trigger connection
+   POST /api/devtools/plc/:plcId/disconnect     — drop connection
+   GET  /api/devtools/plc/:plcId/browse?path=   — browse OPC UA tree
+   POST /api/devtools/plc/:plcId/read           — one-shot read (body: {nodeIds})
+   POST /api/devtools/plc/:plcId/write          — write value (body: {nodeId, value, dataType})
+   GET  /api/devtools/plc/:plcId/log            — change log (query: since=ISO)
+   GET  /api/devtools/plc/:plcId/log/csv        — export log as CSV
+   ```
+
+6. **Socket.IO events** (namespace `/devtools`):
+   ```
+   Client → Server:
+     subscribe     {plcId, nodeIds[]}       — start monitoring
+     unsubscribe   {plcId, nodeIds[]}       — stop monitoring
+     write         {plcId, nodeId, value}   — force/override
+
+   Server → Client:
+     connection:status  {plcId, connected, message}
+     value:update       {plcId, nodeId, value, timestamp, statusCode}
+     value:changed      {plcId, nodeId, from, to, timestamp}  — change log
+     snapshot           {plcId, values: {nodeId: {...}}}       — initial state
+   ```
+
+#### Frontend: DevTools Pages
+
+**Page 1: Live Monitor** (`/devtools/monitor/:plcId`)
+
+- Variable table with columns: Signal Tag | GVL | Value | Unit | Status | Last Changed
+- Real-time updates via Socket.IO (no polling)
+- Filter/search by signal name, GVL, or IO card
+- Group by: GVL (default) | IO Card | Protocol (CAN/Modbus/Physical)
+- Sparkline for numeric values (last 60 seconds)
+- Color coding: green = good, yellow = stale (no update in >5s), red = OPC UA bad status
+- Click a variable row to expand: shows full history, write control, OPC UA node ID
+
+**Page 2: IO-Check** (`/devtools/io-check/:plcId`)
+
+This is the mobile-first commissioning tool:
+
+- **Layout**: Card/list view optimized for phone portrait mode
+- **Grouping**: By IO card / physical cabinet location (using `ioCard` and
+  `channelPosition` from MIAS-IO signal metadata)
+- **Per signal card**:
+  - Signal tag (large, readable)
+  - Live value (large font, high contrast — readable in sunlight)
+  - For BOOL: big ON/OFF indicator with color
+  - For analog: value + unit + simple bar gauge showing % of range
+  - **Force button** (for outputs): tap to toggle/set value — clearly marked
+    as FORCE with warning color
+  - **Verify checkbox**: tap to mark signal as "checked OK" or "fault found"
+  - Optional notes field per signal
+- **Progress tracker**: "47/278 signals verified" progress bar at top
+- **Checklist export**: Generate PDF/CSV commissioning report with:
+  - All signals, their measured values at check time, pass/fail status, notes
+  - Timestamp, project name, PLC ID, operator name
+  - Suitable for project documentation / handover
+
+**Page 3: Connection Setup** (`/devtools/settings`)
+
+- List of PLCs in the project with connection status indicators
+- Per-PLC: edit OPC UA endpoint (IP pre-filled from PLC model), test connection
+- Publishing interval slider (100ms – 2000ms)
+- Session log (connection events, errors)
+
+### Signal-to-NodeID Mapping
+
+MIAS-IO can derive the OPC UA node ID from existing data:
+
+```
+nodeId = `ns=4;s=|var|Application.${signal.gvlName}.${signal.tag}`
+```
+
+Where `gvlName` and `tag` already exist in the signal model. No new API or
+lookup table needed. If the application name differs from "Application", the
+PLC model should store the application name (it's already in CODESYS project
+metadata).
+
+### Performance Expectations
+
+- **Target**: 500-1000 monitored variables at 250ms publishing interval
+- OPC UA subscriptions are push-based — only changed values are sent
+- Single subscription with 1000 MonitoredItems is well within OPC UA spec
+- End-to-end latency: ~100-300ms (PLC → OPC UA → node-opcua → Socket.IO → browser)
+- Bandwidth: ~50-200 KB/s for 1000 variables at 250ms (only deltas)
+
+### PFC200 Docker Deployment (Future)
+
+For commissioning without a separate server, the MIAS-IO backend (or a
+stripped-down version) could run in Docker on the WAGO PFC200 itself:
+
+- PFC200 G2 supports Docker (armhf, ~256-512MB RAM)
+- Lightweight Node.js image (Alpine-based, <100MB)
+- Access via `https://<plc-ip>:8443`
+- This is a future enhancement — initial version runs on dev laptop or
+  ship's local server alongside MIAS-IO
+
+### Dependencies on Plugin Side
+
+The plugin (MIAS-Plugin) must ensure:
+
+1. Generated GVLs include `{attribute 'symbol' := 'readwrite'}` on all variables
+2. A Symbol Configuration object exists in the CODESYS project referencing the GVLs
+3. The free CODESYS OPC UA server package is installed in the runtime
+
+Items 1-2 are changes to the C# plugin code. Item 3 is a manual step during
+project setup (or automated via the plugin's project template).
+
+### Priority
+
+This is a **development tool**, not production HMI. Priorities:
+1. Live monitor (most immediately useful during development)
+2. IO-check (needed for first commissioning, likely a few months out)
+3. Docker deployment (nice-to-have, can always run on laptop)
+4. OpenBridge Design System integration (future production HMI — separate spec)

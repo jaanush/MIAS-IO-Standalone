@@ -13,6 +13,7 @@ const cardInclude = {
       id: true,
       articleNumber: true,
       vendorName: true,
+      description: true,
       cardType: true,
       maxInputChannels: true,
       maxOutputChannels: true,

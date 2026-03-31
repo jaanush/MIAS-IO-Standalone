@@ -214,10 +214,11 @@ export function ImportExpDialog({ projectId, open, onClose, onImported }: Props)
   const createPlc = trpc.projectHardware.plcCreate.useMutation();
   const assignCard = trpc.projectHardware.cardAssign.useMutation();
 
-  // Normalize article numbers: strip leading zeros from prefix (0750-1504 → 750-1504)
-  // and strip sub-part suffix (750-511/000-002 → 750-511)
+  // Normalize article numbers: strip leading zeros from each part (0750-0530 → 750-530)
+  // and strip sub-part suffix (750-0511/0000-0002 → 750-511)
   function normalizeArticle(art: string): string {
-    return art.replace(/^0+/, "").split("/")[0];
+    const base = art.split("/")[0];
+    return base.split("-").map((p) => p.replace(/^0+/, "") || "0").join("-");
   }
 
   // Build normalized article → catalog lookup

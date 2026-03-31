@@ -247,6 +247,13 @@ export function CardList({ carrierId, projectId, maxSlots, cards, onRefresh }: P
                           {card.catalog?.maxOutputChannels != null && ` ↑${card.catalog.maxOutputChannels}`}
                         </span>
 
+                        {/* Short description */}
+                        {card.catalog?.description && (
+                          <span className="text-[10px] opacity-50 truncate max-w-[200px]" title={card.catalog.description}>
+                            {card.catalog.description}
+                          </span>
+                        )}
+
                         <span className="flex-1" />
 
                         {/* Bus current draw */}
