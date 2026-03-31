@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, Unlink, RotateCcw, ExternalLink, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Unlink, RotateCcw, ExternalLink, Loader2, Trash2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -42,9 +42,11 @@ type ComponentGroupProps = {
   onUpdateNetwork: (busId: number | null) => void;
   onRevert: () => void;
   onDisconnect: () => void;
+  onDelete: () => void;
   isRenamePending: boolean;
   isRevertPending: boolean;
   isDisconnectPending: boolean;
+  isDeletePending: boolean;
   isNetworkUpdatePending: boolean;
   defaultCollapsed?: boolean;
 };
@@ -75,9 +77,11 @@ export function ComponentGroup({
   onUpdateNetwork,
   onRevert,
   onDisconnect,
+  onDelete,
   isRenamePending,
   isRevertPending,
   isDisconnectPending,
+  isDeletePending,
   isNetworkUpdatePending,
   defaultCollapsed = false,
 }: ComponentGroupProps) {
@@ -368,9 +372,26 @@ export function ComponentGroup({
                 </button>
               )}
 
-              {/* Signal count — pushed to far right */}
-              <span className="ml-auto text-xs text-muted-foreground">
+              {/* Signal count + delete — pushed to far right */}
+              <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
                 {signalCount} signal{signalCount !== 1 ? "s" : ""}
+                {instanceId !== null && (
+                  <button
+                    type="button"
+                    title="Delete instance and all its signals"
+                    disabled={isDeletePending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      confirmAction(
+                        `Delete "${instanceName}" and its ${signalCount} signal${signalCount !== 1 ? "s" : ""}? This cannot be undone.`,
+                        () => onDelete()
+                      );
+                    }}
+                    className="text-muted-foreground hover:text-destructive disabled:opacity-50 p-0.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </span>
             </div>
           </td>
@@ -382,7 +403,7 @@ export function ComponentGroup({
           {renderRows()}
         </tbody>
       )}
-      <ConfirmDialog {...confirmProps} confirmLabel="Disconnect" />
+      <ConfirmDialog {...confirmProps} confirmLabel="Confirm" />
     </>
   );
 }

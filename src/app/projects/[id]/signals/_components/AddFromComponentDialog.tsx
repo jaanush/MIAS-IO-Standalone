@@ -32,6 +32,8 @@ export function AddFromComponentDialog({ projectId, open, onClose, onAdded }: Pr
   const [scope, setScope] = useState<"global" | "project">("global");
   const [selectedComponentId, setSelectedTemplateId] = useState<number | null>(null);
   const [componentTag, setComponentTag] = useState("");
+  const [instanceName, setInstanceName] = useState("");
+  const [selectedBusId, setSelectedBusId] = useState<number | null>(null);
   const [defaultOrigin, setDefaultOrigin] = useState<string>("CANBUS");
   const [selectedOffsets, setSelectedOffsets] = useState<Set<number>>(new Set());
   const [importing, setImporting] = useState(false);
@@ -51,11 +53,14 @@ export function AddFromComponentDialog({ projectId, open, onClose, onAdded }: Pr
     { componentId: selectedComponentId! },
     { enabled: selectedComponentId != null }
   );
+  const { data: networks = [] } = trpc.signal.networksForProject.useQuery({ projectId }, { enabled: open });
 
   const utils = trpc.useUtils();
   const addFromComponent = trpc.signal.addFromComponent.useMutation();
 
   const selectedTemplate = templates.find((t) => t.id === selectedComponentId);
+  const hasBusProtocol = !!selectedTemplate?.busProtocol;
+  const filteredNetworks = networks.filter((n) => !selectedTemplate?.busProtocol || n.protocol === selectedTemplate.busProtocol);
 
   // Auto-select all signals when a template's signals finish loading
   useEffect(() => {
@@ -78,6 +83,8 @@ export function AddFromComponentDialog({ projectId, open, onClose, onAdded }: Pr
   function selectComponent(id: number) {
     setSelectedTemplateId(id);
     setSelectedOffsets(new Set());
+    setSelectedBusId(null);
+    setInstanceName("");
     setImportError(null);
   }
 
@@ -105,6 +112,8 @@ export function AddFromComponentDialog({ projectId, open, onClose, onAdded }: Pr
         projectId,
         componentId: selectedComponentId,
         componentTag: componentTag.trim() || null,
+        name: instanceName.trim() || null,
+        busId: selectedBusId,
         selectedOffsets: Array.from(selectedOffsets),
         defaultOrigin: defaultOrigin as "IEC" | "MODBUS_RTU" | "MODBUS_TCP" | "CANBUS" | "CANOPEN" | "PROFIBUS" | "PROFINET" | "ETHERNETIP" | "DEVICENET" | "BACNET" | "INTERNAL",
       });
@@ -123,6 +132,8 @@ export function AddFromComponentDialog({ projectId, open, onClose, onAdded }: Pr
     setSearch("");
     setSelectedTemplateId(null);
     setComponentTag("");
+    setInstanceName("");
+    setSelectedBusId(null);
     setDefaultOrigin("CANBUS");
     setSelectedOffsets(new Set());
     setImportError(null);
@@ -190,39 +201,78 @@ export function AddFromComponentDialog({ projectId, open, onClose, onAdded }: Pr
               </div>
             ) : (
               <>
-                <div className="shrink-0 mb-2 flex items-center gap-3">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{selectedTemplate?.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedOffsets.size} of {signals.length} signals selected
-                    </p>
-                  </div>
+                <div className="shrink-0 mb-2 space-y-2">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <label className="text-xs text-muted-foreground whitespace-nowrap" title="Applied to signals that have no origin set on the template">
-                        Default Origin
-                      </label>
-                      <Select value={defaultOrigin} onValueChange={(v) => setDefaultOrigin(v)}>
-                        <SelectTrigger className="h-7 rounded border border-input bg-background px-1.5 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {["IEC","CANBUS","CANOPEN","MODBUS_TCP","MODBUS_RTU","PROFINET","PROFIBUS","ETHERNETIP","DEVICENET","BACNET","INTERNAL"].map((o) => (
-                            <SelectItem key={o} value={o}>{o}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{selectedTemplate?.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedOffsets.size} of {signals.length} signals selected
+                      </p>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <label className="text-xs text-muted-foreground whitespace-nowrap">Component Tag</label>
-                      <Input
-                        value={componentTag}
-                        onChange={(e) => setComponentTag(e.target.value)}
-                        placeholder="e.g. 625-P01"
-                        className="h-7 text-xs w-32"
-                      />
+                    <div className="flex items-center gap-3">
+                      {!hasBusProtocol && (
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-muted-foreground whitespace-nowrap" title="Applied to signals that have no origin set on the template">
+                            Default Origin
+                          </label>
+                          <Select value={defaultOrigin} onValueChange={(v) => setDefaultOrigin(v)}>
+                            <SelectTrigger className="h-7 rounded border border-input bg-background px-1.5 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {["IEC","CANBUS","CANOPEN","MODBUS_TCP","MODBUS_RTU","PROFINET","PROFIBUS","ETHERNETIP","DEVICENET","BACNET","INTERNAL"].map((o) => (
+                                <SelectItem key={o} value={o}>{o}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Component Tag</label>
+                        <Input
+                          value={componentTag}
+                          onChange={(e) => setComponentTag(e.target.value)}
+                          placeholder="e.g. 625-P01"
+                          className="h-7 text-xs w-32"
+                        />
+                      </div>
                     </div>
                   </div>
+
+                  {hasBusProtocol && (
+                    <div className="flex items-center gap-3 px-0">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Instance Name</label>
+                        <Input
+                          value={instanceName}
+                          onChange={(e) => setInstanceName(e.target.value)}
+                          placeholder={selectedTemplate?.name ?? "e.g. FWD SC01"}
+                          className="h-7 text-xs w-40"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">
+                          Bus ({selectedTemplate?.busProtocol})
+                        </label>
+                        <Select
+                          value={selectedBusId != null ? String(selectedBusId) : "none"}
+                          onValueChange={(v) => setSelectedBusId(v === "none" ? null : Number(v))}
+                        >
+                          <SelectTrigger className="h-7 rounded border border-input bg-background px-1.5 text-xs w-48">
+                            <SelectValue placeholder="Select bus…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No bus</SelectItem>
+                            {filteredNetworks.map((n) => (
+                              <SelectItem key={n.id} value={String(n.id)}>
+                                {n.description ? `${n.protocol} — ${n.description}` : n.protocol}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 overflow-auto rounded-md border min-h-0">

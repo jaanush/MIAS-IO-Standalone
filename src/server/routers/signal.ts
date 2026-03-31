@@ -1043,7 +1043,7 @@ export const signalRouter = createTRPCRouter({
         const instance = await tx.componentInstance.findUniqueOrThrow({
           where: { id: instanceId },
           include: {
-            component: { select: { busProtocol: true } },
+            component: { select: { id: true, busProtocol: true, minCanIdOffset: true } },
             signals: {
               include: {
                 signals: {
@@ -1065,10 +1065,26 @@ export const signalRouter = createTRPCRouter({
           }
         }
 
-        // Update instance network
+        // Auto-compute canIdOffset when bus changes
+        let canOffset: number | null = instance.canIdOffset;
+        if (busId != null && busId !== instance.busId) {
+          const existingCount = await tx.componentInstance.count({
+            where: {
+              componentId: instance.component.id,
+              busId,
+              id: { not: instanceId },
+            },
+          });
+          const raw = (instance.component.minCanIdOffset ?? 0) * existingCount;
+          canOffset = raw || null;
+        } else if (busId == null) {
+          canOffset = null;
+        }
+
+        // Update instance network and offset
         await tx.componentInstance.update({
           where: { id: instanceId },
-          data: { busId },
+          data: { busId, canIdOffset: canOffset },
         });
 
         // Load network protocol for origin update
@@ -1405,6 +1421,8 @@ export const signalRouter = createTRPCRouter({
       projectId: z.number().int(),
       componentId: z.number().int(),
       componentTag: z.string().optional().nullable(),
+      name: z.string().optional().nullable(),
+      busId: z.number().int().optional().nullable(),
       selectedOffsets: z.array(z.number().int()),
       // Default origin applied to signals that have no origin set on the component signal
       defaultOrigin: z.enum(SIGNAL_ORIGINS).default("CANBUS"),
@@ -1421,15 +1439,27 @@ export const signalRouter = createTRPCRouter({
       return db.$transaction(async (tx) => {
         const component = await tx.hardwareComponent.findUniqueOrThrow({
           where: { id: componentId },
-          select: { name: true, busProtocol: true },
+          select: { name: true, busProtocol: true, minCanIdOffset: true },
         });
+
+        // Auto-compute canIdOffset when bus is selected
+        let canOffset: number | null = null;
+        if (input.busId != null) {
+          const existingCount = await tx.componentInstance.count({
+            where: { componentId, busId: input.busId },
+          });
+          const raw = (component.minCanIdOffset ?? 0) * existingCount;
+          canOffset = raw || null;
+        }
 
         // Create one ComponentInstance for this batch of signals
         const instance = await tx.componentInstance.create({
           data: {
             projectId,
             componentId,
-            name: componentTag?.trim() || component.name,
+            name: input.name?.trim() || componentTag?.trim() || component.name,
+            busId: input.busId ?? null,
+            canIdOffset: canOffset,
           },
         });
 
@@ -1487,8 +1517,9 @@ export const signalRouter = createTRPCRouter({
               ...(needsBusSignal ? {
                 busSignal: {
                   create: {
+                    busId: input.busId ?? null,
                     nodeId: cs.canNodeId,
-                    canId: cs.canId,
+                    canId: cs.canId != null && canOffset ? cs.canId + canOffset : cs.canId,
                     bitOffset: cs.bitOffset,
                     bitLength: cs.bitLength,
                     isMuxIndicator: cs.isMuxIndicator,

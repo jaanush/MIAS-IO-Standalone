@@ -1279,6 +1279,12 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const disconnectInstance = trpc.signal.componentInstanceDelete.useMutation({
     onSuccess: () => utils.signal.list.invalidate({ projectId }),
   });
+  const deleteInstance = trpc.projectHardware.instanceDelete.useMutation({
+    onSuccess: () => {
+      utils.signal.list.invalidate({ projectId });
+      setRowSelection({});
+    },
+  });
   const updateNetwork = trpc.signal.instanceNetworkUpdate.useMutation({
     onSuccess: () => utils.signal.list.invalidate({ projectId }),
   });
@@ -1739,9 +1745,11 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                     onUpdateNetwork={(id) => updateNetwork.mutate({ instanceId: group.instanceId, busId: id })}
                     onRevert={() => instanceRevert.mutate({ instanceId: group.instanceId })}
                     onDisconnect={() => disconnectInstance.mutate({ instanceId: group.instanceId })}
+                    onDelete={() => deleteInstance.mutate({ id: group.instanceId })}
                     isRenamePending={renameInstance.isPending}
                     isRevertPending={instanceRevert.isPending}
                     isDisconnectPending={disconnectInstance.isPending}
+                    isDeletePending={deleteInstance.isPending}
                     isNetworkUpdatePending={updateNetwork.isPending}
                     renderRows={() => group.rows.map((row) => {
                       const signal = row.original;
@@ -1812,9 +1820,11 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                     onUpdateNetwork={() => {}}
                     onRevert={() => {}}
                     onDisconnect={() => {}}
+                    onDelete={() => {}}
                     isRenamePending={false}
                     isRevertPending={false}
                     isDisconnectPending={false}
+                    isDeletePending={false}
                     isNetworkUpdatePending={false}
                     renderRows={() => group.rows.map((row) => {
                       const signal = row.original;
