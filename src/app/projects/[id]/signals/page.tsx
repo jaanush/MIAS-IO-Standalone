@@ -33,6 +33,7 @@ import { useConfirm } from "@/hooks/use-confirm";
 import { AddEditSignalDialog } from "./_components/AddEditSignalDialog";
 import { ImportSignalsDialog } from "./_components/ImportSignalsDialog";
 import { ImportMpvDialog } from "./_components/ImportMpvDialog";
+import { ImportExpDialog } from "./_components/ImportExpDialog";
 import { AddFromComponentDialog } from "./_components/AddFromComponentDialog";
 import { ProjectBusConfigDialog } from "./_components/ProjectBusConfigDialog";
 import { ProjectAlarmsDialog } from "./_components/ProjectAlarmsDialog";
@@ -1052,6 +1053,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   const [hardwareSignal, setHardwareSignal] = useState<SignalRow | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [showImportMpv, setShowImportMpv] = useState(false);
+  const [showImportExp, setShowImportExp] = useState(false);
   const [showAddFromComponent, setShowAddFromComponent] = useState(false);
   const [showStructuredImport, setShowStructuredImport] = useState(false);
   const [showExportLegacy, setShowExportLegacy] = useState(false);
@@ -1579,6 +1581,10 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 Structured
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowImportExp(true)}>
+                <FileCode className="h-4 w-4 mr-2" />
+                CoDeSys 2 (.EXP)
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
@@ -1999,6 +2005,18 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
           onImported={() => {
             utils.signal.list.invalidate({ projectId });
             setShowImportMpv(false);
+          }}
+        />
+      )}
+
+      {showImportExp && (
+        <ImportExpDialog
+          projectId={projectId}
+          open
+          onClose={() => setShowImportExp(false)}
+          onImported={() => {
+            utils.signal.list.invalidate({ projectId });
+            setShowImportExp(false);
           }}
         />
       )}
