@@ -52,6 +52,7 @@ Every enum value exists in **three places** that must stay in sync:
 | `USER_ROLES` | `UserRole` | user | admin/users |
 | `PROJECT_STATUS` | `ProjectStatus` | project | admin/projects, project details |
 | `MEMBER_ROLES` | `MemberRole` | project | — |
+| `DIAGNOSTIC_TYPES` | `DiagnosticType` | hardware | ModuleForm |
 
 ### Known Hardcoded Enum Literals
 
@@ -78,6 +79,7 @@ Fields copied into IoCard at slot assignment:
 - `supplyVoltageField`, `filterTimeMs`, `galvanicIsolation`, `isolationVoltageV`
 - `tempMinC`, `tempMaxC`, `maxChannelCurrentMa`, `shortCircuitProtected`
 - `providesNetwork`
+- `hasDiagnostics`, `diagnosticType`, `diagnosticBitsPerChannel`
 
 **Implication:** Changing ModuleCatalog does NOT update existing IoCards — they are frozen snapshots. New assignments will pick up the changes.
 
@@ -229,6 +231,7 @@ Priority:
 | `EngineeringUnit` | No cascade | AnalogSignal.engineeringUnitId becomes NULL |
 | `ComponentInstance` | Cascades to InstanceSignal | Signals remain; instanceSignalId becomes NULL |
 | `HardwareComponent` | Cascades to ComponentSignal, ComponentInstance | All instances + instance signals deleted |
+| `Signal` (data) | Cascades to diagnostic Signal children via `diagnosticParentId` | Diagnostic signals auto-deleted |
 
 ---
 
@@ -246,6 +249,11 @@ These fields are promised to the MIAS-Plugin consumer. Do not rename or remove.
 | `fbNameOverride` | signal.fbNameOverride | Yes |
 | `inputType` | analogSignal.inputType.code | Yes |
 | `engineeringUnit` | analogSignal.engineeringUnit.symbol | Yes |
+| `isDiagnostic` | signal.isDiagnostic | No (additive) |
+| `diagnosticParentId` | signal.diagnosticParentId | No (additive) |
+| `hasDiagnostics` | ioCard.hasDiagnostics (card level) | No (additive) |
+| `diagnosticType` | ioCard.diagnosticType (card level) | No (additive) |
+| `diagnosticBitsPerChannel` | ioCard.diagnosticBitsPerChannel (card level) | No (additive) |
 
 ---
 

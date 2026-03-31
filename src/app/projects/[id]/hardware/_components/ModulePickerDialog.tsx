@@ -82,6 +82,9 @@ export function ModulePickerDialog({ projectId, carrierId, slotPosition, subgrou
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-medium">{m.articleNumber}</span>
                       <Badge variant="outline" className="text-xs">{m.cardType}</Badge>
+                      {m.hasDiagnostics && (
+                        <Badge variant="secondary" className="text-xs">Diag</Badge>
+                      )}
                       {wagoDatasheetUrl(m.articleNumber) && (
                         <a
                           href={wagoDatasheetUrl(m.articleNumber)!}

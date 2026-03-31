@@ -158,6 +158,9 @@ export type CatalogDeviceType = (typeof CATALOG_DEVICE_TYPES)[number];
 export const CATALOG_LIFECYCLES = ["ACTIVE", "NRND", "LAST_BUY", "DISCONTINUED", "OBSOLETE", "UNKNOWN"] as const;
 export type CatalogLifecycle = (typeof CATALOG_LIFECYCLES)[number];
 
+export const DIAGNOSTIC_TYPES = ["NONE", "DIGITAL_PAIRED", "ANALOG_STATUS_BYTE"] as const;
+export type DiagnosticType = (typeof DIAGNOSTIC_TYPES)[number];
+
 export const PLC_SERIES = [
   "750 Series",
   "Basic Controller 100",

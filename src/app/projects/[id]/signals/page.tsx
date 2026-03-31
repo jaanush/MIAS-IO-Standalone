@@ -469,7 +469,7 @@ const DisplayRow = memo(function DisplayRow({ signal, selected, onToggleSelect, 
       case "system": return <Td key={key}><span className="text-xs text-muted-foreground truncate block" title={signal.system?.name}>{signal.system?.name ?? "—"}</span></Td>;
       case "component": return <Td key={key}><span className="text-xs text-muted-foreground truncate block">{signal.componentTag ?? "—"}</span></Td>;
       case "desc": return <Td key={key}><span className="block truncate text-sm" title={signal.description ?? undefined}>{signal.description ?? ""}</span></Td>;
-      case "tag": return <Td key={key}>{signal.tag ? <span className="font-mono text-xs truncate block">{signal.tag}</span> : <span className="text-muted-foreground/40 text-xs italic">—</span>}</Td>;
+      case "tag": return <Td key={key}>{signal.tag ? <span className="font-mono text-xs truncate block">{signal.isDiagnostic && <Badge variant="secondary" className="text-[9px] px-1 py-0 mr-1 font-normal">Diag</Badge>}{signal.tag}</span> : <span className="text-muted-foreground/40 text-xs italic">—</span>}</Td>;
       case "card": return <Td key={key}>{signal.origin === "IEC" ? (hardware ? <span className={cn("text-xs block truncate", hwUnbound && "text-amber-600 dark:text-amber-400")} title={hwUnbound ? "Hardware disconnected — rebind needed" : undefined}>{hardware}{hwUnbound ? " ⚠" : ""}</span> : <span className="text-xs text-muted-foreground/40">—</span>) : <span className="text-xs text-muted-foreground italic">Via network</span>}</Td>;
       case "ch": return <Td key={key} className="text-center"><span className="text-xs tabular-nums">{signal.origin === "IEC" && signal.channelPosition != null ? signal.channelPosition : ""}</span></Td>;
       case "io": return <Td key={key}><Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-medium", typeColor)}>{ioCode}</Badge></Td>;
@@ -1284,6 +1284,7 @@ export default function ProjectSignalsPage({ params }: { params: Promise<{ id: s
   });
 
   function startEdit(signal: SignalRow) {
+    if (signal.isDiagnostic) return; // Diagnostic signals are auto-generated, not editable
     setIsAddingNew(false);
     setEditingId(signal.id);
     const vals = defaultEditValues(signal);

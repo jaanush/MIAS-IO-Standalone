@@ -100,6 +100,14 @@ enum IoCardType {
   @@map("io_card_type")
 }
 
+enum DiagnosticType {
+  NONE
+  DIGITAL_PAIRED
+  ANALOG_STATUS_BYTE
+
+  @@map("diagnostic_type")
+}
+
 // SignalOrigin — how a signal is physically delivered to the PLC
 enum SignalOrigin {
   IEC          // hardwired IO card channel (IEC 61131-3)
@@ -570,6 +578,11 @@ model ModuleCatalog {
   // CODESYS integration
   codesysModuleId    String?          @db.VarChar(50) @map("codesys_module_id")
 
+  // Diagnostics
+  hasDiagnostics           Boolean        @default(false) @map("has_diagnostics")
+  diagnosticType           DiagnosticType @default(NONE)  @map("diagnostic_type")
+  diagnosticBitsPerChannel Int?           @map("diagnostic_bits_per_channel")
+
   createdAt                 DateTime   @default(now()) @map("created_at")
   updatedAt                 DateTime   @updatedAt @map("updated_at")
 
@@ -811,6 +824,10 @@ model IoCard {
   typeCode              String?    @db.Char(1) @map("type_code")          // card type letter (I, M, Q, T, U...)
   instanceNumber        Int?       @db.SmallInt @map("instance_number")   // instance within subgroup+type (01-99)
   notes                 String?
+  // Diagnostics (snapshot from ModuleCatalog)
+  hasDiagnostics           Boolean        @default(false) @map("has_diagnostics")
+  diagnosticType           DiagnosticType @default(NONE)  @map("diagnostic_type")
+  diagnosticBitsPerChannel Int?           @map("diagnostic_bits_per_channel")
   createdBy             String?    @db.Uuid @map("created_by")
   createdAt             DateTime   @default(now()) @map("created_at")
   updatedAt             DateTime   @updatedAt @map("updated_at")
@@ -885,6 +902,9 @@ model Signal {
   tagSuffix        String?      @db.VarChar(100) @map("tag_suffix")
   description      String?
   notes            String?
+  // Diagnostic signal linkage
+  isDiagnostic       Boolean  @default(false) @map("is_diagnostic")
+  diagnosticParentId Int?     @map("diagnostic_parent_id")
   // ISA instrument identification
   instrumentTag        String?  @db.VarChar(50)  @map("instrument_tag")         // e.g. "362.2.001"
   signalClassification String?  @db.VarChar(10)  @map("signal_classification")  // ISA code: XA, XI, XC, etc.
@@ -918,6 +938,8 @@ model Signal {
   instanceSignal InstanceSignal?  @relation(fields: [instanceSignalId], references: [id], onDelete: SetNull)
   ioCard         IoCard?          @relation(fields: [ioCardId], references: [id], onDelete: SetNull)
   creator        User?            @relation("SignalCreatedBy", fields: [createdBy], references: [id])
+  diagnosticParent   Signal?  @relation("DiagnosticLink", fields: [diagnosticParentId], references: [id], onDelete: Cascade)
+  diagnosticSignals  Signal[] @relation("DiagnosticLink")
   discreteSignal DiscreteSignal?
   analogSignal   AnalogSignal?
   busSignal      BusSignal?

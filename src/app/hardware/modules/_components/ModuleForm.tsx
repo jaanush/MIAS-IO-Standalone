@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BUS_PROTOCOLS, CARD_TYPES } from "@/lib/enums";
+import { BUS_PROTOCOLS, CARD_TYPES, DIAGNOSTIC_TYPES } from "@/lib/enums";
 import { wagoDatasheetUrl } from "@/lib/utils";
 import { LifecycleBadge } from "@/components/LifecycleBadge";
 
@@ -60,6 +60,9 @@ export const moduleSchema = z.object({
   approvalIds: z.array(z.number().int()).default([]),
   conversionTimeMs: z.preprocess((v) => (v === "" || v == null ? null : Number(v)), z.number().nullable().optional()),
   notes: z.string().optional().nullable(),
+  hasDiagnostics: z.boolean().default(false),
+  diagnosticType: z.enum(DIAGNOSTIC_TYPES).default("NONE"),
+  diagnosticBitsPerChannel: z.preprocess((v) => (v === "" || v == null ? null : Number(v)), z.number().int().min(1).nullable().optional()),
 });
 
 export type ModuleFormValues = z.infer<typeof moduleSchema>;
@@ -297,6 +300,47 @@ export function ModuleForm({ defaultValues, approvals = [], onSubmit, onDelete, 
             onChange={(v) => setValue("shortCircuitProtected", v)}
           />
         </div>
+      </section>
+
+      {/* Diagnostics */}
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Diagnostics</h2>
+        <div className="flex flex-wrap gap-6 pt-1">
+          <CheckField
+            label="Has diagnostics"
+            checked={!!watch("hasDiagnostics")}
+            onChange={(v) => {
+              setValue("hasDiagnostics", v);
+              if (!v) {
+                setValue("diagnosticType", "NONE");
+                setValue("diagnosticBitsPerChannel", null);
+              }
+            }}
+          />
+        </div>
+        {watch("hasDiagnostics") && (
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="Diagnostic Type" error={errors.diagnosticType?.message}>
+              <Select
+                value={watch("diagnosticType") ?? "NONE"}
+                onValueChange={(v) => {
+                  setValue("diagnosticType", v as "NONE" | "DIGITAL_PAIRED" | "ANALOG_STATUS_BYTE");
+                  if (v === "DIGITAL_PAIRED") setValue("diagnosticBitsPerChannel", 1);
+                  else if (v === "ANALOG_STATUS_BYTE") setValue("diagnosticBitsPerChannel", 8);
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DIGITAL_PAIRED">Digital Paired</SelectItem>
+                  <SelectItem value="ANALOG_STATUS_BYTE">Analog Status Byte</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Diag Bits / Channel" error={errors.diagnosticBitsPerChannel?.message}>
+              <Input type="number" {...register("diagnosticBitsPerChannel")} />
+            </Field>
+          </div>
+        )}
       </section>
 
       {/* Protection & Ratings */}

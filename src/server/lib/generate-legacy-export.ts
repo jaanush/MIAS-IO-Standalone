@@ -238,7 +238,7 @@ export async function generateLegacyExport(projectId: number): Promise<Map<strin
             select: {
               id: true, name: true, modbusInputBase: true, modbusOutputBase: true,
               cards: {
-                select: { id: true, slotPosition: true, cardType: true, maxInputChannels: true, maxOutputChannels: true, catalog: { select: { articleNumber: true } } },
+                select: { id: true, slotPosition: true, cardType: true, maxInputChannels: true, maxOutputChannels: true, hasDiagnostics: true, diagnosticType: true, catalog: { select: { articleNumber: true } } },
                 orderBy: { slotPosition: "asc" },
               },
             },
@@ -253,7 +253,7 @@ export async function generateLegacyExport(projectId: number): Promise<Map<strin
     orderBy: [{ gvlId: "asc" }, { tag: "asc" }],
     select: {
       id: true, tag: true, description: true, signalType: true, origin: true, direction: true,
-      gvlId: true, gvl: { select: { name: true } }, ioCardId: true, channelPosition: true,
+      gvlId: true, gvl: { select: { name: true } }, ioCardId: true, channelPosition: true, isDiagnostic: true, diagnosticParentId: true,
       systemId: true, componentTag: true, system: { select: { name: true } },
       ioCard: {
         select: {
@@ -303,8 +303,8 @@ export async function generateLegacyExport(projectId: number): Promise<Map<strin
     for (const carrier of plc.carriers) {
       const carrierSignals = signals.filter((s) => s.ioCard?.carrierId === carrier.id);
       const { addresses, nextOffsets } = computeCarrierAddresses(
-        carrier.cards.map((c) => ({ id: c.id, slotPosition: c.slotPosition, cardType: c.cardType, maxInputChannels: c.maxInputChannels, maxOutputChannels: c.maxOutputChannels })),
-        carrierSignals.map((s) => ({ id: s.id, ioCardId: s.ioCardId, channelPosition: s.channelPosition, direction: s.direction, origin: s.origin })),
+        carrier.cards.map((c) => ({ id: c.id, slotPosition: c.slotPosition, cardType: c.cardType, maxInputChannels: c.maxInputChannels, maxOutputChannels: c.maxOutputChannels, hasDiagnostics: c.hasDiagnostics, diagnosticType: c.diagnosticType })),
+        carrierSignals.map((s) => ({ id: s.id, ioCardId: s.ioCardId, channelPosition: s.channelPosition, direction: s.direction, origin: s.origin, isDiagnostic: s.isDiagnostic })),
         globalOffsets
       );
       globalOffsets = nextOffsets;

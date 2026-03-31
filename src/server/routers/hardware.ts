@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
-import { CARD_TYPES, BUS_PROTOCOLS, CATALOG_DEVICE_TYPES } from "@/lib/enums";
+import { CARD_TYPES, BUS_PROTOCOLS, CATALOG_DEVICE_TYPES, DIAGNOSTIC_TYPES } from "@/lib/enums";
 
 const moduleInput = z.object({
   vendorName: z.string().min(1),
@@ -29,6 +29,9 @@ const moduleInput = z.object({
   approvalIds: z.array(z.number().int()).default([]),
   conversionTimeMs: z.coerce.number().optional().nullable(),
   notes: z.string().optional().nullable(),
+  hasDiagnostics: z.boolean().default(false),
+  diagnosticType: z.enum(DIAGNOSTIC_TYPES).default("NONE"),
+  diagnosticBitsPerChannel: z.coerce.number().int().min(1).optional().nullable(),
 });
 
 const deviceInput = z.object({

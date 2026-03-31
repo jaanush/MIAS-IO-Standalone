@@ -99,9 +99,11 @@ export default function ComponentSignalsPage({ params }: { params: Promise<{ id:
             <Button size="sm" variant="outline" onClick={() => setShowImportModbus(true)}>
               <Network className="h-4 w-4 mr-1" /> AI Import
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowImportDbc(true)}>
-              <Upload className="h-4 w-4 mr-1" /> DBC
-            </Button>
+            {data.busProtocol === "CANBUS" && (
+              <Button size="sm" variant="outline" onClick={() => setShowImportDbc(true)}>
+                <Upload className="h-4 w-4 mr-1" /> DBC
+              </Button>
+            )}
           </div>
         </div>
         <SignalGrid

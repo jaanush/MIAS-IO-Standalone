@@ -536,6 +536,9 @@ export const projectHardwareRouter = createTRPCRouter({
         tempMaxC: catalog.tempMaxC,
         maxChannelCurrentMa: catalog.maxChannelCurrentMa,
         shortCircuitProtected: catalog.shortCircuitProtected,
+        hasDiagnostics: catalog.hasDiagnostics,
+        diagnosticType: catalog.diagnosticType,
+        diagnosticBitsPerChannel: catalog.diagnosticBitsPerChannel,
         subgroup,
         typeCode,
         instanceNumber,
@@ -1087,5 +1090,87 @@ export const projectHardwareRouter = createTRPCRouter({
       }
 
       return { rebound, unmatched, conflicts };
+    }),
+
+  /**
+   * Regenerate diagnostic signals for all data signals on diagnostic-capable cards in a project.
+   * Creates missing diagnostic companions — idempotent (skips signals that already have one).
+   */
+  regenerateDiagnosticSignals: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .mutation(async ({ input }) => {
+      // Find all diagnostic cards in this project
+      const cards = await db.ioCard.findMany({
+        where: {
+          hasDiagnostics: true,
+          carrier: { plc: { projectId: input.projectId } },
+        },
+        select: {
+          id: true,
+          diagnosticType: true,
+          diagnosticBitsPerChannel: true,
+          maxInputChannels: true,
+          subgroup: true,
+          typeCode: true,
+          instanceNumber: true,
+          carrier: { select: { cabinetNumber: true, carrierNumber: true } },
+        },
+      });
+
+      let created = 0;
+      for (const card of cards) {
+        // Find data signals on this card that don't have a diagnostic companion yet
+        const dataSignals = await db.signal.findMany({
+          where: {
+            ioCardId: card.id,
+            isDiagnostic: false,
+            diagnosticSignals: { none: {} },
+          },
+          select: { id: true, projectId: true, tag: true, channelPosition: true, direction: true, revision: true },
+        });
+
+        const isDigital = card.diagnosticType === "DIGITAL_PAIRED";
+        const hwFields = {
+          hwCabinet: card.carrier.cabinetNumber,
+          hwCarrier: card.carrier.carrierNumber,
+          hwTypeCode: card.typeCode ? `${card.subgroup ?? "A"}${card.typeCode}` : null,
+          hwInstance: card.instanceNumber,
+        };
+
+        for (const sig of dataSignals) {
+          const tagSuffix = isDigital ? "_Diag" : "_Status";
+          const diagTag = sig.tag ? `${sig.tag}${tagSuffix}` : null;
+
+          let diagChannel: number | null = null;
+          if (sig.channelPosition != null) {
+            diagChannel = isDigital
+              ? sig.channelPosition + (card.maxInputChannels ?? 0)
+              : sig.channelPosition;
+          }
+
+          const diagSignalType = isDigital ? "DISCRETE" : "ANALOG";
+          await db.signal.create({
+            data: {
+              projectId: sig.projectId,
+              signalType: diagSignalType as "DISCRETE" | "ANALOG",
+              origin: "IEC",
+              direction: "INPUT",
+              isDiagnostic: true,
+              diagnosticParentId: sig.id,
+              tag: diagTag,
+              ioCardId: card.id,
+              channelPosition: diagChannel,
+              revision: sig.revision,
+              ...hwFields,
+              ...(diagSignalType === "DISCRETE"
+                ? { discreteSignal: { create: { trigger: "NO" } } }
+                : { analogSignal: { create: {} } }),
+            },
+          });
+          created++;
+        }
+      }
+
+      return { created };
     }),
 });

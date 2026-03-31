@@ -163,3 +163,112 @@ Other plugin endpoints work fine:
 The deployed container doesn't have `/app/storage/plugin/` and can't create it.
 Fix: create the directory in the Dockerfile or ensure the app has write access
 to `/app/storage/`.
+
+---
+
+## Request: Auto-generate diagnostic signal bindings for I/O modules
+
+**From:** MIAS-Plugin | **Date:** 2026-03-30
+
+### Problem
+
+WAGO I/O modules with diagnostics have extra bits/bytes in their process image
+that indicate sensor faults (short circuit, wire break, overrange, underrange).
+These diagnostic channels are not currently modelled in MIAS-IO — they need to
+be auto-generated so the plugin can bind them to the DataSource quality chain.
+
+### What modules have diagnostics
+
+**Digital input modules with diagnostics** (e.g. 750-421, 750-422):
+- Process image: N data bits + N diagnostic bits in the same byte
+- 750-421 layout (2 channels):
+
+  | Bit 3 | Bit 2 | Bit 1 | Bit 0 |
+  |-------|-------|-------|-------|
+  | S2 (diag ch2) | S1 (diag ch1) | DI2 (data) | DI1 (data) |
+
+- Diagnostic bit HIGH = sensor supply short circuit to ground
+- 100ms pulse extension after fault clears
+- Auto-acknowledges when fault is rectified
+
+**Analog input modules with diagnostics** (e.g. 750-496, 750-471, 750-472):
+- Process image: 1 status byte (8 bits) + 1 data word (16 bits) **per channel**
+- Status byte is **optional** — must be enabled in module configuration
+- Status byte layout (standard across all WAGO analog input modules):
+
+  | Bit | Name | Meaning |
+  |-----|------|---------|
+  | 0 | Underrange | Below measurement range lower limit |
+  | 1 | Overrange | Above measurement range upper limit |
+  | 2 | User Underrange | Below user-configured lower limit |
+  | 3 | User Overrange | Above user-configured upper limit |
+  | 4 | Underflow | Below ADC range |
+  | 5 | Overflow | Above ADC range |
+  | 6 | General Error | Set when bit 0 or 1 is set |
+  | 7 | RegCom | Register communication flag |
+
+- **Wire break on 4-20mA inputs**: open circuit → 0mA → triggers bit 1 (overrange)
+  and bit 6 (general error)
+- **Short circuit**: triggers bit 0 (underrange) and bit 6
+
+### What MIAS-IO needs to do
+
+1. **Module catalog awareness**: The card/module catalog should flag which
+   articles have diagnostics. New fields on the card model:
+
+   ```
+   hasDiagnostics: BOOL
+   diagnosticType: 'DIGITAL_PAIRED' | 'ANALOG_STATUS_BYTE' | 'NONE'
+   diagnosticBitsPerChannel: INT  (e.g. 1 for digital, 8 for analog)
+   ```
+
+2. **Auto-generate diagnostic signals**: When a card with diagnostics is added
+   to a carrier, MIAS-IO should automatically create diagnostic signals
+   alongside the data signals. For example, if card 750-421 channel 1 has
+   signal `PT_101_Feedback`, auto-create `PT_101_Feedback_Diag` with:
+   - `origin: 'IEC'`
+   - `signalType: 'DISCRETE'` (for digital diag) or `'DIAGNOSTIC'` (new type?)
+   - `direction: 'INPUT'`
+   - `plcAddress` pointing to the diagnostic bit (bit 2 for ch1, bit 3 for ch2)
+   - A reference back to the parent signal it diagnoses
+
+3. **For analog status bytes**: Either create one diagnostic signal per status
+   bit (verbose but explicit), or create one diagnostic byte signal per channel
+   and let the plugin decode the bits. Recommendation: **one signal per channel**
+   with `signalType: 'ANALOG_STATUS'` and let the DataSource interpret the byte.
+
+4. **Modbus TCP pass-through**: These diagnostics flow through the Modbus TCP
+   remote I/O as regular register data. The carrier's register map already
+   includes the diagnostic bits/bytes. MIAS-IO just needs to know which
+   registers are diagnostic vs data when generating the signal list.
+
+### How the plugin uses this
+
+The plugin generates:
+- `FB_DataSourceBit` for each data signal (bound to I/O mapping)
+- A separate `FB_DataSourceBit` for each diagnostic signal
+- In `PRG_MIAS_Init`: binds the diagnostic source to the data source's quality:
+
+  ```iec-st
+  // If diagnostic bit goes HIGH, set parent signal quality to BAD
+  IF GVL_HAL.src_PT_101_Diag.AsBool THEN
+      GVL_HAL.src_PT_101.SetQuality(E_DataQuality.BAD_SENSOR_FAILURE);
+  END_IF
+  ```
+
+  Or for analog: reads the status byte and sets quality based on bit flags.
+
+### Known diagnostic modules in LasseMaja
+
+The LasseMaja project currently has no diagnostic modules in the MIAS-IO
+signal database (all are standard 750-626 DI/DO combo without diagnostics).
+But future projects will use diagnostic-capable modules. The catalog should
+be ready for them.
+
+### References
+
+- WAGO 750-421 manual: 2DI 24VDC 3ms with diagnostics
+  (process image Table 1, diagnostic function §4.3)
+- WAGO 750-496 manual: 8AI 0/4-20mA with status bytes
+  (status byte Table 18, bit definitions §6)
+- Standard across all WAGO 750 series analog input modules with diagnostics

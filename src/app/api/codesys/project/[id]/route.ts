@@ -84,6 +84,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
                   instanceNumber: true,
                   maxInputChannels: true,
                   maxOutputChannels: true,
+                  hasDiagnostics: true,
+                  diagnosticType: true,
+                  diagnosticBitsPerChannel: true,
                   catalog: {
                     select: { articleNumber: true, vendorName: true, codesysModuleId: true },
                   },
@@ -144,6 +147,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       loggingEnabled: true,
       fbNameOverride: true,
       useShortName: true,
+      // Diagnostics
+      isDiagnostic: true,
+      diagnosticParentId: true,
       // Sub-models
       ioCard: {
         select: {
@@ -353,6 +359,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       instance,
       channelPosition: s.channelPosition,
       plcAddress,
+      // Diagnostics
+      isDiagnostic: s.isDiagnostic,
+      diagnosticParentId: s.diagnosticParentId,
       // Code gen
       fbNameOverride: s.fbNameOverride,
       useShortName: s.useShortName,
@@ -502,6 +511,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           instanceNumber: card.instanceNumber,
           maxInputChannels: card.maxInputChannels,
           maxOutputChannels: card.maxOutputChannels,
+          hasDiagnostics: card.hasDiagnostics,
+          diagnosticType: card.diagnosticType,
+          diagnosticBitsPerChannel: card.diagnosticBitsPerChannel,
           catalog: card.catalog ? { articleNumber: card.catalog.articleNumber, manufacturer: card.catalog.vendorName, codesysModuleId: card.catalog.codesysModuleId } : null,
         })),
       })),

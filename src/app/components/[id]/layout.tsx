@@ -17,7 +17,7 @@ export default function ComponentTabLayout({
   const pathname = usePathname();
   const { data } = trpc.components.componentMeta.useQuery({ id: Number(id) });
 
-  const isCanopen = data?.busProtocol === "CANOPEN" || data?.busProtocol === "CANBUS";
+  const isCanopen = data?.busProtocol === "CANOPEN";
 
   const tabs = [
     { href: "details", label: "Details" },

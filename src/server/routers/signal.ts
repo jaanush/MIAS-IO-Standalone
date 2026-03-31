@@ -25,6 +25,81 @@ async function resolveHwFields(ioCardId: number | null | undefined) {
   };
 }
 
+/**
+ * Auto-create a companion diagnostic signal for a data signal on a diagnostic-capable card.
+ * Returns the created diagnostic signal, or null if the card has no diagnostics.
+ */
+async function maybeCreateDiagnosticSignal(
+  parentSignal: { id: number; projectId: number; tag: string | null; ioCardId: number | null; channelPosition: number | null; direction: string | null; revision: string },
+  hwFields: { hwCabinet: number | null; hwCarrier: number | null; hwTypeCode: string | null; hwInstance: number | null },
+) {
+  if (!parentSignal.ioCardId) return null;
+  const card = await db.ioCard.findUnique({
+    where: { id: parentSignal.ioCardId },
+    select: { hasDiagnostics: true, diagnosticType: true, diagnosticBitsPerChannel: true, maxInputChannels: true },
+  });
+  if (!card || !card.hasDiagnostics || card.diagnosticType === "NONE") return null;
+
+  // Already has a diagnostic signal? Skip.
+  const existing = await db.signal.findFirst({
+    where: { diagnosticParentId: parentSignal.id },
+  });
+  if (existing) return existing;
+
+  const isDigital = card.diagnosticType === "DIGITAL_PAIRED";
+  const tagSuffix = isDigital ? "_Diag" : "_Status";
+  const diagTag = parentSignal.tag ? `${parentSignal.tag}${tagSuffix}` : null;
+
+  // Compute diagnostic channel position:
+  // DIGITAL_PAIRED: diag bit = data channel + maxInputChannels (e.g., ch0→ch2 for 2-ch module)
+  // ANALOG_STATUS_BYTE: same logical channel — address computation handles word interleaving
+  let diagChannel: number | null = null;
+  if (parentSignal.channelPosition != null) {
+    if (isDigital) {
+      diagChannel = parentSignal.channelPosition + (card.maxInputChannels ?? 0);
+    } else {
+      diagChannel = parentSignal.channelPosition;
+    }
+  }
+
+  const diagSignalType = isDigital ? "DISCRETE" : "ANALOG";
+  return db.signal.create({
+    data: {
+      projectId: parentSignal.projectId,
+      signalType: diagSignalType as "DISCRETE" | "ANALOG",
+      origin: "IEC",
+      direction: "INPUT",
+      isDiagnostic: true,
+      diagnosticParentId: parentSignal.id,
+      tag: diagTag,
+      ioCardId: parentSignal.ioCardId,
+      channelPosition: diagChannel,
+      revision: parentSignal.revision,
+      ...hwFields,
+      ...(diagSignalType === "DISCRETE"
+        ? { discreteSignal: { create: { trigger: "NO" } } }
+        : { analogSignal: { create: {} } }),
+    },
+  });
+}
+
+/**
+ * Sync diagnostic signal tag when parent tag changes.
+ */
+async function syncDiagnosticTags(parentId: number, newTag: string | null) {
+  const diagSignals = await db.signal.findMany({
+    where: { diagnosticParentId: parentId },
+    select: { id: true, ioCard: { select: { diagnosticType: true } } },
+  });
+  for (const diag of diagSignals) {
+    const suffix = diag.ioCard?.diagnosticType === "DIGITAL_PAIRED" ? "_Diag" : "_Status";
+    await db.signal.update({
+      where: { id: diag.id },
+      data: { tag: newTag ? `${newTag}${suffix}` : null },
+    });
+  }
+}
+
 /** Bump A→B, Z→AA, AZ→BA, ZZ→AAA, ZZZ→AAAA */
 function bumpRevision(rev: string): string {
   const chars = rev.toUpperCase().split("");
@@ -50,6 +125,8 @@ const signalInclude = {
       carrier: { include: { plc: { select: { id: true, name: true } } } },
     },
   },
+  diagnosticParent: { select: { id: true, tag: true } },
+  diagnosticSignals: { select: { id: true, tag: true, channelPosition: true } },
   system: true,
   gvl: true,
   instanceSignal: {
@@ -246,7 +323,7 @@ export const signalRouter = createTRPCRouter({
     // Resolve hardware identifier fields from ioCardId
     const hwFields = await resolveHwFields(ioCardId);
 
-    return db.signal.create({
+    const created = await db.signal.create({
       data: {
         projectId,
         signalType,
@@ -330,6 +407,16 @@ export const signalRouter = createTRPCRouter({
       },
       include: signalInclude,
     });
+
+    // Auto-create diagnostic companion if card has diagnostics
+    if (!created.isDiagnostic && created.ioCardId) {
+      await maybeCreateDiagnosticSignal(
+        { id: created.id, projectId: created.projectId, tag: created.tag, ioCardId: created.ioCardId, channelPosition: created.channelPosition, direction: created.direction, revision: created.revision },
+        hwFields,
+      );
+    }
+
+    return created;
   }),
 
   update: protectedProcedure
@@ -499,6 +586,20 @@ export const signalRouter = createTRPCRouter({
         });
       }
 
+      // Sync diagnostic signal tag when parent tag changes
+      if (tag !== undefined && !updated.isDiagnostic) {
+        await syncDiagnosticTags(updated.id, updated.tag);
+      }
+
+      // If signal was newly assigned to a diagnostic card, create companion
+      if (ioCardId !== undefined && !updated.isDiagnostic && updated.ioCardId) {
+        const hwUpdate = await resolveHwFields(updated.ioCardId);
+        await maybeCreateDiagnosticSignal(
+          { id: updated.id, projectId: updated.projectId, tag: updated.tag, ioCardId: updated.ioCardId, channelPosition: updated.channelPosition, direction: updated.direction, revision: updated.revision },
+          hwUpdate,
+        );
+      }
+
       return updated;
     }),
 
@@ -512,13 +613,20 @@ export const signalRouter = createTRPCRouter({
     .input(z.object({ ids: z.array(z.number().int()).min(1) }))
     .mutation(async ({ input }) => {
       return db.$transaction(async (tx) => {
+        // Find diagnostic children that will also be deleted
+        const diagChildren = await tx.signal.findMany({
+          where: { diagnosticParentId: { in: input.ids } },
+          select: { id: true },
+        });
+        const allIds = [...input.ids, ...diagChildren.map((d) => d.id)];
+
         // Delete child tables first (Prisma doesn't cascade deleteMany through relations)
-        await tx.discreteAlarm.deleteMany({ where: { signal: { signalId: { in: input.ids } } } });
-        await tx.analogAlarm.deleteMany({ where: { signal: { signalId: { in: input.ids } } } });
-        await tx.discreteSignal.deleteMany({ where: { signalId: { in: input.ids } } });
-        await tx.analogSignal.deleteMany({ where: { signalId: { in: input.ids } } });
-        await tx.busSignal.deleteMany({ where: { signalId: { in: input.ids } } });
-        const result = await tx.signal.deleteMany({ where: { id: { in: input.ids } } });
+        await tx.discreteAlarm.deleteMany({ where: { signal: { signalId: { in: allIds } } } });
+        await tx.analogAlarm.deleteMany({ where: { signal: { signalId: { in: allIds } } } });
+        await tx.discreteSignal.deleteMany({ where: { signalId: { in: allIds } } });
+        await tx.analogSignal.deleteMany({ where: { signalId: { in: allIds } } });
+        await tx.busSignal.deleteMany({ where: { signalId: { in: allIds } } });
+        const result = await tx.signal.deleteMany({ where: { id: { in: allIds } } });
         return { count: result.count };
       });
     }),

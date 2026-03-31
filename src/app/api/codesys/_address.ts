@@ -9,6 +9,8 @@ type CardForAddress = {
   cardType: string;
   maxInputChannels: number | null;
   maxOutputChannels: number | null;
+  hasDiagnostics: boolean;
+  diagnosticType: string | null;
 };
 
 type SignalForAddress = {
@@ -17,6 +19,7 @@ type SignalForAddress = {
   channelPosition: number | null;
   direction: string | null;
   origin: string;
+  isDiagnostic: boolean;
 };
 
 export type AddressOffsets = { di: number; do: number; ai: number; ao: number };
@@ -50,13 +53,23 @@ export function computeCarrierAddresses(
 
     switch (card.cardType) {
       case "DI":
-        diByteOffset += Math.ceil(inCh / 8);
+        if (card.hasDiagnostics && card.diagnosticType === "DIGITAL_PAIRED") {
+          // Data bits + diagnostic bits share the same byte(s)
+          diByteOffset += Math.ceil(inCh * 2 / 8);
+        } else {
+          diByteOffset += Math.ceil(inCh / 8);
+        }
         break;
       case "DO":
         doByteOffset += Math.ceil(outCh / 8);
         break;
       case "AI":
-        aiWordOffset += inCh;
+        if (card.hasDiagnostics && card.diagnosticType === "ANALOG_STATUS_BYTE") {
+          // Status word + data word per channel
+          aiWordOffset += inCh * 2;
+        } else {
+          aiWordOffset += inCh;
+        }
         break;
       case "AO":
         aoWordOffset += outCh;
@@ -99,7 +112,15 @@ export function computeCarrierAddresses(
         addr = `%QX${offsets.do + Math.floor(ch / 8)}.${ch % 8}`;
         break;
       case "AI":
-        addr = `%IW${offsets.ai + ch}`;
+        if (card.hasDiagnostics && card.diagnosticType === "ANALOG_STATUS_BYTE") {
+          // Interleaved: [status0, data0, status1, data1, ...]
+          // Diagnostic signal → status word (ch * 2), data signal → data word (ch * 2 + 1)
+          addr = sig.isDiagnostic
+            ? `%IW${offsets.ai + ch * 2}`
+            : `%IW${offsets.ai + ch * 2 + 1}`;
+        } else {
+          addr = `%IW${offsets.ai + ch}`;
+        }
         break;
       case "AO":
         addr = `%QW${offsets.ao + ch}`;

@@ -108,11 +108,14 @@ and derive everything they need from it.
               "cardType": "DI",
               "typeCode": "I",
               "instanceNumber": 1,
+              "maxInputChannels": 4,
+              "maxOutputChannels": 0,
+              "hasDiagnostics": false,
+              "diagnosticType": "NONE",
+              "diagnosticBitsPerChannel": null,
               "catalog": {
                 "articleNumber": "750-1405",
-                "codesysModuleId": "0000 0750 0000 0000",
-                "maxInputChannels": 4,
-                "maxOutputChannels": 0
+                "codesysModuleId": "0000 0750 0000 0000"
               }
             }
           ]
@@ -154,6 +157,8 @@ and derive everything they need from it.
       },
       "channelPosition": 0,
       "plcAddress": "%IW0",
+      "isDiagnostic": false,
+      "diagnosticParentId": null,
       "plcDataType": "INT",
       "alarmFb": "FB_AlarmAnalogue",
       "scalingFb": "FB_AnalogueIn_DeadBand_rev3",
@@ -251,6 +256,17 @@ and derive everything they need from it.
 - Format follows IEC 61131-3: `%IX{byte}.{bit}` (DI), `%QX{byte}.{bit}` (DO),
   `%IW{word}` (AI), `%QW{word}` (AO)
 - `null` for bus/network signals (no hardware address — configured via Modbus/CAN mapping instead)
+- For DI cards with `diagnosticType: "DIGITAL_PAIRED"`: byte count = `ceil(maxInputChannels * 2 / 8)` (data + diag bits in same byte)
+- For AI cards with `diagnosticType: "ANALOG_STATUS_BYTE"`: word count = `maxInputChannels * 2` (interleaved status word + data word per channel)
+
+**Notes on diagnostic signals:**
+- `isDiagnostic: true` marks auto-generated diagnostic companion signals
+- `diagnosticParentId` references the parent data signal ID
+- Diagnostic signals are auto-created when a data signal is assigned to a card with `hasDiagnostics: true`
+- For `DIGITAL_PAIRED`: diagnostic signal type is DISCRETE, bit offset = data channel + maxInputChannels
+- For `ANALOG_STATUS_BYTE`: diagnostic signal type is ANALOG, same logical channel — address is the status word (even offset), parent data signal gets the data word (odd offset)
+- The plugin uses diagnostic signals to drive the DataSource quality chain (`BAD_SENSOR_FAILURE` on fault)
+- Card-level `hasDiagnostics`, `diagnosticType`, and `diagnosticBitsPerChannel` are also included in the response
 
 **Errors:**
 
