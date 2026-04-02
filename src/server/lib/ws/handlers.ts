@@ -19,7 +19,7 @@ import { connectionManager } from "../opcua/connection-manager";
 import { subscriptionManager } from "../opcua/subscription-manager";
 import { readValues, writeValue, browseNode } from "../opcua/operations";
 import { buildNodeId } from "../opcua/node-id";
-import { db } from "@/lib/db";
+import { db } from "../../../lib/db";
 
 function send(ws: WebSocket, data: unknown): void {
   if (ws.readyState === ws.OPEN) {
