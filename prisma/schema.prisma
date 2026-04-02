@@ -622,6 +622,7 @@ model Project {
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
   currentRevision   String         @default("A") @db.VarChar(10) @map("current_revision")
+  dataVersion       Int            @default(0) @map("data_version")
 
   creator           User?                  @relation("ProjectCreatedBy", fields: [createdBy], references: [id])
   members           ProjectMember[]
@@ -637,6 +638,7 @@ model Project {
   codesysImports    CodesysImport[]
   wiringRecipes     WiringRecipe[]
   codesysSessions   CodesysSession[]
+  ioCheckSessions   IoCheckSession[]
 
   @@map("project")
 }
@@ -675,8 +677,9 @@ model Plc {
   catalog  DeviceCatalog? @relation(fields: [catalogId], references: [id], onDelete: SetNull)
   creator  User?          @relation("PlcCreatedBy", fields: [createdBy], references: [id])
   carriers IoCarrier[]
-  ports        PlcPort[]
-  busNodes     BusNode[]
+  ports            PlcPort[]
+  busNodes         BusNode[]
+  ioCheckSessions  IoCheckSession[]
 
   @@map("plc")
 }
@@ -946,6 +949,7 @@ model Signal {
   system         SignalSystem?       @relation(fields: [systemId], references: [id], onDelete: SetNull)
   gvl            GlobalVariableList? @relation(fields: [gvlId], references: [id], onDelete: SetNull)
   codesysVariables CodesysVariable[]
+  ioCheckResults   IoCheckResult[]
 
   // Unique per card channel when assigned — NULLs are allowed to repeat in PostgreSQL
   @@unique([ioCardId, channelPosition])
@@ -1593,4 +1597,46 @@ model CodesysFbConnection {
   variable   CodesysVariable?  @relation(fields: [variableId], references: [id], onDelete: SetNull)
 
   @@map("codesys_fb_connection")
+}
+
+// =============================================================
+// DEVTOOLS — IO-Check sessions for commissioning
+// =============================================================
+
+enum IoCheckStatus {
+  PENDING
+  PASS
+  FAIL
+  SKIPPED
+}
+
+model IoCheckSession {
+  id           Int            @id @default(autoincrement())
+  projectId    Int            @map("project_id")
+  plcId        Int            @map("plc_id")
+  operatorName String?        @db.VarChar(255) @map("operator_name")
+  startedAt    DateTime       @default(now()) @map("started_at")
+  completedAt  DateTime?      @map("completed_at")
+  notes        String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  plc     Plc     @relation(fields: [plcId], references: [id], onDelete: Cascade)
+  results IoCheckResult[]
+
+  @@map("io_check_session")
+}
+
+model IoCheckResult {
+  id            Int           @id @default(autoincrement())
+  sessionId     Int           @map("session_id")
+  signalId      Int           @map("signal_id")
+  status        IoCheckStatus @default(PENDING)
+  measuredValue String?       @db.VarChar(255) @map("measured_value")
+  notes         String?
+  checkedAt     DateTime?     @map("checked_at")
+
+  session IoCheckSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  signal  Signal         @relation(fields: [signalId], references: [id])
+
+  @@map("io_check_result")
 }

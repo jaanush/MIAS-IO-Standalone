@@ -9,6 +9,7 @@ import { codesysRouter } from "./codesys";
 import { feedbackRouter } from "./feedback";
 import { exportRouter } from "./export";
 import { importRouter } from "./import";
+import { devtoolsRouter } from "./devtools";
 
 export const appRouter = createTRPCRouter({
   user: userRouter,
@@ -21,6 +22,7 @@ export const appRouter = createTRPCRouter({
   feedback: feedbackRouter,
   export: exportRouter,
   import: importRouter,
+  devtools: devtoolsRouter,
 });
 
 export type AppRouter = typeof appRouter;

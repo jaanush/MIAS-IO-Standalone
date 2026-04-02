@@ -106,6 +106,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       location: project.location,
       status: project.status,
       description: project.description,
+      dataVersion: project.dataVersion,
       approvals: project.approvals.map((a) => a.approval.name),
     },
     codesysSettings: project.codesysSettings ? {

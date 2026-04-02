@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
   },
+  serverExternalPackages: ["node-opcua-client", "ws"],
 };
 
 export default nextConfig;

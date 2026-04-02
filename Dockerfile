@@ -18,6 +18,10 @@ RUN npm run build
 # Production
 FROM base AS runner
 ENV NODE_ENV=production
+
+# Install psql client for entrypoint seed scripts
+RUN apk add --no-cache postgresql-client
+
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
 # Use full node_modules from builder (includes prisma CLI for migrations)
@@ -27,6 +31,13 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/prisma.config.ts ./
+COPY --from=builder /app/server.ts ./
+COPY --from=builder /app/src/server/lib ./src/server/lib
+COPY --from=builder /app/src/lib ./src/lib
+
+# Entrypoint script + seed files
+COPY --from=builder /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
+RUN chmod +x ./scripts/docker-entrypoint.sh
 
 # Create writable storage directory for plugin uploads
 RUN mkdir -p /app/storage/plugin && chown -R nextjs:nodejs /app/storage
@@ -39,4 +50,5 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- http://localhost:3000/api/health || exit 1
 
+# Default: Coolify deploy flow (migrate + start, no seed)
 CMD sh -c "npx prisma migrate deploy && npm run start"

@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { trpc } from "@/trpc/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Network, Download } from "lucide-react";
+import { Network, Download, ChevronDown, ChevronRight, FileText, Upload } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { cn } from "@/lib/utils";
 
 interface SessionMetadata {
   projectName?: string;
@@ -112,47 +115,199 @@ export default function SettingsRemotePage() {
         )}
       </section>
 
-      {/* Plugin download */}
-      {repoInfo?.latest && <PluginDownload info={repoInfo} />}
+      {/* Plugin download + README */}
+      <PluginSection info={repoInfo} />
     </div>
   );
 }
 
-function PluginDownload({ info }: { info: RepoInfo }) {
-  if (!info.latest) return null;
-  const sizeMB = (info.latest.size / 1024 / 1024).toFixed(1);
+function PluginSection({ info }: { info: RepoInfo | null }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/codesys/plugin/upload", { method: "POST", body: form });
+      if (res.ok) window.location.reload();
+      else alert("Upload failed: " + (await res.text()));
+    } catch {
+      alert("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <section className="space-y-3">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         MIAS Plugin
       </h2>
-      <div className="rounded-md border px-4 py-3 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium">{info.latest.filename}</p>
-          <p className="text-xs text-muted-foreground">
-            Version {info.latest.version} &middot; {sizeMB} MB
+
+      {info?.latest ? (
+        <>
+          <div className="rounded-md border px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">{info.latest.filename}</p>
+              <p className="text-xs text-muted-foreground">
+                Version {info.latest.version} &middot; {(info.latest.size / 1024 / 1024).toFixed(1)} MB
+              </p>
+            </div>
+            <Button size="sm" variant="outline" asChild>
+              <a href="/api/codesys/plugin/download">
+                <Download className="h-4 w-4 mr-1" /> Download
+              </a>
+            </Button>
+          </div>
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p className="font-medium">Installation:</p>
+            <ol className="list-decimal list-inside space-y-0.5 ml-1">
+              <li>Download the .package file above</li>
+              <li>In CODESYS: Tools &rarr; Package Manager &rarr; Install...</li>
+              <li>Select the downloaded file, check &quot;Allow unsigned and self-signed packages&quot;</li>
+              <li>Restart CODESYS</li>
+            </ol>
+            <p className="mt-2 text-amber-600 dark:text-amber-400">
+              On first launch CODESYS may warn &quot;plug-in does not have a plug-in key&quot; &mdash;
+              click No to continue. This is expected for unsigned plugins.
+            </p>
+          </div>
+        </>
+      ) : (
+        <div className="rounded-md border border-dashed p-6 text-center">
+          <Download className="h-8 w-8 mx-auto text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground mt-2">No plugin package available</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Upload a .package file or place it in storage/plugin/
           </p>
         </div>
-        <Button size="sm" variant="outline" asChild>
-          <a href="/api/codesys/plugin/download">
-            <Download className="h-4 w-4 mr-1" /> Download
-          </a>
-        </Button>
-      </div>
-      <div className="text-xs text-muted-foreground space-y-1">
-        <p className="font-medium">Installation:</p>
-        <ol className="list-decimal list-inside space-y-0.5 ml-1">
-          <li>Download the .package file above</li>
-          <li>In CODESYS: Tools &rarr; Package Manager &rarr; Install...</li>
-          <li>Select the downloaded file, check &quot;Allow unsigned and self-signed packages&quot;</li>
-          <li>Restart CODESYS</li>
-        </ol>
-        <p className="mt-2 text-amber-600 dark:text-amber-400">
-          On first launch CODESYS may warn &quot;plug-in does not have a plug-in key&quot; &mdash;
-          click No to continue. This is expected for unsigned plugins.
-        </p>
-      </div>
+      )}
+
+      {/* Upload button */}
+      <label className="inline-flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer">
+        <Upload className="h-3.5 w-3.5" />
+        {uploading ? "Uploading..." : "Upload new package"}
+        <input
+          type="file"
+          accept=".package,.exe"
+          onChange={handleUpload}
+          disabled={uploading}
+          className="sr-only"
+        />
+      </label>
+
+      {/* Plugin README */}
+      <PluginReadme />
     </section>
+  );
+}
+
+function PluginReadme() {
+  const [open, setOpen] = useState(false);
+  const [readme, setReadme] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [uploadingReadme, setUploadingReadme] = useState(false);
+
+  const loadReadme = () => {
+    if (readme !== null) {
+      setOpen(!open);
+      return;
+    }
+    setOpen(true);
+    setLoading(true);
+    fetch("/api/codesys/plugin/readme")
+      .then((r) => {
+        if (r.status === 404) {
+          setNotFound(true);
+          return null;
+        }
+        return r.ok ? r.text() : null;
+      })
+      .then((text) => {
+        if (text) setReadme(text);
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+  };
+
+  const handleReadmeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingReadme(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/codesys/plugin/readme", { method: "POST", body: form });
+      if (res.ok) {
+        const text = await file.text();
+        setReadme(text);
+        setNotFound(false);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setUploadingReadme(false);
+    }
+  };
+
+  return (
+    <div className="rounded-md border">
+      <button
+        onClick={loadReadme}
+        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-accent/50 transition-colors"
+      >
+        {open ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        )}
+        <FileText className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium">Plugin Documentation</span>
+        {readme && (
+          <span className="text-xs text-muted-foreground ml-auto">README.md</span>
+        )}
+      </button>
+
+      {open && (
+        <div className="border-t">
+          {loading && (
+            <p className="px-4 py-6 text-sm text-muted-foreground text-center">
+              Loading...
+            </p>
+          )}
+
+          {notFound && !readme && (
+            <div className="px-4 py-6 text-center space-y-2">
+              <p className="text-sm text-muted-foreground">
+                No README.md found
+              </p>
+              <label className="inline-flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer">
+                <Upload className="h-3.5 w-3.5" />
+                {uploadingReadme ? "Uploading..." : "Upload README.md"}
+                <input
+                  type="file"
+                  accept=".md"
+                  onChange={handleReadmeUpload}
+                  disabled={uploadingReadme}
+                  className="sr-only"
+                />
+              </label>
+            </div>
+          )}
+
+          {readme && (
+            <div className="px-4 py-4 max-h-[600px] overflow-auto">
+              <article className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{readme}</ReactMarkdown>
+              </article>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

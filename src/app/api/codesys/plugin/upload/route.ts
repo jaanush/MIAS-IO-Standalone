@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiKey } from "../../_auth";
+import { requireApiKeyOrSession } from "../../_auth";
 import { writeFileSync, readdirSync, unlinkSync } from "fs";
 import { join } from "path";
 import { STORAGE_DIR } from "../_storage";
@@ -15,7 +15,7 @@ function isValidFilename(name: string): boolean {
 
 /** POST /api/codesys/plugin/upload — requires API key, multipart form with "file" field */
 export async function POST(req: NextRequest) {
-  const authError = requireApiKey(req);
+  const authError = await requireApiKeyOrSession(req);
   if (authError) return authError;
 
   try {

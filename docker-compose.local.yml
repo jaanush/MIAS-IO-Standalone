@@ -1,0 +1,40 @@
+# Local deployment for commissioning / offline use
+# Usage: docker compose -f docker-compose.local.yml up --build
+#
+# After startup:
+#   1. Open http://localhost:3000 — login with admin@mias.io / admin
+#   2. Import a project: POST http://localhost:3000/api/project/import (JSON body)
+#   3. Access from phone on same WiFi: http://<laptop-ip>:3000
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mias
+      POSTGRES_PASSWORD: mias_local
+      POSTGRES_DB: mias_io
+    volumes:
+      - mias_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mias -d mias_io"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://mias:mias_local@postgres:5432/mias_io
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: mias-local-dev-secret-change-if-needed
+      CODESYS_API_KEY: local-dev-key
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Override CMD to use entrypoint with auto-seed
+    command: ["sh", "./scripts/docker-entrypoint.sh"]
+
+volumes:
+  mias_local_data:
