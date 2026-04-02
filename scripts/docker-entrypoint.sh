@@ -65,4 +65,9 @@ fi
 
 # 4. Start the application
 echo "[3/3] Starting MIAS-IO..."
-exec npm run start
+if [ "$MIAS_START_CMD" = "ws" ]; then
+  echo "  Using WebSocket-enabled server (start:ws)"
+  exec npm run start:ws
+else
+  exec npm run start
+fi

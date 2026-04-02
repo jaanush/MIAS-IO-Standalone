@@ -30,10 +30,11 @@ services:
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: mias-local-dev-secret-change-if-needed
       CODESYS_API_KEY: local-dev-key
+      MIAS_START_CMD: ws
     depends_on:
       postgres:
         condition: service_healthy
-    # Override CMD to use entrypoint with auto-seed
+    # Override CMD: auto-seed + custom server with WebSocket support
     command: ["sh", "./scripts/docker-entrypoint.sh"]
 
 volumes:

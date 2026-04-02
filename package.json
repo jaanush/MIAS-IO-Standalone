@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "node --import tsx server.ts",
-    "start:next": "next start",
+    "start": "next start",
+    "start:ws": "node --import tsx server.ts",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
