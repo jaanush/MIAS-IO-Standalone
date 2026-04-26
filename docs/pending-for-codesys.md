@@ -5,6 +5,31 @@ Once acknowledged, remove the entry.
 
 ---
 
+## FR-010 — `ioCard.channelPosition` populated: FIXED
+
+**Date:** 2026-04-27
+
+Bug was in the response shape, not the data: `signal.channelPosition` was
+already serialized at the top level of each signal object, but the plugin
+was reading from `signal.ioCard.channelPosition` (per the FR JSON sample
+and per how the rest of the card metadata is grouped). DB had it on every
+signal — all 213 D03 signals had the value.
+
+Fix: added `channelPosition: s.channelPosition` to the nested `ioCard`
+object in the `/api/codesys/project/:id` response. The top-level
+`channelPosition` stays for backwards compat.
+
+Verified live on LasseMaja project 1: every signal whose `ioCard !== null`
+now returns `ioCard.channelPosition` as an integer in 0..(maxChannels−1).
+Sample: `24vdc_Distribution_874_DC1_Alarm_Isolation_Monitoring` → `ioCard:
+{ slotPosition: 12, cardType: "DI", channelPosition: 14, carrierName:
+"D03", … }`. Counts: 213/213 populated, 0/213 null.
+
+Bit-pack binding can resume. Remove this notice once the next plugin
+generate confirms.
+
+---
+
 ## PROPOSAL — `iec_alarm_path` for the upcoming JMobile alarm export
 
 **Date:** 2026-04-26

@@ -318,6 +318,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           id: s.ioCard.id,
           slotPosition: s.ioCard.slotPosition,
           cardType: s.ioCard.cardType,
+          // FR-010: channel index within the card (0-based) — plugin uses
+          // this for bit-packed Modbus TCP slave channel binding. Keeping
+          // the top-level `channelPosition` too for backwards compat.
+          channelPosition: s.channelPosition,
           carrierId: s.ioCard.carrierId,
           carrierName: s.ioCard.carrier.name,
           plcName: s.ioCard.carrier.plc.name,
