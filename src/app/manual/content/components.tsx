@@ -327,6 +327,150 @@ export function ComponentsSection() {
         Component signals can be linked to a PDO configuration, establishing the
         mapping between logical signals and CAN frame positions.
       </p>
+
+      <h2>Component Parameters</h2>
+      <p>
+        Beyond the signal set, a component template can declare <strong>parameters</strong> &mdash;
+        per-instance configuration values that aren&apos;t themselves IO signals.
+        Examples: a tank&apos;s maximum volume, the number of cells in a battery string,
+        or a piecewise-linear calibration curve. Parameters are declared once on the
+        template and supplied (or overridden) per instance.
+      </p>
+      <p>
+        Parameters live on a dedicated <strong>Parameters</strong> tab inside a
+        component (<code>/components/[id]/parameters</code>). Each declaration has:
+      </p>
+      <ul>
+        <li><strong>Name</strong> &mdash; the unique key used to look up the value (e.g. <code>maxVolume_m3</code>). Cannot be changed after creation.</li>
+        <li><strong>Type</strong> &mdash; one of <code>SCALAR_REAL</code>, <code>INT</code>, <code>STRING</code>, <code>BOOL</code>, or <code>CURVE</code>. Cannot be changed after creation; recreate the parameter if the type was wrong.</li>
+        <li><strong>Required</strong> &mdash; if checked, an instance must specify a value (cannot inherit a NULL default).</li>
+        <li><strong>Default</strong> &mdash; the value used when an instance doesn&apos;t override. Not applicable to <code>CURVE</code> parameters; curves are always per-instance.</li>
+        <li><strong>Description</strong> &mdash; free-form text shown in the per-instance editor.</li>
+      </ul>
+
+      <h3>Per-instance values</h3>
+      <p>
+        Whenever an instance of a component is shown in the UI, an inline
+        <strong>Parameters</strong> panel appears beneath it listing every declared
+        parameter. The panel is visible in two places:
+      </p>
+      <ul>
+        <li>The <em>Hardware</em> page, beneath the selected instance&apos;s detail panel.</li>
+        <li>The project&apos;s <em>Components</em> page, where instances of a template expand inline.</li>
+      </ul>
+      <p>
+        Each row uses the right control for its type: a number input for
+        <code>SCALAR_REAL</code> / <code>INT</code>, text for <code>STRING</code>, a
+        select for <code>BOOL</code>, and an <strong>Edit curve</strong> button for
+        <code>CURVE</code>. Required parameters are marked with a red asterisk. When a
+        cell is empty, the placeholder shows the template default and a small
+        &quot;Using template default&quot; hint &mdash; the value is inherited until you
+        type one.
+      </p>
+
+      <h3>The curve editor</h3>
+      <p>
+        Clicking <strong>Edit curve</strong> opens a reusable dialog with a point
+        grid: each row is an (x, y) pair, and the rows are kept in entry order. You
+        can re-order rows up or down, delete rows, or add new ones with
+        <strong>Add row</strong>. The server enforces that <em>x</em> is strictly
+        ascending; the dialog previews this and refuses to save until the violation
+        is fixed.
+      </p>
+      <p>
+        When the dialog is opened in a project context, a <strong>Live capture</strong>
+        section appears above the grid. It lets you pick a monitored signal, watch
+        its current reading update every two seconds, and click
+        <strong>Capture &rarr; x</strong> to copy the live value into the next empty
+        <em>x</em> cell. The capture defaults to <strong>RAW</strong> mode so you
+        calibrate against the underlying sensor reading, not against an
+        already-scaled value &mdash; see <em>Live Monitoring</em> for details on the
+        SCALED/RAW split.
+      </p>
+
+      <h3>Worked example: Tank Sensor</h3>
+      <p>
+        A built-in global template named <strong>Tank Sensor</strong> demonstrates
+        the pattern. Its function block is <code>FB_TankSensor</code> and it declares
+        four parameters:
+      </p>
+      <ul>
+        <li><code>maxVolume_m3</code> &mdash; SCALAR_REAL.</li>
+        <li><code>sTag</code> &mdash; STRING.</li>
+        <li><code>volumeCurve</code> &mdash; CURVE: raw sensor reading &rarr; volume.</li>
+        <li><code>heightCurve</code> &mdash; CURVE: raw sensor reading &rarr; height.</li>
+      </ul>
+      <p>
+        A typical site-calibration session: enable RAW monitoring on the level
+        sensor, fill the tank to a known mark, open the tank-sensor instance&apos;s
+        <code>volumeCurve</code> editor, click <strong>Capture &rarr; x</strong> to
+        grab the raw reading, type the engineering volume as <em>y</em>, and repeat
+        across the calibration range. The resulting <code>Curve</code> is reusable
+        &mdash; the per-instance parameter holds a <code>curveId</code> reference, and
+        you could point another instance&apos;s curve parameter at the same row.
+      </p>
+
+      <h2>Composite Components</h2>
+      <p>
+        Some devices are not a single physical unit but a composition of
+        sub-components: a battery system contains 16 cells plus a BMS, a genset
+        comprises an engine plus a generator, a propulsion line couples a motor with
+        a VFD and a gearbox. Composite components let you model that structure
+        directly.
+      </p>
+      <p>
+        A <strong>HardwareComponent</strong> can be configured one of two ways
+        &mdash; the choice is mutually exclusive on a given template, and the server
+        enforces it:
+      </p>
+      <ul>
+        <li>
+          <strong>Inheritance</strong> &mdash; set a <code>parentId</code> and inherit signals
+          from the parent. This is the existing single-inheritance model described above.
+        </li>
+        <li>
+          <strong>Composition</strong> &mdash; declare <code>ComponentComposition</code> rows
+          that name child components by role (e.g. <code>cell_01</code>, <code>cell_02</code>,
+          <code>bms</code>). The composite has no signals of its own; instead, instantiating
+          it stamps out one child instance per role.
+        </li>
+      </ul>
+
+      <h3>Stamping a composite</h3>
+      <p>
+        When you instantiate a composite component, the server runs the
+        <code>instanceStampComposite</code> action: it creates the parent
+        <code>ComponentInstance</code> and then one child <code>ComponentInstance</code>
+        per <code>ComponentComposition</code> row. Each child gets:
+      </p>
+      <ul>
+        <li>A tag formed by appending the role to the parent tag in dot-style
+          (<code>BATT_AFT.cell_01</code>, <code>GENSET_1.engine</code>).</li>
+        <li>A populated <code>parentInstanceId</code> linking back to the composite parent.</li>
+        <li>A <code>compositionRole</code> matching the role from the template.</li>
+      </ul>
+      <p>
+        The dot-style naming is an intentional extension of the composite-FB-with-members
+        pattern the plugin emits in CODESYS, so the IEC tags read naturally
+        (<code>GVL_PMS.GENSET_1.engine</code>).
+      </p>
+
+      <h3>Wiring across composite children</h3>
+      <p>
+        A wiring recipe defined on the composite parent can address signals on its
+        children using the <code>CHILD_SIGNAL</code> source type. You name a
+        <code>child_role</code> and a <code>signal_tag</code> (the suffix of one of
+        the child&apos;s component signals); the plugin walks to the matching child
+        instance and resolves the parameter to that child&apos;s real signal tag at
+        codegen time. See <em>Wiring Recipes</em> for the full source-type list.
+      </p>
+
+      <h3>Use cases</h3>
+      <ul>
+        <li><strong>Battery System</strong> &mdash; 16 cells (each with voltage / temperature signals) plus a BMS controller.</li>
+        <li><strong>Genset</strong> &mdash; an engine and a generator, each with their own signal sets but operated together.</li>
+        <li><strong>Propulsion</strong> &mdash; motor, VFD, and gearbox treated as a single propulsion unit at the operator level.</li>
+      </ul>
     </article>
   );
 }

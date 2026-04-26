@@ -4,7 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { trpc } from "@/trpc/client";
-import { Layers, Cpu, Radio, Puzzle, Network, Activity } from "lucide-react";
+import { Layers, Cpu, Radio, Puzzle, Network, Activity, BellRing } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -13,6 +13,7 @@ const navLinks = [
   { href: "signals", label: "Signals", icon: Radio },
   { href: "components", label: "Components", icon: Puzzle },
   { href: "monitoring", label: "Monitoring", icon: Activity },
+  { href: "jmobile", label: "JMobile", icon: BellRing },
   { href: "remote", label: "Remote", icon: Network },
 ];
 

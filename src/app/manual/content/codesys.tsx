@@ -158,6 +158,43 @@ export function CodesysSection() {
         channel position, following WAGO-specific addressing rules.
       </p>
 
+      <h3>Card Naming</h3>
+      <p>
+        Card names emitted by the API zero-pad the slot to two digits, e.g.
+        <code>750-658_S02</code> rather than <code>_S2</code>. This is purely cosmetic
+        but means lexical sort order matches slot order across the whole project.
+      </p>
+
+      <h3>Module variants (Kbus image size)</h3>
+      <p>
+        A few WAGO modules ship as multiple CODESYS device variants that share one
+        article number but differ in process-image size. The clearest examples are
+        the <code>750-658</code> CAN gateway and the <code>750-652</code> RS-232/485
+        coupler &mdash; both default to 24 bytes per direction, and the plugin needs
+        to know which variant to insert into the device tree.
+      </p>
+      <p>
+        The module catalog therefore exposes a <code>kbusImageSize</code> field on
+        affected modules. It carries the bytes-per-direction count (8, 24, or 48)
+        and is <code>null</code> for the majority of cards that have a fixed image.
+        The plugin uses the value to pick the matching device-ID suffix.
+      </p>
+      <p>
+        Separately, the <code>750-626</code> backplane extension supply&apos;s
+        <code>codesysModuleId</code> resolves to <code>880E_075xDigital</code> &mdash;
+        which is what the Kbus driver enumerates at runtime and what the plugin
+        needs to match against during scan-back-write checks.
+      </p>
+
+      <h3>Bus networks hosted by IO cards</h3>
+      <p>
+        The CODESYS project payload includes CAN and serial networks hosted by IO
+        cards (CAN gateways, RS-485 modules), not just the Ethernet networks owned
+        by the PLC CPU. Each network appears with its hosting card&apos;s slot
+        position so the plugin can attach it to the correct device in the CODESYS
+        tree.
+      </p>
+
       <h2>Task Queue</h2>
       <p>
         Long-running operations between MIAS-IO and CODESYS use a <strong>task queue</strong>
@@ -228,7 +265,11 @@ export function CodesysSection() {
           </tr>
           <tr>
             <td><strong>INSTANCE_FB</strong></td>
-            <td>Wire to the driving component instance&apos;s own function block reference.</td>
+            <td>Wire to the driving component instance&apos;s own function block reference. On wrapper-layer recipes (HMI / PMS / HAL / ALARM), this resolves to the same component instance&apos;s CONTROL recipe output &mdash; see <em>Wiring Recipes</em>.</td>
+          </tr>
+          <tr>
+            <td><strong>CHILD_SIGNAL</strong></td>
+            <td>For composite components, address a signal on a named child instance by role + tag suffix. Resolved at codegen to the child&apos;s real signal tag.</td>
           </tr>
           <tr>
             <td><strong>LITERAL</strong></td>
@@ -240,6 +281,11 @@ export function CodesysSection() {
           </tr>
         </tbody>
       </table>
+      <p>
+        Recipes also carry a <strong>layer</strong> tag (CONTROL / HMI / PMS / HAL /
+        ALARM) so a single component can drive multiple FB wirings without
+        collisions. See <em>Wiring Recipes</em> for the full layer model.
+      </p>
 
       <h2>CODESYS Settings</h2>
       <p>
@@ -277,6 +323,32 @@ export function CodesysSection() {
           </tr>
         </tbody>
       </table>
+
+      <h2>IEC Paths and Live Monitoring</h2>
+      <p>
+        After each successful codegen, the plugin pushes resolved IEC paths back to
+        MIAS-IO so that the Live Monitoring page can subscribe signals against a
+        running PLC. Two paths are pushed per signal:
+      </p>
+      <ul>
+        <li><strong><code>iec_path</code></strong> &mdash; the SCALED (engineering) value path; what the HMI reads.</li>
+        <li><strong><code>iec_path_raw</code></strong> &mdash; the RAW (HAL) value path; what calibration UIs read so they don&apos;t calibrate against already-scaled data.</li>
+      </ul>
+      <p>
+        The paths are pushed via <code>POST /api/codesys/project/:id/iec-paths</code>
+        with a body of the form <code>{`{ paths: [{ signalId, iecPath, iecPathRaw }] }`}</code>.
+        Each entry upserts the matching signal; passing <code>null</code> clears a
+        previously-resolved path so the signal drops out of any active monitoring
+        subscriptions.
+      </p>
+      <p>
+        Once a path is populated, the user can enable monitoring on the project&apos;s
+        Monitoring tab. The plugin then polls
+        <code>GET /api/codesys/project/:id/monitoring/subscriptions</code> for active
+        subscriptions, reads the matching IEC paths from the PLC, and posts readings
+        back via <code>POST /api/codesys/project/:id/monitoring/readings</code>. See
+        the Live Monitoring section for the user-facing flow.
+      </p>
 
       <h2>CODESYS Import</h2>
       <p>

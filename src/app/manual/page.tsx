@@ -14,6 +14,9 @@ import { ComponentsSection } from "./content/components";
 import { NetworksSection } from "./content/networks";
 import { ImportExportSection } from "./content/import-export";
 import { CodesysSection } from "./content/codesys";
+import { WiringRecipesSection } from "./content/wiring-recipes";
+import { LiveMonitoringSection } from "./content/live-monitoring";
+import { JMobileSection } from "./content/jmobile";
 
 type ManualPage = {
   id: string;
@@ -30,6 +33,9 @@ const pages: ManualPage[] = [
   { id: "components", label: "Components & Templates", section: "Core Concepts", component: ComponentsSection },
   { id: "networks", label: "Networks & Buses", section: "Core Concepts", component: NetworksSection },
   { id: "import-export", label: "Import & Export", section: "Workflows", component: ImportExportSection },
+  { id: "wiring-recipes", label: "Wiring Recipes", section: "Workflows", component: WiringRecipesSection },
+  { id: "live-monitoring", label: "Live Monitoring", section: "Workflows", component: LiveMonitoringSection },
+  { id: "jmobile", label: "JMobile Alarms", section: "Workflows", component: JMobileSection },
   { id: "codesys", label: "CODESYS Integration", section: "Workflows", component: CodesysSection },
 ];
 

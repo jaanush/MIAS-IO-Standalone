@@ -335,6 +335,17 @@ export function SignalsSection() {
         </tbody>
       </table>
 
+      <h3>Alarm Numbering</h3>
+      <p>
+        Both discrete and analog alarms carry an optional <strong>alarm number</strong>
+        used by the legacy JMobile operator-panel imports. The number is assigned
+        once and then pinned for life of the project &mdash; subsequent IO-list edits
+        never reshuffle existing numbers, so external references in JMobile XML
+        remain stable. New alarms remain unnumbered until you explicitly lock them
+        from the project&apos;s JMobile tab. See <em>JMobile Alarm Numbering</em>
+        for the full workflow.
+      </p>
+
       <h2>Signal Origins</h2>
       <p>
         The <code>origin</code> field determines how a signal reaches the PLC:
