@@ -179,8 +179,19 @@ export type PdoDirection = (typeof PDO_DIRECTIONS)[number];
 
 // ── Wiring Recipes ───────────────────────────────────────────────────────────
 
-export const WIRING_SOURCE_TYPES = ["SIGNAL", "SIGNAL_RAW", "SIGNAL_SENSOR_FAULT", "INSTANCE_FB", "LITERAL", "EXPRESSION"] as const;
+export const WIRING_SOURCE_TYPES = ["SIGNAL", "SIGNAL_RAW", "SIGNAL_SENSOR_FAULT", "INSTANCE_FB", "CHILD_SIGNAL", "LITERAL", "EXPRESSION"] as const;
 export type WiringSourceType = (typeof WIRING_SOURCE_TYPES)[number];
+
+export const WIRING_LAYERS = ["CONTROL", "HMI", "PMS", "HAL", "ALARM"] as const;
+export type WiringLayer = (typeof WIRING_LAYERS)[number];
+
+// ── Component parameters (FR-008) ────────────────────────────────────────────
+
+export const PARAM_TYPES = ["SCALAR_REAL", "INT", "STRING", "BOOL", "CURVE"] as const;
+export type ParamType = (typeof PARAM_TYPES)[number];
+
+export const CURVE_TYPES = ["VOLUME_PERCENT", "HEIGHT_CM", "GENERIC"] as const;
+export type CurveType = (typeof CURVE_TYPES)[number];
 
 // ── CODESYS integration ───────────────────────────────────────────────────────
 

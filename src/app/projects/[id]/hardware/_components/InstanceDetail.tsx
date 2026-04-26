@@ -11,15 +11,17 @@ import { NETWORK_NODE_ROLES, ETHERNET_PROTOCOL_SET, type NetworkNodeRole } from 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 import type { ComponentInstance, Bus } from "@/lib/types/hardware";
+import { InstanceParameters } from "./InstanceParameters";
 
 type Props = {
   instance: ComponentInstance;
   network: Bus | null;
+  projectId: number;
   onDeleted: () => void;
   onRefresh: () => void;
 };
 
-export function InstanceDetail({ instance, network, onDeleted, onRefresh }: Props) {
+export function InstanceDetail({ instance, network, projectId, onDeleted, onRefresh }: Props) {
   const [confirmProps, confirmAction] = useConfirm();
   const [name, setName] = useState(instance.name);
   const [tag, setTag] = useState(instance.tag ?? "");
@@ -141,6 +143,9 @@ export function InstanceDetail({ instance, network, onDeleted, onRefresh }: Prop
             </div>
           </div>
         )}
+
+        {/* FR-008: per-instance parameters */}
+        <InstanceParameters instanceId={instance.id} componentId={instance.component.id} projectId={projectId} />
 
         {/* Code gen */}
         <div className="space-y-1">

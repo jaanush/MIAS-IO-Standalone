@@ -5,6 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## General Rules
 
 - If possible, avoid using shell commands that generate user approval dialogs. Prefer non-interactive alternatives.
+- **Work log**: At the start of each session, read `MIAS-Docs/Work Log.md` to understand recent work. At the end of each session, append a dated entry summarizing what was done.
+- **Documentation vault**: All project documentation lives in `MIAS-Docs/` (Obsidian vault). Architecture docs, legacy analysis, design decisions, and the work log are there.
 
 ## Project Overview
 

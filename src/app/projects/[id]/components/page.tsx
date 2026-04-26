@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { BUS_PROTOCOLS, type BusProtocol } from "@/lib/enums";
 import { ComponentDetail } from "@/app/components/_components/ComponentDetail";
+import { TemplateInstancesPanel } from "./_components/TemplateInstancesPanel";
 
 export default function ProjectComponentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -115,15 +116,20 @@ export default function ProjectComponentsPage({ params }: { params: Promise<{ id
       {/* Right — reuse the global ComponentDetail editor */}
       <div className="flex-1 overflow-auto">
         {selected ? (
-          <ComponentDetail
-            key={selected}
-            id={selected}
-            onDeleted={() => {
-              setSelected(null);
-              utils.components.projectComponentList.invalidate({ projectId });
-            }}
-            onListRefresh={() => utils.components.projectComponentList.invalidate({ projectId })}
-          />
+          <div>
+            <ComponentDetail
+              key={selected}
+              id={selected}
+              onDeleted={() => {
+                setSelected(null);
+                utils.components.projectComponentList.invalidate({ projectId });
+              }}
+              onListRefresh={() => utils.components.projectComponentList.invalidate({ projectId })}
+            />
+            <div className="px-8 pb-8 max-w-5xl">
+              <TemplateInstancesPanel componentId={selected} projectId={projectId} />
+            </div>
+          </div>
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Select a component or create a new one

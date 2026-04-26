@@ -578,6 +578,11 @@ model ModuleCatalog {
   // CODESYS integration
   codesysModuleId    String?          @db.VarChar(50) @map("codesys_module_id")
 
+  // Kbus process image size (bytes per direction, symmetric). null = module has a fixed image, not configurable.
+  // Used by the CODESYS plugin to pick the right device-ID variant (suffix 0808/2424/4848) for modules
+  // like 750-658 (CAN gateway) and 750-652 (RS-232/485) that ship as multiple variants.
+  kbusImageSize      Int?             @db.SmallInt @map("kbus_image_size")
+
   // Diagnostics
   hasDiagnostics           Boolean        @default(false) @map("has_diagnostics")
   diagnosticType           DiagnosticType @default(NONE)  @map("diagnostic_type")
@@ -639,6 +644,7 @@ model Project {
   wiringRecipes     WiringRecipe[]
   codesysSessions   CodesysSession[]
   ioCheckSessions   IoCheckSession[]
+  signalMonitoring  SignalMonitoring[]
 
   @@map("project")
 }
@@ -933,6 +939,16 @@ model Signal {
   fbNameOverride   String?      @db.VarChar(255) @map("fb_name_override") // overrides auto-generated tag prefix
   useShortName     Boolean      @default(false) @map("use_short_name")    // use System_Component only (not full hardware path)
   revision         String       @default("A") @db.VarChar(10)      // revision tag when last edited (A, B, ..., Z, AA, ...)
+  // FR-007: full IEC expression resolved by the plugin during codegen
+  // (e.g. "Application.GVL_HAL.dao_625_T01.rValue" or
+  // "Application.GVL_MIAS_COM.meter_868_P01.Frequency"). NULL = plugin
+  // hasn't generated this signal yet → live monitoring will skip it.
+  iecPath          String?      @db.VarChar(500) @map("iec_path")
+  // FR-007 raw/scaled split: iec_path_raw points at the unscaled HAL input
+  // (e.g. "Application.GVL_HAL.dao_625_T01.iRaw") used for calibration.
+  // NULL when the signal has no separate raw probe — only SCALED monitoring
+  // is then available. Plugin populates both during codegen.
+  iecPathRaw       String?      @db.VarChar(500) @map("iec_path_raw")
   createdBy        String?      @db.Uuid @map("created_by")
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
@@ -950,6 +966,8 @@ model Signal {
   gvl            GlobalVariableList? @relation(fields: [gvlId], references: [id], onDelete: SetNull)
   codesysVariables CodesysVariable[]
   ioCheckResults   IoCheckResult[]
+  monitoring      SignalMonitoring[]
+  liveReadings    SignalReadingLive[]
 
   // Unique per card channel when assigned — NULLs are allowed to repeat in PostgreSQL
   @@unique([ioCardId, channelPosition])
@@ -1060,6 +1078,10 @@ model DiscreteAlarm {
   alarmGroup   String?                @db.Char(1) @map("alarm_group")  // A/B/C — METS_Lib priority tier
   delaySeconds Int                    @default(0) @db.SmallInt @map("delay_seconds")
   message      String?                @db.VarChar(255)
+  // JMobile / legacy IO-list locked numbering. NULL = not yet numbered;
+  // once set, persists across reorderings so JMobile alarm IDs stay stable
+  // (mirrors the Excel macro's BO/BA "Locked alarm no." columns).
+  alarmNo      Int?                   @db.SmallInt @map("alarm_no")
   createdAt    DateTime               @default(now()) @map("created_at")
   updatedAt    DateTime               @updatedAt @map("updated_at")
 
@@ -1079,6 +1101,8 @@ model AnalogAlarm {
   alarmGroup   String?              @db.Char(1) @map("alarm_group")  // A/B/C — METS_Lib priority tier
   delaySeconds Int                  @default(0) @db.SmallInt @map("delay_seconds")
   message      String?              @db.VarChar(255)
+  // JMobile / legacy IO-list locked numbering — see DiscreteAlarm.alarmNo.
+  alarmNo      Int?                 @db.SmallInt @map("alarm_no")
   createdAt    DateTime             @default(now()) @map("created_at")
   updatedAt    DateTime             @updatedAt @map("updated_at")
 
@@ -1121,6 +1145,10 @@ model HardwareComponent {
   pdoConfigs PdoConfig[]
   codesysFbDefinitions CodesysFbDefinition[]
   wiringRecipes        WiringRecipe[]
+  parameterDefs        ComponentParameterDef[] @relation("ComponentParameterDefs")
+  // FR-009: composition (this template = composite when it has rows here as parent)
+  compositionChildren  ComponentComposition[] @relation("CompositionParent")
+  containedIn          ComponentComposition[] @relation("CompositionChild")
 
   @@map("hardware_component")
 }
@@ -1269,6 +1297,12 @@ model ComponentInstance {
   canIdOffset  Int?              @map("can_id_offset")
   functionBlockOverride  String?    @db.VarChar(100) @map("function_block_override")
   notes                  String?
+  // FR-009: composition runtime — when this instance was stamped from a
+  // composite parent, parentInstanceId points at the composite and
+  // compositionRole records which role within that composite (matches
+  // ComponentComposition.role on the template side).
+  parentInstanceId Int?    @map("parent_instance_id")
+  compositionRole  String? @db.VarChar(100) @map("composition_role")
   createdBy              String?    @db.Uuid @map("created_by")
   createdAt              DateTime   @default(now()) @map("created_at")
   updatedAt              DateTime   @updatedAt @map("updated_at")
@@ -1279,11 +1313,104 @@ model ComponentInstance {
   creator    User?             @relation("ComponentInstanceCreatedBy", fields: [createdBy], references: [id])
   signals    InstanceSignal[]
   codesysFbInstances CodesysFbInstance[]
+  parameters ComponentInstanceParameter[]
+  parent     ComponentInstance?  @relation("InstanceComposition", fields: [parentInstanceId], references: [id], onDelete: SetNull)
+  children   ComponentInstance[] @relation("InstanceComposition")
 
+  @@unique([parentInstanceId, compositionRole])
   @@index([projectId])
   @@index([componentId])
   @@index([busId])
+  @@index([parentInstanceId])
   @@map("component_instance")
+}
+
+// FR-008: Generic per-component-instance configuration.
+// Each HardwareComponent declares its expected parameters via ComponentParameterDef
+// (template-level schema). Each ComponentInstance carries values via
+// ComponentInstanceParameter. Curve-typed parameters point at a Curve row holding
+// piecewise-linear (X,Y) points. The plugin reads these to populate FB initializers.
+
+enum ParamType {
+  SCALAR_REAL
+  INT
+  STRING
+  BOOL
+  CURVE
+
+  @@map("param_type")
+}
+
+enum CurveType {
+  VOLUME_PERCENT
+  HEIGHT_CM
+  GENERIC
+
+  @@map("curve_type")
+}
+
+model ComponentParameterDef {
+  id                 Int       @id @default(autoincrement())
+  componentId        Int       @map("component_id")
+  paramName          String    @db.VarChar(100) @map("param_name")
+  paramType          ParamType @map("param_type")
+  required           Boolean   @default(false)
+  defaultScalarValue Float?    @map("default_scalar_value")
+  defaultIntValue    Int?      @map("default_int_value")
+  defaultStringValue String?   @db.VarChar(255) @map("default_string_value")
+  defaultBoolValue   Boolean?  @map("default_bool_value")
+  description        String?   @db.VarChar(255)
+  sortOrder          Int       @default(0) @map("sort_order")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  component HardwareComponent @relation("ComponentParameterDefs", fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@unique([componentId, paramName])
+  @@map("component_parameter_def")
+}
+
+model ComponentInstanceParameter {
+  id           Int      @id @default(autoincrement())
+  instanceId   Int      @map("instance_id")
+  paramName    String   @db.VarChar(100) @map("param_name")
+  scalarValue  Float?   @map("scalar_value")
+  intValue     Int?     @map("int_value")
+  stringValue  String?  @db.VarChar(255) @map("string_value")
+  boolValue    Boolean? @map("bool_value")
+  curveId      Int?     @map("curve_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  instance ComponentInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  curve    Curve?            @relation(fields: [curveId], references: [id], onDelete: SetNull)
+
+  @@unique([instanceId, paramName])
+  @@map("component_instance_parameter")
+}
+
+model Curve {
+  id        Int          @id @default(autoincrement())
+  type      CurveType    @default(GENERIC)
+  points    CurvePoint[]
+  parameters ComponentInstanceParameter[]
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@map("curve")
+}
+
+model CurvePoint {
+  id      Int   @id @default(autoincrement())
+  curveId Int   @map("curve_id")
+  ordinal Int   @db.SmallInt
+  x       Float
+  y       Float
+
+  curve Curve @relation(fields: [curveId], references: [id], onDelete: Cascade)
+
+  @@unique([curveId, ordinal])
+  @@map("curve_point")
 }
 
 // templateDirty = false → signal matches component template (safe to propagate)
@@ -1441,16 +1568,31 @@ enum WiringSourceType {
   SIGNAL_RAW          // signal tag + _RAW
   SIGNAL_SENSOR_FAULT // signal tag + _SensorFaultAlarm
   INSTANCE_FB         // driving ComponentInstance's FB ref (GVL.tag)
+  CHILD_SIGNAL        // FR-009: signal on a child instance of this composite (uses childRole + signalTag)
   LITERAL             // fixed value in literalValue column
   EXPRESSION          // mustache template in expression column
 
   @@map("wiring_source_type")
 }
 
+// Code-generation layer a wiring recipe targets.
+// CONTROL = the component FB itself (existing behaviour, default for backward compat).
+// HMI / PMS / HAL / ALARM = wrapper FBs that reference the control instance.
+enum WiringLayer {
+  CONTROL
+  HMI
+  PMS
+  HAL
+  ALARM
+
+  @@map("wiring_layer")
+}
+
 model WiringRecipe {
   id                  Int     @id @default(autoincrement())
   projectId           Int?    @map("project_id")
   componentId         Int?    @map("component_id")              // if set, instantiate per ComponentInstance
+  layer               WiringLayer @default(CONTROL)             // FR-001: which code generator consumes this recipe
   fbName              String  @db.VarChar(255) @map("fb_name")  // FB type to call
   targetGvl           String  @db.VarChar(100) @map("target_gvl")
   instanceNamePattern String  @db.VarChar(500) @map("instance_name_pattern")
@@ -1475,6 +1617,9 @@ model WiringRecipeParam {
   // For SIGNAL sources: resolve by channelOffset (component-scoped) or signalTag (standalone)
   channelOffset  Int?             @db.SmallInt @map("channel_offset")
   signalTag      String?          @db.VarChar(255) @map("signal_tag")        // tag pattern, e.g. "{{instance.tag}}_BearingTemp_DE"
+  // FR-009: For CHILD_SIGNAL — childRole points at a ComponentComposition role on this composite,
+  // signalTag (above) names the signal within the child component. Resolved server-side.
+  childRole      String?          @db.VarChar(100) @map("child_role")
   // For LITERAL
   literalValue   String?          @db.VarChar(500) @map("literal_value")
   // For EXPRESSION
@@ -1639,4 +1784,83 @@ model IoCheckResult {
   signal  Signal         @relation(fields: [signalId], references: [id])
 
   @@map("io_check_result")
+}
+
+// =============================================================
+// FR-007 — Live signal monitoring
+// =============================================================
+
+// FR-007 raw/scaled split: each signal can be monitored in SCALED mode
+// (DAO output, default) and/or RAW mode (HAL input, used for calibration).
+enum MonitoringMode {
+  SCALED
+  RAW
+
+  @@map("monitoring_mode")
+}
+
+// Subscription state — MIAS-IO publishes which signals to monitor; the
+// plugin polls this list every ~10 s and reconciles its own poll set.
+// PK is (signalId, mode) so SCALED and RAW can be subscribed independently.
+model SignalMonitoring {
+  id          Int            @id @default(autoincrement())
+  signalId    Int            @map("signal_id")
+  mode        MonitoringMode @default(SCALED)
+  projectId   Int            @map("project_id")
+  intervalMs  Int            @default(1000) @map("interval_ms")
+  enabled     Boolean        @default(true)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  signal  Signal  @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([signalId, mode])
+  @@index([projectId, enabled])
+  @@map("signal_monitoring")
+}
+
+// Latest reading per (signal, mode). Plugin posts batches; server upserts.
+model SignalReadingLive {
+  signalId  Int            @map("signal_id")
+  mode      MonitoringMode @default(SCALED)
+  value     Json
+  valueStr  String         @db.VarChar(255) @map("value_str")
+  iecType   String         @db.VarChar(20)  @map("iec_type")
+  state     String         @db.VarChar(20)               // "Good" | "Bad" | "Stale" | "Error"
+  errorMsg  String?        @db.VarChar(500) @map("error_msg")
+  tsPlugin  DateTime       @map("ts_plugin")
+  tsServer  DateTime       @default(now()) @map("ts_server")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  signal Signal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@id([signalId, mode])
+  @@map("signal_reading_live")
+}
+
+// =============================================================
+// FR-009 — Composite HardwareComponents
+// =============================================================
+
+// Template-level "this composite contains these children". One row per child
+// role; multiplicity is implicit in the count of rows (16 cells = 16 rows).
+// At instantiation time, each row produces one child ComponentInstance whose
+// parentInstanceId points at the composite instance and compositionRole
+// matches the role string here.
+model ComponentComposition {
+  id                Int      @id @default(autoincrement())
+  parentComponentId Int      @map("parent_component_id")
+  childComponentId  Int      @map("child_component_id")
+  role              String   @db.VarChar(100)
+  sortOrder         Int      @default(0) @map("sort_order")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  parent HardwareComponent @relation("CompositionParent", fields: [parentComponentId], references: [id], onDelete: Cascade)
+  child  HardwareComponent @relation("CompositionChild",  fields: [childComponentId],  references: [id], onDelete: Restrict)
+
+  @@unique([parentComponentId, role])
+  @@index([childComponentId])
+  @@map("component_composition")
 }

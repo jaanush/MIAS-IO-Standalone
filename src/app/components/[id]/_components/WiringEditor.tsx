@@ -22,7 +22,7 @@ import {
 import { Plus, Trash2, ChevronRight, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/trpc/client";
-import { WIRING_SOURCE_TYPES } from "@/lib/enums";
+import { WIRING_SOURCE_TYPES, WIRING_LAYERS, type WiringLayer } from "@/lib/enums";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 
@@ -52,6 +52,7 @@ type Param = {
 type Recipe = {
   id: number;
   componentId: number | null;
+  layer: WiringLayer;
   fbName: string;
   targetGvl: string;
   instanceNamePattern: string;
@@ -101,16 +102,29 @@ export function WiringEditor({ componentId, functionBlock, recipes, signals, onR
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {recipes.map((recipe) => (
-            <RecipeCard
-              key={recipe.id}
-              recipe={recipe}
-              signals={signals}
-              fbDefs={fbDefs}
-              onRefresh={onRefresh}
-              onConfirm={confirmAction}
-            />
+        <div className="space-y-6">
+          {WIRING_LAYERS.filter((layer) => recipes.some((r) => r.layer === layer)).map((layer) => (
+            <div key={layer} className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{layer}</h3>
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[10px] text-muted-foreground">
+                  {recipes.filter((r) => r.layer === layer).length} recipe{recipes.filter((r) => r.layer === layer).length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {recipes.filter((r) => r.layer === layer).map((recipe) => (
+                  <RecipeCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    signals={signals}
+                    fbDefs={fbDefs}
+                    onRefresh={onRefresh}
+                    onConfirm={confirmAction}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -368,6 +382,7 @@ function CreateRecipeDialog({
   fbDefs: FbDef[];
   onCreated: () => void;
 }) {
+  const [layer, setLayer] = useState<WiringLayer>("CONTROL");
   const [fbName, setFbName] = useState(functionBlock ?? "");
   const [targetGvl, setTargetGvl] = useState("GVL_CAN");
   const [instanceNamePattern, setInstanceNamePattern] = useState("{{instance.tag}}");
@@ -384,6 +399,17 @@ function CreateRecipeDialog({
           <DialogTitle>New Wiring Recipe</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
+          <div className="space-y-1">
+            <Label className="text-xs">Layer</Label>
+            <Select value={layer} onValueChange={(v) => setLayer(v as WiringLayer)}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {WIRING_LAYERS.map((l) => (
+                  <SelectItem key={l} value={l}>{l}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1">
             <Label className="text-xs">Function Block</Label>
             {fbDefs.length > 0 ? (
@@ -426,7 +452,7 @@ function CreateRecipeDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => create.mutate({ componentId, fbName, targetGvl, instanceNamePattern, description: description || null })} disabled={!fbName || create.isPending}>
+          <Button onClick={() => create.mutate({ componentId, layer, fbName, targetGvl, instanceNamePattern, description: description || null })} disabled={!fbName || create.isPending}>
             {create.isPending ? "Creating…" : "Create"}
           </Button>
         </DialogFooter>

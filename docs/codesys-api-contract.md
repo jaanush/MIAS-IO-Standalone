@@ -115,7 +115,8 @@ and derive everything they need from it.
               "diagnosticBitsPerChannel": null,
               "catalog": {
                 "articleNumber": "750-1405",
-                "codesysModuleId": "0000 0750 0000 0000"
+                "codesysModuleId": "0000 0750 0000 0000",
+                "kbusImageSize": null
               }
             }
           ]
@@ -258,6 +259,11 @@ and derive everything they need from it.
 - `null` for bus/network signals (no hardware address — configured via Modbus/CAN mapping instead)
 - For DI cards with `diagnosticType: "DIGITAL_PAIRED"`: byte count = `ceil(maxInputChannels * 2 / 8)` (data + diag bits in same byte)
 - For AI cards with `diagnosticType: "ANALOG_STATUS_BYTE"`: word count = `maxInputChannels * 2` (interleaved status word + data word per channel)
+
+**Notes on `catalog.kbusImageSize` (module catalog only):**
+- Bytes per direction of Kbus process image (symmetric input/output). Integer 8, 24, or 48.
+- `null` for modules with a fixed image (majority of cards). Only set for modules that ship as multiple CODESYS device variants sharing one article number — currently `750-658` (CAN gateway) and `750-652` (RS-232/485); default 24 for both.
+- Plugin uses this to pick the matching device-ID suffix (`0808`/`2424`/`4848`) when inserting the module into CODESYS.
 
 **Notes on diagnostic signals:**
 - `isDiagnostic: true` marks auto-generated diagnostic companion signals

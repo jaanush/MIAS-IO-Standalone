@@ -88,7 +88,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
                   diagnosticType: true,
                   diagnosticBitsPerChannel: true,
                   catalog: {
-                    select: { articleNumber: true, vendorName: true, codesysModuleId: true },
+                    select: { articleNumber: true, vendorName: true, codesysModuleId: true, kbusImageSize: true },
+                  },
+                  hostedBuses: {
+                    select: {
+                      id: true,
+                      protocol: true,
+                      role: true,
+                      nodeAddress: true,
+                      description: true,
+                      ipAddress: true,
+                      ipPort: true,
+                      baudRateKbit: true,
+                      baudRateBps: true,
+                      serialParity: true,
+                      serialStopBits: true,
+                      canMode: true,
+                      canHeartbeatMs: true,
+                      canSyncPeriodMs: true,
+                      cyclePeriodMs: true,
+                      ioCardId: true,
+                    },
                   },
                 },
                 orderBy: { slotPosition: "asc" },
@@ -470,24 +490,31 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       catalog: plc.catalog
         ? { articleNumber: plc.catalog.articleNumber, manufacturer: plc.catalog.vendorName, description: plc.catalog.description, codesysDeviceId: plc.catalog.codesysDeviceId }
         : null,
-      networks: plc.busNodes.map((bn) => bn.bus).filter(Boolean).map((n) => ({
-        id: n.id,
-        protocol: n.protocol,
-        role: n.role,
-        nodeAddress: n.nodeAddress,
-        description: n.description,
-        ipAddress: n.ipAddress,
-        ipPort: n.ipPort,
-        baudRateKbit: n.baudRateKbit,
-        baudRateBps: n.baudRateBps,
-        serialParity: n.serialParity,
-        serialStopBits: n.serialStopBits,
-        canMode: n.canMode,
-        canHeartbeatMs: n.canHeartbeatMs,
-        canSyncPeriodMs: n.canSyncPeriodMs,
-        cyclePeriodMs: n.cyclePeriodMs,
-        hostedByCardId: n.ioCardId,
-      })),
+      networks: (() => {
+        const viaNodes = plc.busNodes.map((bn) => bn.bus).filter(Boolean);
+        const viaCards = plc.carriers.flatMap((c) => c.cards.flatMap((card) => card.hostedBuses));
+        const seen = new Set<number>();
+        return [...viaNodes, ...viaCards]
+          .filter((n) => { if (seen.has(n.id)) return false; seen.add(n.id); return true; })
+          .map((n) => ({
+            id: n.id,
+            protocol: n.protocol,
+            role: n.role,
+            nodeAddress: n.nodeAddress,
+            description: n.description,
+            ipAddress: n.ipAddress,
+            ipPort: n.ipPort,
+            baudRateKbit: n.baudRateKbit,
+            baudRateBps: n.baudRateBps,
+            serialParity: n.serialParity,
+            serialStopBits: n.serialStopBits,
+            canMode: n.canMode,
+            canHeartbeatMs: n.canHeartbeatMs,
+            canSyncPeriodMs: n.canSyncPeriodMs,
+            cyclePeriodMs: n.cyclePeriodMs,
+            hostedByCardId: n.ioCardId,
+          }));
+      })(),
       carriers: plc.carriers.map((c) => ({
         id: c.id,
         name: c.name,
@@ -503,7 +530,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         catalog: c.catalog ? { articleNumber: c.catalog.articleNumber, manufacturer: c.catalog.vendorName } : null,
         cards: c.cards.map((card) => ({
           id: card.id,
-          name: `${card.catalog?.articleNumber ?? "Module"}_S${card.slotPosition}`,
+          name: `${card.catalog?.articleNumber ?? "Module"}_S${String(card.slotPosition).padStart(2, "0")}`,
           slotPosition: card.slotPosition,
           cardType: card.cardType,
           subgroup: card.subgroup,
@@ -514,7 +541,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           hasDiagnostics: card.hasDiagnostics,
           diagnosticType: card.diagnosticType,
           diagnosticBitsPerChannel: card.diagnosticBitsPerChannel,
-          catalog: card.catalog ? { articleNumber: card.catalog.articleNumber, manufacturer: card.catalog.vendorName, codesysModuleId: card.catalog.codesysModuleId } : null,
+          catalog: card.catalog ? { articleNumber: card.catalog.articleNumber, manufacturer: card.catalog.vendorName, codesysModuleId: card.catalog.codesysModuleId, kbusImageSize: card.catalog.kbusImageSize } : null,
         })),
       })),
     })),

@@ -232,6 +232,7 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
             key={selectedInstance.id}
             instance={selectedInstance}
             network={selectedInstanceNetwork ?? null}
+            projectId={projectId}
             onDeleted={() => { setSelected(null); refresh(); }}
             onRefresh={refresh}
           />

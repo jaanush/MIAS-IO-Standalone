@@ -23,6 +23,7 @@ export default function ComponentTabLayout({
     { href: "details", label: "Details" },
     { href: "signals", label: "Signals" },
     ...(isCanopen ? [{ href: "pdo", label: "PDO" }] : []),
+    { href: "parameters", label: "Parameters" },
     { href: "wiring", label: "Wiring" },
   ];
 

@@ -1544,4 +1544,116 @@ export const signalRouter = createTRPCRouter({
         return created;
       });
     }),
+
+  // ── JMobile alarm-locked numbering (Phase 2 of JMobile export work) ─────────
+  // Walks every alarm in the project (discrete + analog merged), keeps existing
+  // alarm_no values untouched, and assigns sequential ints to NULLs starting at
+  // the next free integer ≥ 1. Returns counts so the UI can confirm.
+  alarmLockNumbering: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .mutation(async ({ input }) => {
+      const [discrete, analog] = await Promise.all([
+        db.discreteAlarm.findMany({
+          where: { signal: { signal: { projectId: input.projectId } } },
+          select: { id: true, alarmNo: true },
+          orderBy: [{ alarmNo: { sort: "asc", nulls: "last" } }, { id: "asc" }],
+        }),
+        db.analogAlarm.findMany({
+          where: { signal: { signal: { projectId: input.projectId } } },
+          select: { id: true, alarmNo: true },
+          orderBy: [{ alarmNo: { sort: "asc", nulls: "last" } }, { id: "asc" }],
+        }),
+      ]);
+
+      const used = new Set<number>();
+      for (const a of discrete) if (a.alarmNo != null) used.add(a.alarmNo);
+      for (const a of analog)   if (a.alarmNo != null) used.add(a.alarmNo);
+
+      let cursor = 1;
+      function nextFree(): number {
+        while (used.has(cursor)) cursor++;
+        used.add(cursor);
+        return cursor++;
+      }
+
+      let assignedDiscrete = 0;
+      let assignedAnalog = 0;
+      for (const a of discrete) {
+        if (a.alarmNo == null) {
+          await db.discreteAlarm.update({ where: { id: a.id }, data: { alarmNo: nextFree() } });
+          assignedDiscrete++;
+        }
+      }
+      for (const a of analog) {
+        if (a.alarmNo == null) {
+          await db.analogAlarm.update({ where: { id: a.id }, data: { alarmNo: nextFree() } });
+          assignedAnalog++;
+        }
+      }
+      return {
+        existingDiscrete: discrete.length - assignedDiscrete,
+        existingAnalog:   analog.length - assignedAnalog,
+        assignedDiscrete,
+        assignedAnalog,
+        total: discrete.length + analog.length,
+      };
+    }),
+
+  // Wipe all alarm numbers in the project — for a clean reseed. Use sparingly:
+  // breaks any external references (JMobile imports) until re-locked.
+  alarmRenumberFromScratch: protectedProcedure
+    .input(z.object({ projectId: z.number().int(), confirm: z.literal(true) }))
+    .mutation(async ({ input }) => {
+      await db.$transaction([
+        db.discreteAlarm.updateMany({
+          where: { signal: { signal: { projectId: input.projectId } } },
+          data: { alarmNo: null },
+        }),
+        db.analogAlarm.updateMany({
+          where: { signal: { signal: { projectId: input.projectId } } },
+          data: { alarmNo: null },
+        }),
+      ]);
+      return { ok: true };
+    }),
+
+  // Read view for the JMobile tab — all project alarms with their lock state.
+  alarmListForProject: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .query(async ({ input }) => {
+      const [discrete, analog] = await Promise.all([
+        db.discreteAlarm.findMany({
+          where: { signal: { signal: { projectId: input.projectId } } },
+          select: {
+            id: true, alarmNo: true, condition: true, severity: true, alarmGroup: true, message: true,
+            signal: { select: { signalId: true, signal: { select: { tag: true, description: true } } } },
+          },
+          orderBy: [{ alarmNo: { sort: "asc", nulls: "last" } }, { id: "asc" }],
+        }),
+        db.analogAlarm.findMany({
+          where: { signal: { signal: { projectId: input.projectId } } },
+          select: {
+            id: true, alarmNo: true, condition: true, setpoint: true, hysteresis: true,
+            severity: true, alarmGroup: true, message: true,
+            signal: { select: { signalId: true, signal: { select: { tag: true, description: true } } } },
+          },
+          orderBy: [{ alarmNo: { sort: "asc", nulls: "last" } }, { id: "asc" }],
+        }),
+      ]);
+      return {
+        discrete: discrete.map((a) => ({
+          kind: "discrete" as const,
+          id: a.id, alarmNo: a.alarmNo,
+          tag: a.signal.signal.tag, description: a.signal.signal.description,
+          condition: a.condition, severity: a.severity, alarmGroup: a.alarmGroup, message: a.message,
+        })),
+        analog: analog.map((a) => ({
+          kind: "analog" as const,
+          id: a.id, alarmNo: a.alarmNo,
+          tag: a.signal.signal.tag, description: a.signal.signal.description,
+          condition: a.condition, severity: a.severity, alarmGroup: a.alarmGroup, message: a.message,
+          setpoint: Number(a.setpoint), hysteresis: Number(a.hysteresis),
+        })),
+      };
+    }),
 });

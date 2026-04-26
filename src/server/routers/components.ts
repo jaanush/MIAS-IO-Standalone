@@ -3,7 +3,8 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import { extractModbusRegisters, type ExtractedRegister } from "../lib/modbus-ai-extract";
 import { getEffectiveSignals, getEffectivePdoConfigs, syncNewSignalToInstances, removeSignalFromInstances } from "../lib/component-signals";
-import { SIGNAL_ORIGINS, IO_TYPES, RAW_DATA_TYPES, BYTE_ORDERS, MODBUS_REGISTER_TYPES, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, DISCRETE_ALARM_CONDITIONS, ANALOG_ALARM_CONDITIONS, ALARM_SEVERITIES, COMPONENT_STATUS, BUS_PROTOCOLS, WIRING_SOURCE_TYPES } from "@/lib/enums";
+import { SIGNAL_ORIGINS, IO_TYPES, RAW_DATA_TYPES, BYTE_ORDERS, MODBUS_REGISTER_TYPES, TRIGGER_TYPES, SWITCHING_TYPES, WIRE_CONFIGS, DISCRETE_ALARM_CONDITIONS, ANALOG_ALARM_CONDITIONS, ALARM_SEVERITIES, COMPONENT_STATUS, BUS_PROTOCOLS, WIRING_SOURCE_TYPES, WIRING_LAYERS, PARAM_TYPES, CURVE_TYPES } from "@/lib/enums";
+import { TRPCError } from "@trpc/server";
 
 /** Recompute minCanIdOffset = max(canId) - min(canId) + 1 across active signals */
 async function refreshMinCanIdOffset(componentId: number) {
@@ -186,15 +187,41 @@ export const componentsRouter = createTRPCRouter({
     .input(z.object({ componentId: z.number().int() }))
     .query(({ input }) => getEffectivePdoConfigs(input.componentId)),
 
+  // List instances of a given template scoped to a project. Used by the
+  // components page to surface instances (including non-bus ones like tanks)
+  // for parameter editing.
+  instancesForComponent: protectedProcedure
+    .input(z.object({ componentId: z.number().int(), projectId: z.number().int() }))
+    .query(({ input }) =>
+      db.componentInstance.findMany({
+        where: { componentId: input.componentId, projectId: input.projectId },
+        select: {
+          id: true,
+          name: true,
+          tag: true,
+          busId: true,
+          nodeAddress: true,
+          bus: { select: { id: true, protocol: true, description: true } },
+        },
+        orderBy: [{ tag: "asc" }, { name: "asc" }],
+      })
+    ),
+
   projectComponentList: protectedProcedure
     .input(z.object({ projectId: z.number().int() }))
     .query(({ input }) =>
       db.hardwareComponent.findMany({
-        where: { projectId: input.projectId },
+        // project-private templates OR global templates instantiated in this project
+        where: {
+          OR: [
+            { projectId: input.projectId },
+            { projectId: null, instances: { some: { projectId: input.projectId } } },
+          ],
+        },
         orderBy: { name: "asc" },
         include: {
           _count: { select: { signals: true, instances: true, children: true } },
-          instances: { select: { id: true, name: true } },
+          instances: { where: { projectId: input.projectId }, select: { id: true, name: true } },
           parent: { select: { id: true, name: true } },
         },
       })
@@ -1149,6 +1176,7 @@ export const componentsRouter = createTRPCRouter({
   wiringRecipeCreate: protectedProcedure
     .input(z.object({
       componentId: z.number().int(),
+      layer: z.enum(WIRING_LAYERS).default("CONTROL"),
       fbName: z.string().min(1).max(255),
       targetGvl: z.string().min(1).max(100),
       instanceNamePattern: z.string().min(1).max(500),
@@ -1165,6 +1193,7 @@ export const componentsRouter = createTRPCRouter({
   wiringRecipeUpdate: protectedProcedure
     .input(z.object({
       id: z.number().int(),
+      layer: z.enum(WIRING_LAYERS).optional(),
       fbName: z.string().min(1).max(255).optional(),
       targetGvl: z.string().min(1).max(100).optional(),
       instanceNamePattern: z.string().min(1).max(500).optional(),
@@ -1194,6 +1223,7 @@ export const componentsRouter = createTRPCRouter({
       sourceType: z.enum(WIRING_SOURCE_TYPES),
       channelOffset: z.number().int().optional().nullable(),
       signalTag: z.string().max(255).optional().nullable(),
+      childRole: z.string().max(100).optional().nullable(),
       literalValue: z.string().max(500).optional().nullable(),
       expression: z.string().max(500).optional().nullable(),
       sortOrder: z.number().int().default(0),
@@ -1216,4 +1246,336 @@ export const componentsRouter = createTRPCRouter({
   euList: protectedProcedure.query(() =>
     db.engineeringUnit.findMany({ orderBy: { symbol: "asc" } })
   ),
+
+  // ── Component Parameters (FR-008) ─────────────────────────────────
+
+  paramDefList: protectedProcedure
+    .input(z.object({ componentId: z.number().int() }))
+    .query(({ input }) =>
+      db.componentParameterDef.findMany({
+        where: { componentId: input.componentId },
+        orderBy: [{ sortOrder: "asc" }, { paramName: "asc" }],
+      })
+    ),
+
+  paramDefUpsert: protectedProcedure
+    .input(z.object({
+      id: z.number().int().optional(),
+      componentId: z.number().int(),
+      paramName: z.string().min(1).max(100),
+      paramType: z.enum(PARAM_TYPES),
+      required: z.boolean().default(false),
+      defaultScalarValue: z.number().nullable().optional(),
+      defaultIntValue: z.number().int().nullable().optional(),
+      defaultStringValue: z.string().max(255).nullable().optional(),
+      defaultBoolValue: z.boolean().nullable().optional(),
+      description: z.string().max(255).nullable().optional(),
+      sortOrder: z.number().int().default(0),
+    }))
+    .mutation(({ input }) => {
+      const { id, ...data } = input;
+      if (id) {
+        return db.componentParameterDef.update({ where: { id }, data });
+      }
+      return db.componentParameterDef.create({ data });
+    }),
+
+  paramDefDelete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(({ input }) =>
+      db.componentParameterDef.delete({ where: { id: input.id } })
+    ),
+
+  // Instance-level parameter values
+  instanceParamList: protectedProcedure
+    .input(z.object({ instanceId: z.number().int() }))
+    .query(({ input }) =>
+      db.componentInstanceParameter.findMany({
+        where: { instanceId: input.instanceId },
+        include: { curve: { include: { points: { orderBy: { ordinal: "asc" } } } } },
+        orderBy: { paramName: "asc" },
+      })
+    ),
+
+  instanceParamUpsert: protectedProcedure
+    .input(z.object({
+      instanceId: z.number().int(),
+      paramName: z.string().min(1).max(100),
+      scalarValue: z.number().nullable().optional(),
+      intValue: z.number().int().nullable().optional(),
+      stringValue: z.string().max(255).nullable().optional(),
+      boolValue: z.boolean().nullable().optional(),
+      curveId: z.number().int().nullable().optional(),
+    }))
+    .mutation(({ input }) => {
+      const { instanceId, paramName, ...rest } = input;
+      return db.componentInstanceParameter.upsert({
+        where: { instanceId_paramName: { instanceId, paramName } },
+        create: { instanceId, paramName, ...rest },
+        update: rest,
+      });
+    }),
+
+  instanceParamDelete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(({ input }) =>
+      db.componentInstanceParameter.delete({ where: { id: input.id } })
+    ),
+
+  // ── Curves (piecewise-linear lookups) ──────────────────────────────
+  // Server-side validation: points must be ascending in x.
+
+  curveById: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .query(({ input }) =>
+      db.curve.findUnique({
+        where: { id: input.id },
+        include: { points: { orderBy: { ordinal: "asc" } } },
+      })
+    ),
+
+  // FR-008/FR-007 bridge: signals available as live-capture sources for
+  // curve calibration. Filter to those with iec_path set and active
+  // monitoring so the live reading actually exists.
+  // Curve calibration source: prefers RAW signals (HAL pre-scaling) since
+  // calibrating from already-scaled data is circular. Returns signals that
+  // have at least one path resolved (raw OR scaled) and an active monitor
+  // subscription.
+  signalsForLiveCapture: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .query(({ input }) =>
+      db.signal.findMany({
+        where: {
+          projectId: input.projectId,
+          OR: [{ iecPath: { not: null } }, { iecPathRaw: { not: null } }],
+          monitoring: { some: { enabled: true } },
+        },
+        select: { id: true, tag: true, description: true, iecPath: true, iecPathRaw: true },
+        orderBy: { tag: "asc" },
+      })
+    ),
+
+  signalLiveReadingById: protectedProcedure
+    .input(z.object({
+      signalId: z.number().int(),
+      mode: z.enum(["SCALED", "RAW"]).default("RAW"),
+    }))
+    .query(({ input }) =>
+      db.signalReadingLive.findUnique({
+        where: { signalId_mode: { signalId: input.signalId, mode: input.mode } },
+        select: { signalId: true, mode: true, value: true, valueStr: true, state: true, tsPlugin: true, tsServer: true, errorMsg: true },
+      })
+    ),
+
+  // ── Live Monitoring (FR-007 management UI) ─────────────────────────
+
+  // Returns all project signals with their per-mode monitoring state +
+  // iec_path readiness for SCALED and RAW. Each signal carries up to two
+  // monitoring rows (one per mode) and up to two live readings.
+  monitoringList: protectedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .query(({ input }) =>
+      db.signal.findMany({
+        where: { projectId: input.projectId },
+        select: {
+          id: true,
+          tag: true,
+          description: true,
+          origin: true,
+          iecPath: true,
+          iecPathRaw: true,
+          monitoring: { select: { id: true, mode: true, intervalMs: true, enabled: true } },
+          liveReadings: { select: { mode: true, valueStr: true, state: true, tsPlugin: true } },
+        },
+        orderBy: [{ tag: "asc" }],
+      })
+    ),
+
+  monitoringUpsert: protectedProcedure
+    .input(z.object({
+      signalId: z.number().int(),
+      mode: z.enum(["SCALED", "RAW"]).default("SCALED"),
+      projectId: z.number().int(),
+      intervalMs: z.number().int().min(100).max(3600000),
+      enabled: z.boolean().default(true),
+    }))
+    .mutation(({ input }) =>
+      db.signalMonitoring.upsert({
+        where: { signalId_mode: { signalId: input.signalId, mode: input.mode } },
+        create: input,
+        update: { intervalMs: input.intervalMs, enabled: input.enabled },
+      })
+    ),
+
+  monitoringDelete: protectedProcedure
+    .input(z.object({
+      signalId: z.number().int(),
+      mode: z.enum(["SCALED", "RAW"]).optional(),
+    }))
+    .mutation(({ input }) =>
+      db.signalMonitoring.deleteMany({
+        where: input.mode
+          ? { signalId: input.signalId, mode: input.mode }
+          : { signalId: input.signalId },
+      })
+    ),
+
+  curveCreate: protectedProcedure
+    .input(z.object({
+      type: z.enum(CURVE_TYPES).default("GENERIC"),
+      points: z.array(z.object({ x: z.number(), y: z.number() })).min(2),
+    }))
+    .mutation(async ({ input }) => {
+      assertAscendingX(input.points);
+      return db.curve.create({
+        data: {
+          type: input.type,
+          points: { create: input.points.map((p, i) => ({ ordinal: i, x: p.x, y: p.y })) },
+        },
+        include: { points: { orderBy: { ordinal: "asc" } } },
+      });
+    }),
+
+  curveUpdate: protectedProcedure
+    .input(z.object({
+      id: z.number().int(),
+      type: z.enum(CURVE_TYPES).optional(),
+      points: z.array(z.object({ x: z.number(), y: z.number() })).min(2).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      if (input.points) assertAscendingX(input.points);
+      return db.$transaction(async (tx) => {
+        if (input.type) {
+          await tx.curve.update({ where: { id: input.id }, data: { type: input.type } });
+        }
+        if (input.points) {
+          await tx.curvePoint.deleteMany({ where: { curveId: input.id } });
+          await tx.curvePoint.createMany({
+            data: input.points.map((p, i) => ({ curveId: input.id, ordinal: i, x: p.x, y: p.y })),
+          });
+        }
+        return tx.curve.findUniqueOrThrow({
+          where: { id: input.id },
+          include: { points: { orderBy: { ordinal: "asc" } } },
+        });
+      });
+    }),
+
+  curveDelete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(({ input }) => db.curve.delete({ where: { id: input.id } })),
+
+  // ── Component Composition (FR-009) ────────────────────────────────
+
+  compositionList: protectedProcedure
+    .input(z.object({ parentComponentId: z.number().int() }))
+    .query(({ input }) =>
+      db.componentComposition.findMany({
+        where: { parentComponentId: input.parentComponentId },
+        include: { child: { select: { id: true, name: true, functionBlock: true } } },
+        orderBy: [{ sortOrder: "asc" }, { role: "asc" }],
+      })
+    ),
+
+  // Mutual exclusion: a component is either inheritance (uses parentId) or
+  // composition (has child rows here) — never both. Enforced server-side.
+  compositionCreate: protectedProcedure
+    .input(z.object({
+      parentComponentId: z.number().int(),
+      childComponentId: z.number().int(),
+      role: z.string().min(1).max(100),
+      sortOrder: z.number().int().default(0),
+    }))
+    .mutation(async ({ input }) => {
+      const parent = await db.hardwareComponent.findUnique({
+        where: { id: input.parentComponentId },
+        select: { parentId: true },
+      });
+      if (!parent) throw new TRPCError({ code: "NOT_FOUND", message: "Parent component not found" });
+      if (parent.parentId !== null) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot add composition children to a component that already inherits from another (set parentId to NULL first or pick a different parent).",
+        });
+      }
+      return db.componentComposition.create({ data: input });
+    }),
+
+  compositionUpdate: protectedProcedure
+    .input(z.object({
+      id: z.number().int(),
+      role: z.string().min(1).max(100).optional(),
+      sortOrder: z.number().int().optional(),
+    }))
+    .mutation(({ input }) => {
+      const { id, ...data } = input;
+      return db.componentComposition.update({ where: { id }, data });
+    }),
+
+  compositionDelete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(({ input }) => db.componentComposition.delete({ where: { id: input.id } })),
+
+  // Stamp a composite instance: creates the parent ComponentInstance plus one
+  // child instance per ComponentComposition row. Caller supplies parent name +
+  // tag; child instances inherit the parent's tag with the role suffix.
+  instanceStampComposite: protectedProcedure
+    .input(z.object({
+      projectId: z.number().int(),
+      componentId: z.number().int(),
+      name: z.string().min(1).max(255),
+      tag: z.string().max(50).optional().nullable(),
+      busId: z.number().int().optional().nullable(),
+      nodeAddress: z.number().int().optional().nullable(),
+    }))
+    .mutation(async ({ input }) => {
+      const composition = await db.componentComposition.findMany({
+        where: { parentComponentId: input.componentId },
+        orderBy: { sortOrder: "asc" },
+      });
+      if (composition.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Component has no composition children — use the regular instance create instead.",
+        });
+      }
+      return db.$transaction(async (tx) => {
+        const parent = await tx.componentInstance.create({
+          data: {
+            projectId: input.projectId,
+            componentId: input.componentId,
+            name: input.name,
+            tag: input.tag ?? null,
+            busId: input.busId ?? null,
+            nodeAddress: input.nodeAddress ?? null,
+          },
+        });
+        const parentTag = input.tag ?? input.name.replace(/[^A-Za-z0-9_]/g, "_");
+        await tx.componentInstance.createMany({
+          data: composition.map((c) => ({
+            projectId: input.projectId,
+            componentId: c.childComponentId,
+            name: `${input.name} / ${c.role}`,
+            tag: `${parentTag}.${c.role}`,
+            parentInstanceId: parent.id,
+            compositionRole: c.role,
+          })),
+        });
+        return tx.componentInstance.findUniqueOrThrow({
+          where: { id: parent.id },
+          include: { children: true },
+        });
+      });
+    }),
 });
+
+function assertAscendingX(points: { x: number }[]) {
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].x <= points[i - 1].x) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: `Curve points must be strictly ascending in x (point ${i} has x=${points[i].x}, previous=${points[i - 1].x})`,
+      });
+    }
+  }
+}

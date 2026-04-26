@@ -53,3 +53,6 @@ data/
 claude_project_handoff.md
 lasse_maja_mias_technical_document.md
 
+# Ephemeral inbox-watcher state (FR-006)
+staging/
+

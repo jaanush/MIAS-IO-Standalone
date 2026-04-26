@@ -31,6 +31,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           functionBlock: true,
           busProtocol: true,
           minCanIdOffset: true,
+          parameterDefs: {
+            select: {
+              paramName: true,
+              paramType: true,
+              required: true,
+              defaultScalarValue: true,
+              defaultIntValue: true,
+              defaultStringValue: true,
+              defaultBoolValue: true,
+            },
+          },
         },
       },
       bus: {
@@ -65,6 +76,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
               id: true,
               tag: true,
               gvl: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+      parameters: {
+        include: {
+          curve: {
+            include: { points: { orderBy: { ordinal: "asc" } } },
+          },
+        },
+        orderBy: { paramName: "asc" },
+      },
+      // FR-009: composite children for CHILD_SIGNAL resolution and codegen.
+      children: {
+        select: {
+          id: true,
+          name: true,
+          tag: true,
+          compositionRole: true,
+          componentId: true,
+          signals: {
+            select: {
+              componentSignal: { select: { tagSuffix: true } },
+              signals: { select: { id: true, tag: true, gvl: { select: { name: true } } } },
             },
           },
         },
@@ -139,6 +174,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const existing = wiringByComponent.get(wr.componentId) ?? [];
     existing.push(wr);
     wiringByComponent.set(wr.componentId, existing);
+  }
+
+  // Per-component CONTROL recipe lookup — wrapper-layer recipes (HMI/PMS/HAL/ALARM)
+  // resolve their INSTANCE_FB params through the same component's CONTROL recipe.
+  const controlRecipeByComponent = new Map<number, (typeof wiringRecipes)[number]>();
+  for (const wr of wiringRecipes) {
+    if (!wr.componentId) continue;
+    if (wr.layer === "CONTROL" && !controlRecipeByComponent.has(wr.componentId)) {
+      controlRecipeByComponent.set(wr.componentId, wr);
+    }
   }
 
   // Assemble response
@@ -235,8 +280,49 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
           base.signalTag = tag;
           base.gvlName = gvlName;
+        } else if (p.sourceType === "CHILD_SIGNAL") {
+          // FR-009: resolve to a signal on a composite child instance.
+          // childRole identifies which child; signalTag is matched against
+          // the child's componentSignal.tagSuffix.
+          let tag: string | null = null;
+          let gvlName: string | null = null;
+          if (p.childRole && p.signalTag) {
+            const child = inst.children.find((c) => c.compositionRole === p.childRole);
+            if (child) {
+              const match = child.signals.find(
+                (is) => is.componentSignal?.tagSuffix === p.signalTag,
+              );
+              const sig = match?.signals[0];
+              if (sig) {
+                tag = sig.tag;
+                gvlName = sig.gvl?.name ?? null;
+              }
+            }
+          }
+          base.signalTag = tag;
+          base.gvlName = gvlName;
+          base.childRole = p.childRole;
         } else if (p.sourceType === "INSTANCE_FB") {
-          base.value = `${wr.targetGvl}.${instanceTag}`;
+          // Wrapper layers (HMI / PMS / HAL / ALARM) reference the CONTROL-layer
+          // instance of the same ComponentInstance. Resolve through the CONTROL
+          // recipe's targetGvl + instanceNamePattern.
+          if (wr.layer !== "CONTROL") {
+            const ctrl = controlRecipeByComponent.get(inst.componentId);
+            if (ctrl) {
+              const ctrlInstanceName = ctrl.instanceNamePattern
+                .replace(/\{\{instance\.tag\}\}/g, instanceTag)
+                .replace(/\{\{instance\.name\}\}/g, inst.name);
+              base.value = `${ctrl.targetGvl}.${ctrlInstanceName}`;
+            } else {
+              // Fallback: no CONTROL recipe exists. Use the component's FB +
+              // instance tag (matches the convention for hand-coded controls).
+              const fb = inst.functionBlockOverride ?? inst.component.functionBlock;
+              base.value = fb ? `${fb}.${instanceTag}` : instanceTag;
+            }
+          } else {
+            // CONTROL self-reference — keep historical behaviour (own targetGvl).
+            base.value = `${wr.targetGvl}.${instanceTag}`;
+          }
         }
 
         return base;
@@ -248,11 +334,44 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         .replace(/\{\{instance\.name\}\}/g, inst.name);
 
       return {
+        layer: wr.layer,
         fbName: wr.fbName,
         instanceName,
         targetGvl: wr.targetGvl,
         parameters,
       };
+    });
+
+    // FR-008: per-instance parameters merged with template defaults.
+    // Each entry carries paramType from the template def + the instance value
+    // (or the template default when the instance hasn't been customized).
+    const defByName = new Map(inst.component.parameterDefs.map((d) => [d.paramName, d]));
+    const valueByName = new Map(inst.parameters.map((p) => [p.paramName, p]));
+    const paramNames = new Set<string>([...defByName.keys(), ...valueByName.keys()]);
+    const parameters = [...paramNames].sort().map((name) => {
+      const def = defByName.get(name);
+      const val = valueByName.get(name);
+      const paramType = def?.paramType ?? null;
+      const base: Record<string, unknown> = {
+        name,
+        type: paramType,
+        required: def?.required ?? false,
+      };
+      if (paramType === "CURVE") {
+        const c = val?.curve;
+        base.curve = c
+          ? { type: c.type, points: c.points.map((p) => ({ x: p.x, y: p.y })) }
+          : null;
+      } else if (paramType === "SCALAR_REAL") {
+        base.value = val?.scalarValue ?? def?.defaultScalarValue ?? null;
+      } else if (paramType === "INT") {
+        base.value = val?.intValue ?? def?.defaultIntValue ?? null;
+      } else if (paramType === "STRING") {
+        base.value = val?.stringValue ?? def?.defaultStringValue ?? null;
+      } else if (paramType === "BOOL") {
+        base.value = val?.boolValue ?? def?.defaultBoolValue ?? null;
+      }
+      return base;
     });
 
     return {
@@ -268,6 +387,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       nodeAddress: inst.nodeAddress,
       canIdOffset: inst.canIdOffset,
       byteOrder: inst.byteOrder,
+      parameters,
       pdoConfigs: resolvedPdos,
       wiring: resolvedWiring,
     };
