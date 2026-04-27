@@ -141,6 +141,8 @@ and derive everything they need from it.
       "direction": "INPUT",
       "gvlId": 1,
       "gvlName": "GVL_IO",
+      "systemId": 3,
+      "systemGroup": "Genset_861",
       "hwId": "N3:D01:I01",
       "ioCard": {
         "id": 40,
@@ -251,6 +253,18 @@ and derive everything they need from it.
 - When present, contains the component instance tag/name and the parent component ID/name
 - `componentId` + `componentName` identify the `HardwareComponent` — the plugin can use
   `componentId` to look up the associated function block in its own database
+
+**Notes on `systemId` / `systemGroup`:**
+- `systemId`: integer FK into `signal_system` (or `null`).
+- `systemGroup`: stable string for grouping signals into per-system POUs
+  (`PRG_MIAS_Init_System_<systemGroup>` etc.). Always non-null. Derivation
+  order: (1) `signal_system.code` if IEC-clean → used verbatim,
+  (2) normalized `signal_system.name` + numeric code suffix,
+  (3) component-instance name prefix (`FWD…` → `Battery_866_C01`,
+  `AFT…` → `Battery_866_C02`, `Genset…` → `Genset_861`),
+  (4) `"System_Wide"` synthetic fallback. Plugin should never see `null`
+  here — file a bug if it does. Values are not stable across renames of
+  `signal_system.code`/`name` rows.
 
 **Notes on `plcAddress`:**
 - Computed server-side from `ioCard.slotPosition` + `channelPosition` + `cardType`
@@ -548,6 +562,76 @@ Auto-links to HardwareComponent where `functionBlock` matches `fbName`.
   ]
 }
 ```
+
+---
+
+### `POST /api/codesys/project/{id}/iec-paths`
+
+Push resolved IEC paths back to MIAS-IO after a codegen run. Used by the
+plugin to record the fully-qualified IEC expression for each generated
+GVL variable so other consumers (live monitoring, JMobile alarm export)
+can address it.
+
+The endpoint accepts a mixed batch of two entry kinds — signal entries
+(FR-007) and alarm entries (FR-011). Per-entry errors do **not** reject
+the batch; the rest proceed and bad ids are reported in `errors[]`. A
+field with value `null` clears any previously-stored path.
+
+**Auth:** `X-API-Key` header
+
+**Request body**
+
+```json
+{
+  "paths": [
+    {
+      "signalId": 12345,
+      "iecPath": "Application.GVL_IO.fbT101.rValue",
+      "iecPathRaw": "Application.GVL_IO.fbT101.rRawValue"
+    },
+    {
+      "alarmId": 678,
+      "alarmKind": "discrete",
+      "iecAlarmPath": "Application.GVL_ALARMS.bSomeAlarm"
+    },
+    {
+      "alarmId": 789,
+      "alarmKind": "analog",
+      "iecAlarmPath": "Application.GVL_ALARMS.fbAlarm_T101.HH"
+    }
+  ]
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `signalId` | for signal entries | `signal.id` from `GET /api/codesys/project/{id}` |
+| `iecPath` | optional on signal entries | Scaled-value path, e.g. `Application.GVL_IO.fbT101.rValue`. `null` clears. |
+| `iecPathRaw` | optional on signal entries | Raw-value path. `null` clears. |
+| `alarmId` | for alarm entries | `discrete_alarm.id` or `analog_alarm.id` |
+| `alarmKind` | for alarm entries | `"discrete"` or `"analog"` — picks the table |
+| `iecAlarmPath` | optional on alarm entries | One path per row. For analog alarms each row covers one condition (HH/H/L/LL) so the path points at *that* condition's bit (e.g. `...fbAlarm_T101.HH`). `null` clears. |
+
+Entry discrimination is by which id field is present: an entry with
+`alarmId` is treated as an alarm regardless of any extra fields.
+
+**Response: `200 OK`**
+
+```json
+{
+  "ok": true,
+  "updated": 312,
+  "updatedSignals": 304,
+  "updatedAlarms": 8,
+  "errors": [
+    { "signalId": 99999, "reason": "Signal not in project or does not exist" },
+    { "alarmId": 4242, "alarmKind": "analog", "reason": "Alarm not in project or does not exist" }
+  ]
+}
+```
+
+The server pre-validates project membership for both signal ids and
+alarm ids in one round-trip, so per-entry membership checks are O(1).
 
 ---
 

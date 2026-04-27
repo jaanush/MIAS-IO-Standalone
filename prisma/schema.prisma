@@ -1082,6 +1082,10 @@ model DiscreteAlarm {
   // once set, persists across reorderings so JMobile alarm IDs stay stable
   // (mirrors the Excel macro's BO/BA "Locked alarm no." columns).
   alarmNo      Int?                   @db.SmallInt @map("alarm_no")
+  // FR-011: full IEC expression for the alarm's triggered-state var/bit
+  // (e.g. "Application.GVL_ALARMS.bSomeAlarm"). Plugin populates during
+  // codegen via POST /iec-paths; NULL = not generated yet.
+  iecAlarmPath String?                @db.VarChar(500) @map("iec_alarm_path")
   createdAt    DateTime               @default(now()) @map("created_at")
   updatedAt    DateTime               @updatedAt @map("updated_at")
 
@@ -1103,6 +1107,10 @@ model AnalogAlarm {
   message      String?              @db.VarChar(255)
   // JMobile / legacy IO-list locked numbering — see DiscreteAlarm.alarmNo.
   alarmNo      Int?                 @db.SmallInt @map("alarm_no")
+  // FR-011: full IEC expression for this condition's triggered-state var
+  // (e.g. "Application.GVL_ALARMS.fbAlarm_T101.HH"). Plugin populates
+  // during codegen via POST /iec-paths; NULL = not generated yet.
+  iecAlarmPath String?              @db.VarChar(500) @map("iec_alarm_path")
   createdAt    DateTime             @default(now()) @map("created_at")
   updatedAt    DateTime             @updatedAt @map("updated_at")
 

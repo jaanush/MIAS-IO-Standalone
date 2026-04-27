@@ -3,6 +3,57 @@ import { db } from "@/lib/db";
 import { requireApiKey } from "../../_auth";
 import { computeCarrierAddresses, type AddressOffsets } from "../../_address";
 
+/**
+ * FR-012: derive an IEC-clean systemGroup string for grouping signals into
+ * per-system POUs on the plugin side. Strategy:
+ *   1. If signal_system.code is already an IEC-clean identifier-style
+ *      string (no spaces, no punctuation), use it verbatim.
+ *   2. Otherwise normalize signal_system.name: drop "(...)" and " - ..."
+ *      sub-classifiers, split on non-alphanumeric, PascalCase each word
+ *      except short (≤3 char) all-caps acronyms which stay all-caps,
+ *      then append the numeric code if present and not already there.
+ *
+ * Returns null when no system is set so callers can apply their own
+ * fallback (instance-name pattern, "System_Wide", etc.).
+ */
+function toSystemGroup(systemName: string | null | undefined, systemCode: string | null | undefined): string | null {
+  if (systemCode && /^[A-Za-z_][A-Za-z0-9_]*$/.test(systemCode)) {
+    return systemCode;
+  }
+  if (!systemName) return null;
+  let base = systemName.replace(/\([^)]*\)/g, "");
+  const dashIdx = base.indexOf(" - ");
+  if (dashIdx > 0) base = base.slice(0, dashIdx);
+  const words = base.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  if (words.length === 0) return null;
+  const normalized = words
+    .map((w) => {
+      if (/^\d+$/.test(w)) return w;
+      if (w.length <= 3 && w === w.toUpperCase()) return w;
+      return w[0].toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join("_");
+  if (systemCode && /^\d+$/.test(systemCode) && !normalized.includes(systemCode)) {
+    return `${normalized}_${systemCode}`;
+  }
+  return normalized || null;
+}
+
+/**
+ * FR-012: when signal_system is unset, fall back to the component
+ * instance name. Covers the LasseMaja BMS case where Kreisel CAN
+ * signals don't have signal_system rows but the component instance
+ * names ("FWD BMS", "AFT SC01", "Genset", ...) carry enough info.
+ */
+function instanceNameToSystemGroup(instanceName: string | null | undefined): string | null {
+  if (!instanceName) return null;
+  const trimmed = instanceName.trim();
+  if (/^FWD\b/i.test(trimmed)) return "Battery_866_C01";
+  if (/^AFT\b/i.test(trimmed)) return "Battery_866_C02";
+  if (/^Genset\b/i.test(trimmed)) return "Genset_861";
+  return null;
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authError = requireApiKey(req);
   if (authError) return authError;
@@ -149,6 +200,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       hwTypeCode: true,
       hwInstance: true,
       systemId: true,
+      system: { select: { code: true, name: true } },
       componentTag: true,
       drawingRef: true,
       cabinetLocation: true,
@@ -365,6 +417,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       ? `N${s.hwCabinet}:D${String(s.hwCarrier).padStart(2, "0")}:${s.hwTypeCode}${String(s.hwInstance).padStart(2, "0")}`
       : null;
 
+    // FR-012: stable systemGroup for per-system POU bucketing on plugin
+    // side. signal_system → instance-name fallback → System_Wide.
+    const systemGroup =
+      toSystemGroup(s.system?.name, s.system?.code) ??
+      instanceNameToSystemGroup(s.instanceSignal?.instance.name) ??
+      "System_Wide";
+
     return {
       id: s.id,
       tag: s.tag,
@@ -375,6 +434,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       gvlId: s.gvlId,
       gvlName: s.gvl?.name ?? null,
       systemId: s.systemId,
+      systemGroup,
       componentTag: s.componentTag,
       drawingRef: s.drawingRef,
       cabinetLocation: s.cabinetLocation,
