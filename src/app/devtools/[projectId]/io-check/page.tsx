@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { trpc } from "@/trpc/client";
-import { ClipboardCheck, Plus, ChevronRight } from "lucide-react";
+import { ClipboardCheck, Plus, ChevronRight, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** IO-Check tab — shows PLC list to start new check or view past sessions */
@@ -26,6 +26,20 @@ export default function IOCheckLandingPage({
       <p className="text-xs text-muted-foreground mb-4">
         Select a PLC to start a new IO-check session
       </p>
+
+      <Link
+        href={`/devtools/${projectId}/io-check/reports`}
+        className="flex items-center gap-3 p-3 mb-3 rounded-lg border bg-muted/30 hover:bg-accent transition-colors"
+      >
+        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm">Reports</p>
+          <p className="text-xs text-muted-foreground">
+            View past sessions and the cross-tab summary matrix
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </Link>
 
       <div className="flex flex-col gap-2">
         {plcs.map((plc) => (

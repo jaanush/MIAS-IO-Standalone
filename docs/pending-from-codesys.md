@@ -205,3 +205,167 @@ match `strMKII`.
   parent? Prefer reuse.
 
 ---
+
+## FR-011 — JMobile alarm IEC path: pick Option A
+
+**Date:** 2026-04-27
+**Reply to:** your "PROPOSAL — `iec_alarm_path` for the upcoming JMobile alarm export" (2026-04-26)
+
+### Decision
+
+**Option A** (column on `discrete_alarm` and `analog_alarm`). Go ahead.
+
+### Rationale
+
+- Structural consistency with the existing `iec_path`/`iec_path_raw`
+  push wins. One row per concrete thing (signal or alarm) is easier
+  to reason about on both sides than a JSON map.
+- The "alarm-id lookup" objection is real but cheap on the plugin
+  side: alarms are already in the `/api/codesys/project/:id` payload
+  the plugin consumes at codegen entry, so alarmId is in hand
+  before the push — no extra round-trip.
+- A single endpoint upserting either signal-paths or alarm-paths
+  keeps the plugin codegen thin: one collector, one POST.
+
+### What the plugin will push
+
+Per discrete alarm whose triggered state is a named GVL var:
+
+```json
+{ "alarmId": <id>, "alarmKind": "discrete", "iecAlarmPath": "Application.GVL_ALARMS.bSomeAlarm" }
+```
+
+Per analog alarm condition:
+
+```json
+{ "alarmId": <id>, "alarmKind": "analog",  "iecAlarmPath": "Application.GVL_ALARMS.fbAlarm_T101.HH" }
+```
+
+Each analog alarm row covers one condition (HH/H/L/LL) and the path
+points at the bit/var the HMI subscribes to for THAT condition's
+triggered state. Plugin-side: one codegen pass after generating
+`GVL_ALARMS` produces `(alarmId, kind, path)` triples. Pushed in
+the same `POST /api/codesys/project/:id/iec-paths` call as the
+signal entries.
+
+### Acceptance from our side
+
+Once schema + endpoint land, the plugin will:
+
+1. Discover alarms via the project payload at codegen entry.
+2. Produce IEC paths for each generated alarm var.
+3. Append entries to the existing iec-paths POST batch.
+
+No flag required to enable — if the path field is present on the
+push, server stores it; if absent, server leaves it null.
+
+### Open
+
+`POST /iec-paths` partial-success semantics: if `alarmId` doesn't
+exist, return per-entry status (existing or new) and continue with
+the rest. Same as the current signal-path behaviour. Confirm.
+
+---
+
+## FR-012 — `signal.systemGroup` populated on every signal
+
+**Priority:** HIGH — needed to split the 14k-line `PRG_MIAS_Init` POU
+by physical/functional system so the body actually compiles + runs on
+the PFC200. (Suspected POU-size limit is what caused init to silently
+not execute on LasseMaja, even with `xInitDone = TRUE` after build.)
+**Date:** 2026-04-27
+
+### Context
+
+Plugin needs to split `PRG_MIAS_Init` into per-system POUs (e.g.
+`PRG_MIAS_Init_System_Cooling_System_721`,
+`PRG_MIAS_Init_System_Propulsion_FWD_625`, ...) so:
+- Each POU stays well under the CODESYS PFC compiled-bytecode cap
+  (~32–64 KB per POU; 14k lines blew through it silently)
+- A human commissioning a system can find that system's init in one
+  named POU
+- Init can be staged across multiple MainTask cycles via a state
+  machine in the orchestrator
+
+This means every signal needs a `systemGroup` so the plugin knows which
+POU to render its init lines into.
+
+For LasseMaja project 1 (`GET /api/codesys/project/1`), all 1115
+signals come back with `systemGroup: null`:
+
+```
+System groups distribution: {<null>: 1115}
+```
+
+Plugin tried to derive systemGroup from tag prefix (walk chunks until
+first all-digit segment, e.g. `Cooling_System_721_KS1_P11A_...` →
+`Cooling_System_721`). That works for ~550 of 1115 signals but fails
+for the ~565 BMS signals whose tags are CAN field names without any
+system prefix (`linkVoltage`, `alive_PT`, `essMstrPrechargeState00_BMS`,
+etc.). Those tags don't tell you which physical battery they belong
+to (`866-C01` FWD vs `866-C02` AFT).
+
+### Request
+
+Populate `signal.systemGroup` on **every signal** in the
+`/api/codesys/project/:id` response with a stable system identifier.
+
+#### Suggested format
+
+`systemGroup` should be a stable, IEC-identifier-clean string that
+groups signals belonging to the same physical/functional system.
+Values used by the LasseMaja project (derivable from the signal data
+already present, just exposed on the field):
+
+```
+AC_Distribution_875
+AC_Shore_Connection_868
+Battery_866_C01            ← 866-C01 BMS (FWD), Kreisel BMS CAN signals
+Battery_866_C02            ← 866-C02 BMS (AFT), Kreisel BMS CAN signals
+Common_Electric_System_851
+Common_Electric_System_852
+Contr_Mon_System
+Cooling_System_721
+DC_Distribution_871
+DC_Shore_Connection_868
+DC_Shore_Connection_869
+Fire_Alarm_811
+Genset_861
+Hydraulic_System_831
+Propulsion_FWD_625
+Propulsion_FWD_851
+Ultra_FOG_System_815
+Ventilation_System_574
+24vdc_Distribution_874
+```
+
+(Underscore-separated, IEC identifier rules — no spaces, no leading
+digits, ASCII only.)
+
+The mapping for BMS signals can come from each signal's
+`busSignal.networkId` (each Kreisel pack lives on its own CAN net):
+- net 22 (or whichever is FWD) → `Battery_866_C01`
+- net 23 (or whichever is AFT) → `Battery_866_C02`
+
+For the rest, `tag.split('_')[0..n]` where `n` is the index of the
+first all-digit chunk works.
+
+### Acceptance
+
+`GET /api/codesys/project/1` returns `systemGroup` as a non-null
+string on **every** signal with `ioCard != null` (IEC + Modbus TCP)
+and on every CAN signal where the BMS pack can be determined from
+network/component data.
+
+For signals that genuinely don't belong to any specific system
+(rare — INTERNAL signals, system-wide alarms), `systemGroup =
+"System_Wide"` is acceptable as a synthetic fallback.
+
+### Plugin-side workaround status
+
+Plugin will use `signal.systemGroup` when present; falls back to
+tag-prefix derivation, then to `Other` bucket. Once MIAS-IO populates
+the field properly, the per-system POU naming will become stable and
+human-meaningful instead of catch-all `Other` for the BMS half.
+
+---

@@ -120,7 +120,10 @@ export const devtoolsRouter = createTRPCRouter({
 
   // --- IO-Check Session Management ---
 
-  /** Create a new IO-check session */
+  /** Create a new IO-check session.
+   *  Also auto-enables SCALED monitoring on every selected signal at 1s
+   *  intervals so the wizard can pull live values via FR-007 (replaces the
+   *  partly-broken OPC UA WS path). Idempotent on the monitoring side. */
   ioCheckCreate: protectedProcedure
     .input(
       z.object({
@@ -145,6 +148,30 @@ export const devtoolsRouter = createTRPCRouter({
         },
         include: { results: true },
       });
+
+      // Auto-subscribe — one row per (signal, SCALED). Use createMany with
+      // skipDuplicates so re-runs don't fail on the (signal_id, mode) unique.
+      if (input.signalIds.length > 0) {
+        await db.signalMonitoring.createMany({
+          data: input.signalIds.map((signalId) => ({
+            signalId,
+            mode: "SCALED" as const,
+            projectId: input.projectId,
+            intervalMs: 1000,
+            enabled: true,
+          })),
+          skipDuplicates: true,
+        });
+        // For pre-existing rows, make sure they're enabled + interval=1s.
+        await db.signalMonitoring.updateMany({
+          where: {
+            signalId: { in: input.signalIds },
+            mode: "SCALED",
+          },
+          data: { enabled: true, intervalMs: 1000 },
+        });
+      }
+
       return session;
     }),
 
@@ -205,6 +232,16 @@ export const devtoolsRouter = createTRPCRouter({
                   signalType: true,
                   direction: true,
                   gvl: { select: { name: true } },
+                  // ioCard surfaces the carrier+slot so the wizard can
+                  // group results by module and offer "skip to next module".
+                  ioCard: {
+                    select: {
+                      id: true,
+                      slotPosition: true,
+                      cardType: true,
+                      carrier: { select: { id: true, name: true } },
+                    },
+                  },
                   analogSignal: {
                     include: {
                       engineeringUnit: { select: { symbol: true } },
@@ -234,6 +271,125 @@ export const devtoolsRouter = createTRPCRouter({
           },
         },
         orderBy: { startedAt: "desc" },
+      });
+    }),
+
+  /** Project-level: every IO-check session across PLCs with summary counts. */
+  ioCheckListForProject: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input }) => {
+      const sessions = await db.ioCheckSession.findMany({
+        where: { projectId: input.projectId },
+        include: {
+          plc: { select: { id: true, name: true } },
+          results: { select: { status: true } },
+        },
+        orderBy: { startedAt: "desc" },
+      });
+      return sessions.map((s) => {
+        const counts = { PENDING: 0, PASS: 0, FAIL: 0, SKIPPED: 0 };
+        for (const r of s.results) counts[r.status]++;
+        return {
+          id: s.id,
+          plcId: s.plcId,
+          plcName: s.plc.name,
+          operatorName: s.operatorName,
+          startedAt: s.startedAt,
+          completedAt: s.completedAt,
+          notes: s.notes,
+          total: s.results.length,
+          ...counts,
+        };
+      });
+    }),
+
+  /** Cross-tab summary: every signal that has appeared in at least one
+   *  session × every session, with each cell's status. Used by the
+   *  matrix view. Returns a sparse map keyed (signalId, sessionId). */
+  ioCheckMatrix: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input }) => {
+      const sessions = await db.ioCheckSession.findMany({
+        where: { projectId: input.projectId },
+        select: {
+          id: true,
+          plcId: true,
+          plc: { select: { name: true } },
+          operatorName: true,
+          startedAt: true,
+          completedAt: true,
+        },
+        orderBy: { startedAt: "asc" },
+      });
+      const sessionIds = sessions.map((s) => s.id);
+      const results = sessionIds.length === 0 ? [] : await db.ioCheckResult.findMany({
+        where: { sessionId: { in: sessionIds } },
+        select: {
+          sessionId: true,
+          signalId: true,
+          status: true,
+          checkedAt: true,
+          signal: {
+            select: {
+              id: true,
+              tag: true,
+              description: true,
+              signalType: true,
+              direction: true,
+              ioCard: { select: { slotPosition: true, carrier: { select: { name: true } } } },
+            },
+          },
+        },
+      });
+
+      // Collect distinct signals across all sessions.
+      const signalMap = new Map<number, typeof results[0]["signal"]>();
+      for (const r of results) signalMap.set(r.signalId, r.signal);
+      const signals = [...signalMap.values()].sort((a, b) => {
+        // Order by carrier → slot → tag for grouping.
+        const ca = a.ioCard?.carrier.name ?? "";
+        const cb = b.ioCard?.carrier.name ?? "";
+        if (ca !== cb) return ca.localeCompare(cb);
+        const sa = a.ioCard?.slotPosition ?? 0;
+        const sb = b.ioCard?.slotPosition ?? 0;
+        if (sa !== sb) return sa - sb;
+        return (a.tag ?? "").localeCompare(b.tag ?? "");
+      });
+
+      // Cell map: "signalId:sessionId" → { status, checkedAt }
+      const cells: Record<string, { status: string; checkedAt: Date | null }> = {};
+      for (const r of results) {
+        cells[`${r.signalId}:${r.sessionId}`] = {
+          status: r.status,
+          checkedAt: r.checkedAt,
+        };
+      }
+
+      return { sessions, signals, cells };
+    }),
+
+  /** Bulk-fetch latest live readings for a list of signals (per mode).
+   *  Used by the wizard to show live values for the current signal +
+   *  optionally adjacent ones. Plugin pushes via /readings; this just
+   *  reads the cached row. */
+  signalLiveReadingsByIds: protectedProcedure
+    .input(z.object({
+      signalIds: z.array(z.number().int()),
+      mode: z.enum(["SCALED", "RAW"]).default("SCALED"),
+    }))
+    .query(async ({ input }) => {
+      if (input.signalIds.length === 0) return [];
+      return db.signalReadingLive.findMany({
+        where: { signalId: { in: input.signalIds }, mode: input.mode },
+        select: {
+          signalId: true,
+          mode: true,
+          value: true,
+          valueStr: true,
+          state: true,
+          tsPlugin: true,
+          errorMsg: true,
+        },
       });
     }),
 });

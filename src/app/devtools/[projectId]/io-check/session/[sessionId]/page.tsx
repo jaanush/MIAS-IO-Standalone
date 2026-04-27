@@ -2,8 +2,7 @@
 
 import { use, useMemo, useState } from "react";
 import { trpc } from "@/trpc/client";
-import { useDevTools } from "../../../../layout";
-import { useLiveValues } from "@/hooks/use-live-values";
+import { useFr007LiveReadings } from "@/hooks/use-fr007-live-readings";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft,
@@ -11,6 +10,7 @@ import {
   Check,
   X,
   SkipForward,
+  FastForward,
   ArrowLeft,
   Flag,
 } from "lucide-react";
@@ -23,7 +23,6 @@ export default function IOCheckSessionPage({
   params: Promise<{ projectId: string; sessionId: string }>;
 }) {
   const { projectId, sessionId } = use(params);
-  const { wsConnected, send, subscribe } = useDevTools();
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const utils = trpc.useUtils();
@@ -45,15 +44,37 @@ export default function IOCheckSessionPage({
 
   const results = session?.results ?? [];
   const current = results[currentIndex];
-  const plcId = session?.plc ? (session as any).plcId : null;
 
-  // Subscribe to live values for current signal
+  // Live readings via FR-007 (plugin-pushed). Monitoring is auto-enabled
+  // for every signal in the session by `ioCheckCreate`. We poll just the
+  // current signal at 1s; switching signals re-queries seamlessly.
   const currentSignalIds = useMemo(
     () => (current ? [current.signalId] : []),
     [current],
   );
-  const liveValues = useLiveValues(send, subscribe, wsConnected, plcId, currentSignalIds);
+  const liveValues = useFr007LiveReadings(currentSignalIds, "SCALED", 1000);
   const liveValue = current ? liveValues.get(current.signalId) : null;
+
+  // Skip-to-next-module: jump past every result whose source io_card matches
+  // the current signal's card. Compare by ioCard.id resolved on each result.
+  const skipToNextModule = () => {
+    if (!current) return;
+    const currentCardId = (current.signal as any)?.ioCard?.id ?? null;
+    if (currentCardId == null) {
+      // No card — fall back to plain next-signal behaviour.
+      if (currentIndex < results.length - 1) setCurrentIndex(currentIndex + 1);
+      return;
+    }
+    for (let i = currentIndex + 1; i < results.length; i++) {
+      const cardId = (results[i].signal as any)?.ioCard?.id ?? null;
+      if (cardId !== currentCardId) {
+        setCurrentIndex(i);
+        return;
+      }
+    }
+    // No further module — go to the end.
+    setCurrentIndex(results.length - 1);
+  };
 
   // Progress stats
   const checked = results.filter((r) => r.status !== "PENDING").length;
@@ -303,6 +324,15 @@ export default function IOCheckSessionPage({
           >
             <ChevronLeft className="h-4 w-4" />
             Previous
+          </button>
+          <button
+            onClick={skipToNextModule}
+            disabled={currentIndex === results.length - 1}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
+            title="Skip to first signal of next module"
+          >
+            <FastForward className="h-3.5 w-3.5" />
+            Next module
           </button>
           <button
             onClick={() =>
