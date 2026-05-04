@@ -26,12 +26,19 @@ import {
 import { PROJECT_STATUS } from "@/lib/enums";
 import { Trash2 } from "lucide-react";
 
+const COMMISSIONING_POLICIES = ["AUTO", "MANUAL_ONLY", "DISABLED"] as const;
+const REBOOT_STRATEGIES = ["BATCH_LAST_STEP", "PER_SLOT"] as const;
+
 const schema = z.object({
   name: z.string().min(1, "Required"),
   projectNumber: z.string().optional().nullable(),
   client: z.string().optional().nullable(),
   location: z.string().optional().nullable(),
   status: z.enum(PROJECT_STATUS),
+  commissioningPolicy: z.enum(COMMISSIONING_POLICIES),
+  commissioningInitialXLocalCommReq: z.boolean(),
+  commissioningInitialXRunPlaybook: z.boolean(),
+  commissioningRebootStrategy: z.enum(REBOOT_STRATEGIES),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -58,7 +65,13 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
     formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as any,
-    defaultValues: { name: "", projectNumber: "", client: "", location: "", status: "ACTIVE" },
+    defaultValues: {
+      name: "", projectNumber: "", client: "", location: "", status: "ACTIVE",
+      commissioningPolicy: "MANUAL_ONLY",
+      commissioningInitialXLocalCommReq: true,
+      commissioningInitialXRunPlaybook: false,
+      commissioningRebootStrategy: "BATCH_LAST_STEP",
+    },
   });
 
   useEffect(() => {
@@ -69,6 +82,10 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
         client: project.client ?? "",
         location: project.location ?? "",
         status: project.status as FormValues["status"],
+        commissioningPolicy: ((project as any).commissioningPolicy ?? "MANUAL_ONLY") as FormValues["commissioningPolicy"],
+        commissioningInitialXLocalCommReq: (project as any).commissioningInitialXLocalCommReq ?? true,
+        commissioningInitialXRunPlaybook: (project as any).commissioningInitialXRunPlaybook ?? false,
+        commissioningRebootStrategy: ((project as any).commissioningRebootStrategy ?? "BATCH_LAST_STEP") as FormValues["commissioningRebootStrategy"],
       });
     }
   }, [project, reset]);
@@ -108,6 +125,10 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
           client: values.client ?? undefined,
           location: values.location ?? undefined,
           status: values.status,
+          commissioningPolicy: values.commissioningPolicy,
+          commissioningInitialXLocalCommReq: values.commissioningInitialXLocalCommReq,
+          commissioningInitialXRunPlaybook: values.commissioningInitialXRunPlaybook,
+          commissioningRebootStrategy: values.commissioningRebootStrategy,
         }))}
         className="space-y-6"
       >
@@ -149,6 +170,91 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
             </Select>
           </div>
         </div>
+
+        {/* Hardware commissioning policy (FR-022) */}
+        <section className="space-y-3 border-t pt-6">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Hardware Commissioning Policy
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Controls when the IEC commissioner playbook runs on the deployed PLC.
+              Plugin codegen reads these values to emit the right initial state.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label>Policy</Label>
+              <Select
+                key={"cp-" + watch("commissioningPolicy")}
+                value={watch("commissioningPolicy")}
+                onValueChange={(v) => setValue("commissioningPolicy", v as FormValues["commissioningPolicy"], { shouldDirty: true })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AUTO">Auto — run on first boot</SelectItem>
+                  <SelectItem value="MANUAL_ONLY">Manual only — operator pulses xRun</SelectItem>
+                  <SelectItem value="DISABLED">Disabled — empty playbook, task removable</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                {watch("commissioningPolicy") === "AUTO" && "xRun=TRUE init; commissioner runs end-to-end on first cold boot."}
+                {watch("commissioningPolicy") === "MANUAL_ONLY" && "xRun=FALSE init; operator must pulse to start. Use during bring-up."}
+                {watch("commissioningPolicy") === "DISABLED" && "Empty playbook + xLocalCommReq=FALSE. Use after rack is fully commissioned."}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Reboot strategy</Label>
+              <Select
+                key={"crs-" + watch("commissioningRebootStrategy")}
+                value={watch("commissioningRebootStrategy")}
+                onValueChange={(v) => setValue("commissioningRebootStrategy", v as FormValues["commissioningRebootStrategy"], { shouldDirty: true })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BATCH_LAST_STEP">Batch — single SAVE_FLASH at end</SelectItem>
+                  <SelectItem value="PER_SLOT">Per slot — SAVE_FLASH after each module</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                {watch("commissioningRebootStrategy") === "BATCH_LAST_STEP" && "One PFC reboot total. Faster overall."}
+                {watch("commissioningRebootStrategy") === "PER_SLOT" && "Reboot per module. Slower but isolates failures."}
+              </p>
+            </div>
+
+            <label className="space-y-1 col-span-2 flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={watch("commissioningInitialXLocalCommReq")}
+                onChange={(e) => setValue("commissioningInitialXLocalCommReq", e.target.checked, { shouldDirty: true })}
+              />
+              <div>
+                <span className="text-sm">Initial <code className="font-mono text-[11px]">GVL_MIAS.xLocalCommReq</code> = TRUE</span>
+                <p className="text-[10px] text-muted-foreground">
+                  Whether commissioning is requested at PLC boot. FALSE = commissioner waits for an explicit external request.
+                </p>
+              </div>
+            </label>
+
+            <label className="space-y-1 col-span-2 flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={watch("commissioningInitialXRunPlaybook")}
+                onChange={(e) => setValue("commissioningInitialXRunPlaybook", e.target.checked, { shouldDirty: true })}
+              />
+              <div>
+                <span className="text-sm">Initial <code className="font-mono text-[11px]">GVL_Commission.xRun</code> = TRUE</span>
+                <p className="text-[10px] text-muted-foreground">
+                  Whether the playbook auto-runs on first cycle post-<code className="font-mono">xLocalCommActive</code>. Plugin overrides this to TRUE when policy = AUTO regardless.
+                </p>
+              </div>
+            </label>
+          </div>
+        </section>
 
         <div className="flex justify-end">
           <Button type="submit" disabled={!isDirty || update.isPending}>

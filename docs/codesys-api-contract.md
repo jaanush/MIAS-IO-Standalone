@@ -76,6 +76,11 @@ and derive everything they need from it.
       "id": 10,
       "name": "PLC-01",
       "ipAddress": "192.168.1.10",
+      "codesysDeviceName": "WAGO 750-8210 PFC200 G2 4ETH",
+      "kbusCycleTimeMs": null,
+      "commissioningOverrides": [
+        { "name": "KBus cycle time", "value": "10000", "notes": null }
+      ],
       "catalog": {
         "articleNumber": "750-8212",
         "manufacturer": "WAGO",
@@ -87,6 +92,21 @@ and derive everything they need from it.
           "protocol": "MODBUS_TCP",
           "role": "MASTER",
           "description": "Field devices network",
+          "baudRateKbit": null,
+          "baudRateBps": null,
+          "serialParity": null,
+          "serialStopBits": null,
+          "canMode": null,
+          "canFrameFormat": null,
+          "use29Bit": null,
+          "canFramingMode": null,
+          "canFramingDiscoveredAt": null,
+          "canHeartbeatMs": null,
+          "canSyncPeriodMs": null,
+          "cyclePeriodMs": null,
+          "cyclicCallIntervalMs": null,
+          "canRole": null,
+          "processImageBytes": null,
           "hostedByCardId": null
         }
       ],
@@ -113,6 +133,7 @@ and derive everything they need from it.
               "hasDiagnostics": false,
               "diagnosticType": "NONE",
               "diagnosticBitsPerChannel": null,
+              "commissioningOverrides": [],
               "catalog": {
                 "articleNumber": "750-1405",
                 "codesysModuleId": "0000 0750 0000 0000",
@@ -266,6 +287,141 @@ and derive everything they need from it.
   here — file a bug if it does. Values are not stable across renames of
   `signal_system.code`/`name` rows.
 
+**Notes on network / bus fields:**
+- `baudRateKbit` — speed in kbit/s. **Required** for `protocol IN
+  ('CANBUS', 'CANOPEN', 'DEVICENET')` (DB-enforced via the
+  `plc_network_baud_required_for_can` CHECK constraint). May be NULL on
+  J1939 (defacto 250 kbit fallback) and on Ethernet protocols where the
+  value is irrelevant.
+- `canFrameFormat` — enum `STANDARD` (11-bit) | `EXTENDED` (29-bit) |
+  `MIXED` | NULL. Set per-bus; reflects the protocol running on the
+  wire, not subject to autodetection.
+- `use29Bit` — convenience boolean derived from `canFrameFormat`:
+  `STANDARD → false`, `EXTENDED → true`, `MIXED / null → null`.
+- `canFramingMode` — enum `FIXED` (config authoritative) | `AUTO`
+  (commissioning-time discovery; plugin posts back via
+  `POST /api/codesys/projects/{id}/can-buses/{busId}/discovered`).
+- `canFramingDiscoveredAt` — ISO-8601 timestamp of the last successful
+  autobaud writeback, or NULL.
+- `cyclicCallIntervalMs` (FR-019) — per-iface CAN_Task cadence override
+  in milliseconds. `null` (default) means "use the CAN_Task cycle"
+  (10 ms today). Plugin renderer emits `tCallInterval := T#<value>MS`
+  per `iface_CAN_X` and auto-staggers `tCallOffset` so multiple slow
+  ifaces don't all fire on the same tick. Only applies to CAN
+  protocols (`CANBUS` / `CANOPEN` / `J1939` / `DEVICENET`); other
+  protocols may carry the column but the field is meaningless and
+  should be left null. Operator/plugin-controlled — write via
+  `PATCH /api/codesys/projects/{id}/can-buses/{busId}`.
+- `canRole` (FR-019 follow-up) — structured CAN bus role distinction.
+  Enum `PT_CAN` (production / heartbeat-bearing — never throttle below
+  the heartbeat cadence; maps to `FB_KreiselBMS.pIface`) | `P_CAN_DEBUG`
+  (diagnostics-only debug bus — default disabled in app code, safe to
+  throttle; maps to `FB_KreiselBMS.pPCanDevice`) | `GENERIC` (non-Kreisel
+  CAN bus where the PT/P distinction doesn't apply, e.g. Editron
+  CANopen) | `null` (same intent as `GENERIC`; either is fine). Lets
+  the renderer + Kreisel auto-wiring read a structured field instead
+  of parsing free-form bus descriptions. Write via the same PATCH
+  endpoint as `cyclicCallIntervalMs`.
+- `processImageBytes` (FR-020) — WAGO 750-658 K-bus process image size,
+  bytes per direction. Allowed values: `8`, `12`, `16`, `20`, `24`,
+  `32`, `40`, `48`. `null` (default) means "leave the module's
+  EEPROM-saved value alone". Setting a value triggers a one-shot
+  commissioning step on the plugin side that calls
+  `FbModuleConfigurationAndStatus` with `xCmdWriteFlash` — per WAGO
+  manual page 56, this triggers a controller restart, so it's
+  commissioning-time only. Same PATCH endpoint as the other two CAN-bus
+  fields.
+
+**Notes on top-level `commissioning` block (FR-022 Path B):**
+- `policy`: `AUTO` | `MANUAL_ONLY` | `DISABLED`. See PATCH endpoint above.
+- `initialXLocalCommReq`: initial value of `GVL_MIAS.xLocalCommReq`.
+- `initialXRunPlaybook`: initial value of `GVL_Commission.xRun`. Plugin codegen
+  forces TRUE when `policy = AUTO` regardless of this field.
+- `rebootStrategy`: `BATCH_LAST_STEP` | `PER_SLOT` — drives SAVE_FLASH placement
+  in the playbook codegen.
+- `catalogVersion`: opaque string for plugin traceability/logging. Currently
+  the path of the seed JSON; may grow into a hash if drift becomes a problem.
+  Do not parse — just log it.
+
+**Notes on per-PLC and per-IO-card `commissioning` block (FR-022 Path A):**
+- Joined catalog + project view. The catalog data (settings, signals,
+  apply method, library FB names) is mirrored from the canonical docs
+  catalogue (`MIAS-ref/docs/databases/wago/module_commissioning.json`,
+  owned by `mias-plugin` per NOTIF-011) into mias-io's
+  `module_catalog.commissioning_data` / `device_catalog.commissioning_data`
+  JSONB columns via the `prisma/seed_commissioning_catalog.ts` seeder.
+- `partId`: `<vendor>:<article_number>`, e.g. `wago:750-658`. Lowercase vendor.
+- `moduleClass`: catalog `module_class`, one of `controller` | `can_gateway` |
+  `serial_gateway` | `fieldbus_coupler` | `digital_in` | `digital_out` |
+  `digital_in_out` | `analog_in` | `analog_out` | `specialty` | `psu` |
+  `filter_psu` | `field_module` | `isolation_amplifier` | `dc_dc_converter` |
+  `end_module` | `extension_coupler`.
+- `needsCommissioning`: catalog flag. `false` modules (e.g. 750-600 end
+  module) ship factory-ready and the playbook should skip them.
+- `iecGlobalsPath`: catalog `iec_globals_path_pattern` with `<slot>` resolved
+  to the actual `slotPosition` (PLC has no slot, returns the pattern verbatim).
+- `libraryFb`: pass-through of catalog `library_fb`
+  (`{codesys_v2_lib, codesys_v3_namespace, config_fb, module_fb, extra_fbs}`).
+- `applyMethod`: catalog `apply_method`
+  (`{save_to_eeprom_required, takes_effect_immediately, requires_runtime_restart, requires_full_pfc_reboot, notes}`).
+- `settings[]`: per-setting joined view. Per entry:
+  - `name`: catalog setting name, matches override row.
+  - `writableFromIec`: `true` if catalog `writable_via` includes
+    `"Library FB input"` — drives whether the playbook emits a write step
+    or a `WAIT_OPERATOR`.
+  - `dataType` / `registerOrObject` / `valueRange` / `unit` /
+    `defaultValue` / `miasConventionValue`: catalog pass-through.
+  - `effectiveValue`: resolved value (override → mias_convention → default → null).
+  - `isOverridden`: `true` if a `PlcCommissioning` / `IoCardCommissioning`
+    row exists for this setting.
+  - `overrideNotes`: project-side notes column on the override row.
+  - `writableVia`: catalog list (`["Library FB input", "WAGO-I/O-CHECK", …]`).
+  - `encodingHint`: catalog `encoding_observed` (e.g. `{"500 kbit/s": 5}`).
+  - `verifyAgainst`: catalog field if present (NOTIF-011 follow-up addition);
+    otherwise null and plugin uses its own pairing table.
+  - `applyMethodOverride`: per-setting override (NOTIF-011 follow-up addition);
+    null when the module-level `applyMethod` applies.
+  - `description`: catalog text for UI hover.
+  - `operatorInstruction` (only when `writableFromIec` is false): generated
+    string for the `WAIT_OPERATOR` step.
+  - **Note:** `miasOpCode` mapping (e.g. `SET_BAUD_658`) stays plugin-side —
+    mias-io does not emit op codes per FR-022's accepted split.
+- `monitoringSignals[]`: pass-through of catalog `monitoring_signals` for
+  VERIFY-pair lookups + alarm threshold seeds.
+- `constraints[]`: catalog `commissioning_constraints` pass-through.
+- `sourceVerified` / `sourceVerificationProject`: catalog `source` pass-through.
+
+**Notes on `commissioningOverrides` (PLC and IO card level):**
+- Project-side overrides for the hardware commissioning function. Each entry's
+  `name` matches a `commissioning_settings[].name` in the canonical catalog
+  entry (`MIAS-ref/docs/databases/wago/module_commissioning.json`, owned by
+  `mias-plugin` per the NOTIF-011 split).
+- Effective value resolution at commissioning time:
+  1. Project override row in this list, OR
+  2. Catalog `mias_convention_value`, OR
+  3. Catalog `default_value`, OR
+  4. `null` (skip — operator handles manually).
+- `value` is stored as text and interpreted by the plugin per the catalog
+  entry's `data_type`. Examples: `"500"` (UDINT baud), `"Asynchronous"`
+  (ENUM), `"0"` (INT thread priority).
+- Empty list = no overrides; use catalog defaults verbatim. **Most projects
+  will have empty lists** — overrides exist only when a specific deployment
+  needs to deviate from the MIAS convention.
+- Catalog data itself is not in this response (plugin reads its own
+  `module_commissioning.json` catalog). Mias-io's mirrored copy lives in
+  `data/commissioning/wago_module_commissioning.json` (vendored, seeded into
+  `module_catalog.commissioning_data` / `device_catalog.commissioning_data`
+  Json columns).
+- Specific MIAS conventions worth knowing:
+  - 750-658 PI size (`processImageBytes` field on the Bus, see above).
+  - 750-658 frame format (`canFrameFormat` STANDARD/EXTENDED, the historical
+    R16+R32 register pair documented in the catalog under
+    "CAN data format").
+  - 750-658 baud rate (Bus `baudRateKbit`, surfaced redundantly as a
+    commissioning override under "CAN baud rate" if present).
+  - K-bus cycle time for the PLC controller (`kbusCycleTimeMs` field on
+    the Plc, see FR-021).
+
 **Notes on `plcAddress`:**
 - Computed server-side from `ioCard.slotPosition` + `channelPosition` + `cardType`
 - Format follows IEC 61131-3: `%IX{byte}.{bit}` (DI), `%QX{byte}.{bit}` (DO),
@@ -387,6 +543,186 @@ compare it against the configured hardware and flag mismatches. This is a
 | `400` | Invalid JSON or missing `plcs` array |
 | `401` | Missing or invalid `X-API-Key` |
 | `404` | Project not found |
+
+---
+
+### `PATCH /api/codesys/projects/{id}/can-buses/{busId}`  (FR-019, FR-019 follow-up, FR-020)
+
+Partial update of CAN-bus configuration values that the plugin owns.
+Each supported field is optional; absent = no change. At least one
+supported field must be present in the body.
+
+**Auth:** `X-API-Key` header
+
+**Request body**
+
+```json
+{
+  "cyclicCallIntervalMs": 50,
+  "canRole": "P_CAN_DEBUG",
+  "processImageBytes": 48
+}
+```
+
+| Field | Notes |
+|---|---|
+| `cyclicCallIntervalMs` | (FR-019) Integer in `[10, 200]`, multiple of 10. `null` clears the override (bus reverts to CAN_Task cycle = 10 ms today). |
+| `canRole` | (FR-019 follow-up) One of `PT_CAN` / `P_CAN_DEBUG` / `GENERIC`, or `null`. Case-insensitive accepted; stored uppercase. |
+| `processImageBytes` | (FR-020) Integer in `{8, 12, 16, 20, 24, 32, 40, 48}` or `null`. `null` leaves the module's EEPROM-saved value alone. |
+
+**Validation**
+
+- Body must contain at least one of the three supported fields.
+- Sending the same field as both omitted and a value is impossible —
+  there is no "merge with existing" mode beyond the natural per-field
+  partial update.
+- `null` for any field is treated as a clear (no override).
+- Bus must exist and belong to `{id}`.
+- Bus protocol must be CAN-family (`CANBUS` / `CANOPEN` / `J1939` /
+  `DEVICENET`); any other protocol is rejected.
+
+**Response: `200 OK`**
+
+```json
+{
+  "accepted": true,
+  "bus": {
+    "id": 18,
+    "protocol": "CANOPEN",
+    "cyclicCallIntervalMs": 50,
+    "canRole": "P_CAN_DEBUG",
+    "processImageBytes": 48
+  }
+}
+```
+
+The response always echoes all three fields, regardless of which were
+in the request — so the plugin can verify the post-update state of any
+field on a single round-trip.
+
+**Errors**
+
+| Status | Reason |
+|---|---|
+| `400` | Invalid JSON / no supported field present / wrong type / out of range / not a multiple of 10 / not an allowed PI size / unknown enum value / bus not in project / non-CAN protocol |
+| `401` | Missing or invalid `X-API-Key` |
+| `404` | Bus not found |
+
+---
+
+### `PATCH /api/codesys/projects/{id}/plcs/{plcId}`  (FR-021)
+
+Partial update of PLC configuration values that the plugin owns. Today
+only `kbusCycleTimeMs` — the PFC200 K-bus device parameter Id=128.
+Will be extended as more plugin-owned PLC fields appear.
+
+**Auth:** `X-API-Key` header
+
+**Request body**
+
+```json
+{ "kbusCycleTimeMs": 10 }
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `kbusCycleTimeMs` | yes | Integer in `[1, 50]` (per WAGO Kbus device parameter limits). `null` clears the override (renderer leaves the device default — 10 ms — in place). |
+
+**Validation**
+
+- `kbusCycleTimeMs` must be present in the body. Sending `{}` returns 400.
+- `null` is allowed and clears the override.
+- PLC must exist and belong to `{id}`.
+
+**Plugin-side semantics**: requires a full CODESYS download to take
+effect. Online change of device parameters is not supported.
+
+**Response: `200 OK`**
+
+```json
+{
+  "accepted": true,
+  "plc": {
+    "id": 1,
+    "name": "D01",
+    "kbusCycleTimeMs": 10
+  }
+}
+```
+
+**Errors**
+
+| Status | Reason |
+|---|---|
+| `400` | Invalid JSON / missing `kbusCycleTimeMs` / wrong type / out of range / PLC not in project |
+| `401` | Missing or invalid `X-API-Key` |
+| `404` | PLC not found |
+
+---
+
+### `PATCH /api/codesys/projects/{id}/commissioning`  (FR-022 Path B)
+
+Partial update of the project-level hardware commissioning policy. Plugin
+codegen reads these to emit `GVL_MIAS.xLocalCommReq` /
+`GVL_Commission.xRun` initial values + the `SAVE_FLASH` scheduling in
+the IEC commissioner's playbook.
+
+**Auth:** `X-API-Key` header
+
+**Request body** (any subset of the four supported fields):
+
+```json
+{
+  "policy": "MANUAL_ONLY",
+  "initialXLocalCommReq": true,
+  "initialXRunPlaybook": false,
+  "rebootStrategy": "BATCH_LAST_STEP"
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `policy` | enum | `AUTO` \| `MANUAL_ONLY` \| `DISABLED`. `AUTO`: commissioner task active, `xRun` initialised TRUE — runs on first cycle post-`xLocalCommActive`. `MANUAL_ONLY`: task active, `xRun` initialised FALSE — operator pulses `xRun` to start. `DISABLED`: empty playbook + `xLocalCommReq` = FALSE; `Commissioning_Task` is removable from the deployed project (CODESYS V3 dead-code-eliminates the `Commission/*` subtree). |
+| `initialXLocalCommReq` | boolean | Initial value of `GVL_MIAS.xLocalCommReq`. Default `true` (commissioning enabled at boot). |
+| `initialXRunPlaybook` | boolean | Initial value of `GVL_Commission.xRun`. Default `false` (operator must pulse). When `policy = AUTO` the plugin codegen overrides this to TRUE regardless. |
+| `rebootStrategy` | enum | `BATCH_LAST_STEP` (single SAVE_FLASH at end of playbook → one PFC reboot total) \| `PER_SLOT` (SAVE_FLASH per module → reboot per slot, longer outage but safer per-step). Default `BATCH_LAST_STEP`. |
+
+**Validation**
+
+- Body must contain at least one of the four fields. Sending `{}` returns 400.
+- Enum values are case-sensitive; type errors return 400.
+- Project must exist.
+
+**Response: `200 OK`** — full commissioning block echoed:
+
+```json
+{
+  "accepted": true,
+  "commissioning": {
+    "policy": "MANUAL_ONLY",
+    "initialXLocalCommReq": true,
+    "initialXRunPlaybook": false,
+    "rebootStrategy": "BATCH_LAST_STEP"
+  }
+}
+```
+
+The same block also surfaces on `GET /api/codesys/project/{id}` under
+the top-level `commissioning` key (alongside `catalogVersion` for plugin
+traceability).
+
+**Errors**
+
+| Status | Reason |
+|---|---|
+| `400` | Invalid JSON / no supported fields / wrong enum / wrong type |
+| `401` | Missing or invalid `X-API-Key` |
+| `404` | Project not found |
+
+**Defaults for new projects:** `policy = MANUAL_ONLY`,
+`initialXLocalCommReq = true`, `initialXRunPlaybook = false`,
+`rebootStrategy = BATCH_LAST_STEP`. Existing projects backfill to these
+defaults on migration.
 
 ---
 
@@ -525,32 +861,93 @@ Rules for variable name generation:
 Push FB pin definitions from the plugin. Upserts by `(fbName, sourceFile)`.
 Auto-links to HardwareComponent where `functionBlock` matches `fbName`.
 
+**Full replacement semantics:** re-pushing a FB deletes its existing
+parameters (and their hints, via cascade) and recreates them from the
+payload. Don't try to "patch" — push the full pin set every time.
+
 **Auth:** `X-API-Key` header
 
 **Request body** — single object or array:
 
-```json
+```jsonc
 [
   {
-    "fbName": "Editron_Converter_FW11_MC",
-    "extendsName": "Editron_Converter_FW11",
-    "sourceFile": "METS-LIB.fbslib",
+    "fbName": "FB_HmiPropeller",
+    "extendsName": "FB_HmiBase",
+    "sourceFile": "FB_HmiPropeller.fb.st",
+    "alwaysReview": false,
+    "hintSchemaVersion": "1.0.0",
     "parameters": [
-      { "name": "Enable", "direction": "VAR_INPUT", "dataType": "BOOL" },
-      { "name": "Speed_Actual_RPM", "direction": "VAR_OUTPUT", "dataType": "INT" }
+      {
+        "name": "Power",
+        "direction": "VAR_OUTPUT",
+        "dataType": "REAL",
+        "wiringHint": {
+          "kind": "signal",
+          "semantic": "power_active",
+          "valueRole": "actual",
+          "expectedUnit": "kW",
+          "matchTag": ["Power", "Power_kW"],
+          "required": true,
+          "humanReview": false,
+          "commandKind": null,
+          "structRole": null,
+          "arrayCardinality": null,
+          "instrumentClass": null,
+          "defaultLiteral": null,
+          "pairedWith": null,
+          "notes": null
+        }
+      },
+      {
+        "name": "Synchronize",
+        "direction": "VAR_IN_OUT",
+        "dataType": "BOOL"
+      }
     ]
   }
 ]
 ```
 
+**FB-level fields:**
+
 | Field | Required | Notes |
 |---|---|---|
 | `fbName` | yes | FB type name |
-| `extendsName` | no | Parent FB (inheritance) |
+| `extendsName` | no | Parent FB (inheritance). Matcher walks this chain at match time; pin-level hints on the leaf override the base. |
 | `sourceFile` | no | Default `"plugin-api"` |
+| `alwaysReview` | no | Default `false`. When `true`, the matcher classifies every pin on this FB as `needs_review` regardless of pin-level score — for FBs whose wiring has physical consequences (contactor drives, e-stops, isolation requests). |
+| `hintSchemaVersion` | no | Semantic version of the wiringHint schema this push uses. Start at `"1.0.0"`. Stored on the FB and copied onto each hint row at write time. |
 | `parameters[].name` | yes | Parameter name |
 | `parameters[].direction` | yes | `VAR_INPUT`, `VAR_OUTPUT`, `VAR_IN_OUT`, `VAR` |
 | `parameters[].dataType` | yes | IEC 61131-3 type |
+| `parameters[].wiringHint` | no | Auto-wire metadata — see below. Omit (don't `null`) when no hint is available; an omitted hint = no row written, not an empty hint. |
+
+**`wiringHint` fields** (all optional; absent = "no opinion"):
+
+| Field | Type | Notes |
+|---|---|---|
+| `kind` | `"signal" \| "parameter"` | Default `"signal"`. `"signal"` = matcher resolves to a project signal. `"parameter"` = matcher fills from `defaultLiteral` / a setpoint, no signal binding. |
+| `semantic` | string | Vocabulary tag (e.g. `power_active`, `temperature_bearing_de`). See vocabulary in NOTIF-023 / FR-015 reply. Free-form — unknown tags fall through to manual wiring. |
+| `valueRole` | `"actual" \| "setpoint" \| "reference" \| "limit" \| "alarm" \| "command"` | Disambiguates measurement vs command on otherwise identical pins. Critical for converter FBs that have both `_actual` and `_reference` pins of the same physical quantity. |
+| `expectedUnit` | string | Primary unit per quantity (e.g. `"kW"`, `"degC"`). Matcher prefers candidate signals whose unit converts cleanly within the same `engineering_unit.quantity` family. |
+| `matchTag` | string[] | Tag-suffix candidates the matcher should look for in `componentSignal.tag_suffix`. High-weight signal in scoring. |
+| `required` | boolean | Default `false`. When `true`, no confident match → block the recipe and surface for human review. |
+| `humanReview` | boolean | Default `false`. When `true`, even a high-confidence match is classified as `needs_review` — for pins where wrong wiring is dangerous. |
+| `commandKind` | `"pulse" \| "level"` | Edge-triggered vs sustained. Used for `command_*` semantics. |
+| `structRole` | string | For struct-typed pins, identifies the *role* of the struct (e.g. `"power_measurement"`) independent of the concrete struct type. |
+| `arrayCardinality` | integer | For array pins: how many elements. Matcher expects either N siblings or one composite signal that fans out. |
+| `instrumentClass` | string | ISA tag class if applicable: `PT`, `TT`, `FT`, `LT`, … |
+| `defaultLiteral` | string | Template-time default for `kind: "parameter"` or for HMI / VAR_IN_OUT pins. User can override per instance. Presence on a `signal`-kind pin signals "skip signal binding". |
+| `pairedWith` | string | For in/out pairs (e.g. `HmiStartButton` ↔ `HmiStartButton_out`). |
+| `notes` | string | Free-form note for the curator — surfaced in review UI, ignored by matcher. |
+
+**Versioning rule:** the endpoint always accepts the push, even when
+`hintSchemaVersion`'s major doesn't match the matcher's expected major.
+Push-time rejection would block the plugin cold. Instead, the matcher
+logs a `wiring_recipe_gap` row with reason `INCOMPATIBLE_HINT_VERSION`
+lazily at match time. This keeps the plugin's curated payload safe across
+matcher upgrades.
 
 **Response: `200 OK`**
 
@@ -558,10 +955,22 @@ Auto-links to HardwareComponent where `functionBlock` matches `fbName`.
 {
   "accepted": true,
   "definitions": [
-    { "id": 42, "fbName": "Editron_Converter_FW11_MC", "componentId": 4, "componentMatched": true, "parametersCount": 2 }
+    {
+      "id": 42,
+      "fbName": "FB_HmiPropeller",
+      "componentId": 4,
+      "componentMatched": true,
+      "parametersCount": 12,
+      "hintsCount": 11,
+      "alwaysReview": false,
+      "hintSchemaVersion": "1.0.0"
+    }
   ]
 }
 ```
+
+`hintsCount` is the number of parameters in the payload that carried a
+`wiringHint`. Use it to verify your curated hints made it through.
 
 ---
 

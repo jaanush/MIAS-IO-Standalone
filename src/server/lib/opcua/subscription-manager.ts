@@ -25,9 +25,12 @@ import {
 import type { WebSocket } from "ws";
 import { connectionManager } from "./connection-manager";
 
+export type SubscriptionMode = "scaled" | "raw";
+
 export interface ValueUpdate {
   signalId: number;
   nodeId: string;
+  mode: SubscriptionMode;
   value: unknown;
   dataType: string;
   timestamp: string;
@@ -43,6 +46,9 @@ interface PlcSubscription {
   fanout: Map<string, Set<WebSocket>>;
   /** nodeId → signalId mapping (for messages to clients) */
   nodeToSignal: Map<string, number>;
+  /** nodeId → which logical mode it represents — lets us group flushBatch
+   *  outputs into one ValuesMessage per (ws, mode). */
+  nodeMode: Map<string, SubscriptionMode>;
   /** Pending batched updates per WS client */
   pendingUpdates: Map<WebSocket, ValueUpdate[]>;
   /** Batch flush timer */
@@ -65,12 +71,16 @@ class SubscriptionManager {
 
   /**
    * Subscribe a WebSocket client to signals on a PLC.
-   * signalMap: Map<signalId, nodeId>
+   * signalMap: Map<signalId, nodeId> — nodeIds for raw and scaled modes
+   * differ (`.AsDint` vs `.AsReal`), so two subscribe calls for the same
+   * signalId co-exist as separate MonitoredItems without colliding in the
+   * nodeToSignal map.
    */
   async subscribe(
     ws: WebSocket,
     plcId: number,
     signalMap: Map<number, string>,
+    mode: SubscriptionMode = "scaled",
   ): Promise<void> {
     if (!connectionManager.hasSession(plcId)) {
       throw new Error(`PLC ${plcId} is not connected`);
@@ -83,6 +93,7 @@ class SubscriptionManager {
         monitoredItems: new Map(),
         fanout: new Map(),
         nodeToSignal: new Map(),
+        nodeMode: new Map(),
         pendingUpdates: new Map(),
         batchTimer: null,
       };
@@ -103,6 +114,7 @@ class SubscriptionManager {
 
     for (const [signalId, nodeId] of signalMap) {
       plcSub.nodeToSignal.set(nodeId, signalId);
+      plcSub.nodeMode.set(nodeId, mode);
 
       // Add WS to fanout set
       let clients = plcSub.fanout.get(nodeId);
@@ -144,8 +156,16 @@ class SubscriptionManager {
     connectionManager.touch(plcId);
   }
 
-  /** Unsubscribe a WS client from specific signals */
-  async unsubscribe(ws: WebSocket, plcId: number, nodeIds: string[]): Promise<void> {
+  /** Unsubscribe a WS client from specific signals.
+   *  Mode is accepted for parity with subscribe(); since raw vs scaled
+   *  produce different nodeIds, the caller already passes the correct
+   *  ones and mode is only used for cleanup of the nodeMode map. */
+  async unsubscribe(
+    ws: WebSocket,
+    plcId: number,
+    nodeIds: string[],
+    _mode: SubscriptionMode = "scaled",
+  ): Promise<void> {
     const plcSub = this.plcSubs.get(plcId);
     if (!plcSub) return;
 
@@ -168,6 +188,7 @@ class SubscriptionManager {
           plcSub.monitoredItems.delete(nodeId);
         }
         plcSub.nodeToSignal.delete(nodeId);
+        plcSub.nodeMode.delete(nodeId);
       }
     }
   }
@@ -197,6 +218,7 @@ class SubscriptionManager {
           plcSub.monitoredItems.delete(nodeId);
         }
         plcSub.nodeToSignal.delete(nodeId);
+        plcSub.nodeMode.delete(nodeId);
       }
 
       // Clean up pending updates for this client
@@ -248,9 +270,11 @@ class SubscriptionManager {
     if (!clients || clients.size === 0) return;
 
     const signalId = plcSub.nodeToSignal.get(nodeId) ?? 0;
+    const mode = plcSub.nodeMode.get(nodeId) ?? "scaled";
     const update: ValueUpdate = {
       signalId,
       nodeId,
+      mode,
       value: dataValue.value?.value ?? null,
       dataType: DataType[dataValue.value?.dataType ?? DataType.Null],
       timestamp: (dataValue.sourceTimestamp ?? dataValue.serverTimestamp ?? new Date()).toISOString(),
@@ -288,23 +312,38 @@ class SubscriptionManager {
       if (updates.length === 0) continue;
       if (ws.readyState !== ws.OPEN) continue;
 
-      const message = JSON.stringify({
-        type: "values",
-        plcId,
-        updates: updates.map(({ signalId, value, dataType, timestamp, statusCode, statusText }) => ({
-          signalId,
-          value,
-          dataType,
-          ts: timestamp,
-          status: statusText,
-          statusCode,
-        })),
-      });
+      // Group updates by mode so the client can route raw vs scaled
+      // updates to different state slots.
+      const byMode = new Map<SubscriptionMode, ValueUpdate[]>();
+      for (const u of updates) {
+        let bucket = byMode.get(u.mode);
+        if (!bucket) {
+          bucket = [];
+          byMode.set(u.mode, bucket);
+        }
+        bucket.push(u);
+      }
 
-      try {
-        ws.send(message);
-      } catch {
-        // Client probably disconnected — will be cleaned up
+      for (const [mode, modeUpdates] of byMode) {
+        const message = JSON.stringify({
+          type: "values",
+          plcId,
+          mode,
+          updates: modeUpdates.map(({ signalId, value, dataType, timestamp, statusCode, statusText }) => ({
+            signalId,
+            value,
+            dataType,
+            ts: timestamp,
+            status: statusText,
+            statusCode,
+          })),
+        });
+
+        try {
+          ws.send(message);
+        } catch {
+          // Client probably disconnected — will be cleaned up
+        }
       }
     }
 

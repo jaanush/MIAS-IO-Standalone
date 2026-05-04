@@ -1,0 +1,642 @@
+{
+  "750-1405": {
+    "cardType": "MIXED",
+    "codesysDeviceId": null,
+    "codesysModuleId": "9001_0750140500000000",
+    "description": "2-ch DI + 2-ch DO 24VDC",
+    "inputBits": 2,
+    "maxInputCh": 2,
+    "maxOutputCh": 2,
+    "outputBits": 2
+  },
+  "750-1504": {
+    "cardType": "DO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "9002_0750150400000000",
+    "description": "4-ch DO 24VDC 0.1A",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 4,
+    "outputBits": 4
+  },
+  "750-1605": {
+    "cardType": "SUPPLY",
+    "codesysDeviceId": null,
+    "codesysModuleId": "0750160500000000",
+    "description": "24VDC system supply",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-1607": {
+    "cardType": "SUPPLY",
+    "codesysDeviceId": null,
+    "codesysModuleId": "0750160700000000",
+    "description": "24VDC power supply jumper",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-352": {
+    "cardType": "CARRIER",
+    "codesysDeviceId": "0059 0000 0005 0000",
+    "codesysModuleId": null,
+    "description": "Fieldbus coupler Kbus extension (Ethernet)",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-362": {
+    "cardType": "CARRIER",
+    "codesysDeviceId": null,
+    "codesysModuleId": null,
+    "description": "Modbus TCP/UDP fieldbus coupler",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-400": {
+    "cardType": "DI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8201_0750040000000000",
+    "description": "2-ch DI 24VDC 3ms",
+    "inputBits": 2,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-401": {
+    "cardType": "DI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8201_0750040100000000",
+    "description": "2-ch DI 24VDC 0.1ms",
+    "inputBits": 2,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-402": {
+    "cardType": "DI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8401_0750040200000000",
+    "description": "4-ch DI 24VDC 3ms",
+    "inputBits": 4,
+    "maxInputCh": 4,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-403": {
+    "cardType": "DI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8401_0750040300000000",
+    "description": "8-ch DI 24VDC 3ms",
+    "inputBits": 8,
+    "maxInputCh": 8,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-404": {
+    "cardType": "COUNTER",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500404000000000606",
+    "description": "1-ch counter 24VDC 100kHz",
+    "inputBits": 32,
+    "maxInputCh": 1,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-408": {
+    "cardType": "DI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8401_0750040800000000",
+    "description": "2-ch DI 120VAC 10ms",
+    "inputBits": 2,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-409": {
+    "cardType": "DI",
+    "codesysDeviceId": null,
+    "codesysModuleId": null,
+    "description": "2-ch DI 230VAC 10ms",
+    "inputBits": 2,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-410": {
+    "cardType": "DI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8201_0750041000000000",
+    "description": "2-ch DI NAMUR (IEC 60947-5-6)",
+    "inputBits": 2,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-412": {
+    "cardType": "DI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8201_0750041200000000",
+    "description": "2-ch DI 48VDC 3ms",
+    "inputBits": 2,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-451": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500451000000001600",
+    "description": "2-ch AI 4-20mA 16-bit",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-452": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500452000000000400",
+    "description": "2-ch AI 4-20mA 12-bit",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-453": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500453000000000800",
+    "description": "2-ch AI 0-20mA 12-bit",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-454": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500454000000000400",
+    "description": "2-ch AI 0-10V 12-bit",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-455": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500455000000000800",
+    "description": "4-ch AI 4-20mA 12-bit",
+    "inputBits": 64,
+    "maxInputCh": 4,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-456": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500456000000000400",
+    "description": "2-ch AI +/-10V 12-bit",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-457": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500457000000000800",
+    "description": "4-ch AI 0-10V 12-bit",
+    "inputBits": 64,
+    "maxInputCh": 4,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-460": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500460000000000800",
+    "description": "2-ch AI RTD Pt100/Pt1000/Ni 16-bit",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-461": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500461000000000400",
+    "description": "2-ch AI thermocouple J/K/T/E/N/R/S/B 16-bit",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-462": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500462000000000400",
+    "description": "2-ch AI 0-25mA 12-bit",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-465": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500465000000000400",
+    "description": "4-ch AI 4-20mA 16-bit differential",
+    "inputBits": 64,
+    "maxInputCh": 4,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-466": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500466000000000400",
+    "description": "4-ch AI 0-10V 16-bit differential",
+    "inputBits": 64,
+    "maxInputCh": 4,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-467": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500467000000000400",
+    "description": "4-ch AI RTD Pt100/Pt1000 16-bit",
+    "inputBits": 64,
+    "maxInputCh": 4,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-469": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500469000000000400",
+    "description": "4-ch AI thermocouple J/K/T/E/N/R/S/B 16-bit",
+    "inputBits": 64,
+    "maxInputCh": 4,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-480": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500480000000000400",
+    "description": "2-ch AI 0/4-20mA HART 16-bit",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-481": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500481000000000400",
+    "description": "2-ch AI PTC/RTD",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-483": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500483000000000400",
+    "description": "2-ch AI 4-20mA diagnostics",
+    "inputBits": 32,
+    "maxInputCh": 2,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-486": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500486000000000800",
+    "description": "4-ch AI 0/4-20mA Ex i",
+    "inputBits": 64,
+    "maxInputCh": 4,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-495": {
+    "cardType": "POWER_MEAS",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500495000000002424",
+    "description": "3-phase power measurement module",
+    "inputBits": 320,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-496": {
+    "cardType": "AI",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500496000000001600",
+    "description": "8-ch AI 0/4-20mA single-ended",
+    "inputBits": 128,
+    "maxInputCh": 8,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-501": {
+    "cardType": "DO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8202_0750050100000000",
+    "description": "2-ch DO 24VDC 0.5A",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 2
+  },
+  "750-502": {
+    "cardType": "DO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8202_0750050200000000",
+    "description": "4-ch DO 24VDC 0.5A",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 4,
+    "outputBits": 4
+  },
+  "750-504": {
+    "cardType": "DO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8402_0750050400000000",
+    "description": "4-ch DO 24VDC 2A",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 4,
+    "outputBits": 4
+  },
+  "750-506": {
+    "cardType": "DO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8403_0750050600000000",
+    "description": "2-ch DO 24VDC 0.5A diagnostics",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 2
+  },
+  "750-508": {
+    "cardType": "RELAY",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8203_0750050800000000",
+    "description": "2-ch DO relay 125VAC/30VDC 2A",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 2
+  },
+  "750-509": {
+    "cardType": "DO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8202_0750050900000000",
+    "description": "8-ch DO 24VDC 0.5A",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 8,
+    "outputBits": 8
+  },
+  "750-513": {
+    "cardType": "DO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8202_0750051300000000",
+    "description": "2-ch DO 230VAC 0.3A triac",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 2
+  },
+  "750-516": {
+    "cardType": "RELAY",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8402_0750051600000000",
+    "description": "2-ch relay 250VAC/30VDC 2A SPDT",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 2
+  },
+  "750-517": {
+    "cardType": "RELAY",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8202_0750051700000000",
+    "description": "2-ch relay 250VAC/30VDC 2A with feedback",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 2
+  },
+  "750-519": {
+    "cardType": "RELAY",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8402_0750051900000000",
+    "description": "4-ch relay 250VAC/30VDC 1A",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 4,
+    "outputBits": 4
+  },
+  "750-550": {
+    "cardType": "AO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500550000000000004",
+    "description": "2-ch AO 0-10V 12-bit",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 32
+  },
+  "750-552": {
+    "cardType": "AO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500552000000000004",
+    "description": "2-ch AO 4-20mA 12-bit",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 32
+  },
+  "750-553": {
+    "cardType": "AO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500553000000000008",
+    "description": "2-ch AO 0-20mA 12-bit",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 32
+  },
+  "750-554": {
+    "cardType": "AO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500554000000000004",
+    "description": "2-ch AO +/-10V 12-bit",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 32
+  },
+  "750-556": {
+    "cardType": "AO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500556000000000004",
+    "description": "4-ch AO 4-20mA 12-bit",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 4,
+    "outputBits": 64
+  },
+  "750-557": {
+    "cardType": "AO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500557000000000008",
+    "description": "4-ch AO 0-10V 12-bit",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 4,
+    "outputBits": 64
+  },
+  "750-585": {
+    "cardType": "AO",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500585000000000004",
+    "description": "2-ch AO 0/4-20mA HART 16-bit",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 2,
+    "outputBits": 32
+  },
+  "750-602": {
+    "cardType": "SUPPLY",
+    "codesysDeviceId": null,
+    "codesysModuleId": "0750060200000000",
+    "description": "24VDC field supply segment feed",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-610": {
+    "cardType": "SUPPLY",
+    "codesysDeviceId": null,
+    "codesysModuleId": "8201_0750061000000000",
+    "description": "24VDC potential distribution",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-626": {
+    "cardType": "SUPPLY",
+    "codesysDeviceId": null,
+    "codesysModuleId": "0750062600000000",
+    "description": "5VDC internal backplane extension",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-638": {
+    "cardType": "COUNTER",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500638000000000808",
+    "description": "1-ch incremental encoder 24VDC 250kHz",
+    "inputBits": 32,
+    "maxInputCh": 1,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-650": {
+    "cardType": "SERIAL",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500650000000000404",
+    "description": "RS-232 serial interface",
+    "inputBits": 48,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 48
+  },
+  "750-652": {
+    "cardType": "SERIAL",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500652000000000808",
+    "description": "RS-232/485 serial interface",
+    "inputBits": 48,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 48
+  },
+  "750-653": {
+    "cardType": "SERIAL",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500653000000000404",
+    "description": "RS-485 serial interface",
+    "inputBits": 48,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 48
+  },
+  "750-657": {
+    "cardType": "IO_LINK",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500657000000000404",
+    "description": "4-port IO-Link master Class A",
+    "inputBits": 0,
+    "maxInputCh": 4,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-658": {
+    "cardType": "CAN",
+    "codesysDeviceId": null,
+    "codesysModuleId": "07500658000000000808",
+    "description": "CAN gateway (CANopen / CAN 2.0A/B)",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-8210": {
+    "cardType": "PLC",
+    "codesysDeviceId": "1000 1006 1207 0000",
+    "codesysModuleId": "1006 1207",
+    "description": "PFC200 G2 4ETH",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-8212": {
+    "cardType": "PLC",
+    "codesysDeviceId": null,
+    "codesysModuleId": "1006 1209",
+    "description": "PFC200 2ETH RS",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  },
+  "750-8214": {
+    "cardType": "PLC",
+    "codesysDeviceId": null,
+    "codesysModuleId": null,
+    "description": "PFC200 2ETH CAN RS",
+    "inputBits": 0,
+    "maxInputCh": 0,
+    "maxOutputCh": 0,
+    "outputBits": 0
+  }
+}

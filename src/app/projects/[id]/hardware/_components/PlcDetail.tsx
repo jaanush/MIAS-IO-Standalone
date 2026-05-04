@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, ExternalLink } from "lucide-react";
 import { CardList } from "./CardList";
 import { PortNetworkEditor } from "./PortNetworkEditor";
+import { KbusHealthCheck } from "./KbusHealthCheck";
+import { CommissioningPanel } from "./CommissioningPanel";
+import { RackStripView } from "./RackStripView";
 import { wagoDatasheetUrl } from "@/lib/utils";
 import type { Plc, Bus, IoCard, Carrier, Port } from "@/lib/types/hardware";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -145,6 +148,9 @@ export function PlcDetail({ plc, projectId, onRefresh }: Props) {
         </div>
       )}
 
+      {/* Rack front view — visual strip of controller + IO modules */}
+      {localCarriers.length > 0 && <RackStripView plc={plc} />}
+
       {/* Local I/O Modules */}
       <div id="local-io" className="space-y-3">
         <div className="flex items-center justify-between">
@@ -175,6 +181,13 @@ export function PlcDetail({ plc, projectId, onRefresh }: Props) {
           ))
         )}
       </div>
+
+      {/* Commissioning — controller-level catalog settings + project overrides. */}
+      <CommissioningPanel kind="plc" plcId={plc.id} />
+
+      {/* K-bus health check — covers the whole local chain. */}
+      {localCarriers.length > 0 && <KbusHealthCheck plc={plc} />}
+
       <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );

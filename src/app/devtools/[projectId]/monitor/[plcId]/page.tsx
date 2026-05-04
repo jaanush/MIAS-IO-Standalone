@@ -5,6 +5,11 @@ import { trpc } from "@/trpc/client";
 import { useDevTools } from "../../../layout";
 import { useLiveValues } from "@/hooks/use-live-values";
 import { cn } from "@/lib/utils";
+import {
+  qualityFromStatusCode,
+  qualityDotClass,
+  qualityTextClass,
+} from "@/lib/opcua-quality";
 import { Search, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -30,18 +35,27 @@ export default function MonitorPage({
 
   const liveValues = useLiveValues(send, subscribe, wsConnected, plcIdNum, subscribableIds);
 
-  // Filter signals
+  // Tokenized AND-match — every space-separated token must appear somewhere
+  // in any searchable field. Lets you type "pump tank" or "tank D03" and
+  // narrow incrementally, regardless of word order.
   const filtered = useMemo(() => {
     if (!signals) return [];
-    if (!filter) return signals;
-    const q = filter.toLowerCase();
-    return signals.filter(
-      (s) =>
-        s.tag.toLowerCase().includes(q) ||
-        s.description?.toLowerCase().includes(q) ||
-        s.carrierName.toLowerCase().includes(q) ||
-        s.cardArticle?.toLowerCase().includes(q),
-    );
+    const tokens = filter.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return signals;
+    return signals.filter((s) => {
+      const haystack = [
+        s.tag,
+        s.description,
+        s.carrierName,
+        s.cardArticle,
+        s.signalType,
+        s.direction,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return tokens.every((t) => haystack.includes(t));
+    });
   }, [signals, filter]);
 
   // Group by carrier + card
@@ -100,24 +114,24 @@ export default function MonitorPage({
             </div>
             {groupSignals.map((sig) => {
               const live = liveValues.get(sig.signalId);
+              const quality = live ? qualityFromStatusCode(live.statusCode) : null;
               const isStale =
                 live && Date.now() - new Date(live.timestamp).getTime() > 5000;
-              const isBad = live && live.statusCode !== 0;
 
               return (
                 <div
                   key={sig.signalId}
                   className="flex items-center gap-2 px-4 py-2 border-b text-sm"
                 >
-                  {/* Status dot */}
+                  {/* Status dot — quality drives the color, stale adds a ring */}
                   <div
                     className={cn(
                       "h-2 w-2 rounded-full shrink-0",
                       !live && "bg-muted-foreground/20",
-                      live && !isStale && !isBad && "bg-green-500",
-                      live && isStale && !isBad && "bg-yellow-500",
-                      isBad && "bg-red-500",
+                      quality && qualityDotClass(quality),
+                      isStale && "ring-2 ring-yellow-400/60",
                     )}
+                    title={live ? `${live.status} (0x${live.statusCode.toString(16).padStart(8, "0")})` : "no data"}
                   />
 
                   {/* Tag + description */}
@@ -132,12 +146,13 @@ export default function MonitorPage({
 
                   {/* Live value */}
                   <div className="text-right shrink-0">
-                    {live ? (
+                    {live && quality ? (
                       <span
                         className={cn(
                           "font-mono text-sm font-medium tabular-nums",
-                          isBad && "text-destructive",
+                          qualityTextClass(quality),
                         )}
+                        title={live.status}
                       >
                         {formatValue(live.value, sig.signalType)}
                         {sig.unit && (

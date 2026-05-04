@@ -12,6 +12,13 @@ export interface SubscribeMessage {
   id: string;
   plcId: number;
   signalIds: number[];
+  /**
+   * Which leaf to monitor:
+   *   "scaled" (default) — AsReal/AsBool, the override-resolved engineering value
+   *   "raw"              — analog only, AsDint, the unscaled DAO counts
+   * Server silently drops non-analog ids when mode === "raw".
+   */
+  mode?: "scaled" | "raw";
 }
 
 export interface UnsubscribeMessage {
@@ -19,6 +26,7 @@ export interface UnsubscribeMessage {
   id: string;
   plcId: number;
   signalIds: number[];
+  mode?: "scaled" | "raw";
 }
 
 export interface ReadMessage {
@@ -35,6 +43,13 @@ export interface WriteMessage {
   signalId: number;
   value: unknown;
   dataType?: string;
+  /**
+   * Optional sub-field appended to the signal's base node ID with a dot.
+   * Used for HAL-FB sideload writes — e.g. `_bSideloadActive` (BOOL) or
+   * `_rSideloadValueREAL` (FR-016 typed pin). Omit to write to the base
+   * node.
+   */
+  subField?: string;
 }
 
 export interface ConnectMessage {
@@ -70,6 +85,8 @@ export type ClientMessage =
 export interface ValuesMessage {
   type: "values";
   plcId: number;
+  /** "scaled" if omitted (back-compat). "raw" updates carry analog DAO counts. */
+  mode?: "scaled" | "raw";
   updates: {
     signalId: number;
     value: unknown;

@@ -41,12 +41,14 @@ export default function MonitoringPage({ params }: { params: Promise<{ id: strin
   const [showOnly, setShowOnly] = useState<"all" | "monitored" | "ready">("all");
 
   const visible = useMemo(() => {
+    const tokens = filter.toLowerCase().split(/\s+/).filter(Boolean);
     return signals.filter((s) => {
-      if (filter) {
-        const f = filter.toLowerCase();
-        const tag = (s.tag ?? "").toLowerCase();
-        const desc = (s.description ?? "").toLowerCase();
-        if (!tag.includes(f) && !desc.includes(f)) return false;
+      if (tokens.length > 0) {
+        const haystack = [s.tag, s.description, s.iecPath, s.iecPathRaw]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!tokens.every((t) => haystack.includes(t))) return false;
       }
       const anyMonitored = (s.monitoring ?? []).some((m) => m.enabled);
       const anyReady = !!(s.iecPath || s.iecPathRaw);

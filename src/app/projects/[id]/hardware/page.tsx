@@ -77,6 +77,18 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
         ]).find((c) => c.id === selected.id) ?? null
       : null;
 
+  // Parent PLC of the selected carrier — needed by the K-bus health check
+  // since the calculator runs on the entire local chain, not just this
+  // carrier's modules.
+  const carrierParentPlc =
+    selectedCarrier == null
+      ? null
+      : plcs.find(
+          (p) =>
+            p.carriers.some((c) => c.id === selectedCarrier.id) ||
+            p.buses.some((n: any) => n.carriers?.some((c: any) => c.id === selectedCarrier.id)),
+        ) ?? null;
+
   const selectedNetwork =
     selected?.type === "network"
       ? [...plcs.flatMap((p) => p.buses), ...standaloneNetworks].find((n) => n.id === selected.id) ?? null
@@ -205,6 +217,7 @@ export default function ProjectHardwarePage({ params }: { params: Promise<{ id: 
           <CarrierDetail
             carrier={selectedCarrier}
             projectId={projectId}
+            parentPlc={carrierParentPlc}
             onRefresh={refresh}
           />
         )}

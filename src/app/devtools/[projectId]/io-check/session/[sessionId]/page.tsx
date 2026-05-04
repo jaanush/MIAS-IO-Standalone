@@ -2,8 +2,14 @@
 
 import { use, useMemo, useState } from "react";
 import { trpc } from "@/trpc/client";
-import { useFr007LiveReadings } from "@/hooks/use-fr007-live-readings";
+import { useDevTools } from "../../../../layout";
+import { useLiveValues } from "@/hooks/use-live-values";
 import { cn } from "@/lib/utils";
+import {
+  qualityFromStatusCode,
+  qualityBadgeClass,
+  qualityTextClass,
+} from "@/lib/opcua-quality";
 import {
   ChevronLeft,
   ChevronRight,
@@ -45,15 +51,28 @@ export default function IOCheckSessionPage({
   const results = session?.results ?? [];
   const current = results[currentIndex];
 
-  // Live readings via FR-007 (plugin-pushed). Monitoring is auto-enabled
-  // for every signal in the session by `ioCheckCreate`. We poll just the
-  // current signal at 1s; switching signals re-queries seamlessly.
+  // Live readings via OPC UA (FR-007 plugin-push was unstable in the field).
+  // Pre-condition: the operator must have hit "Connect" on /devtools/<id>/connect
+  // for the session's PLC. wsConnected flag below shows the WS link state; if
+  // the bridge is down, liveValues stays empty and the row shows "—".
+  const { wsConnected, send, subscribe } = useDevTools();
+  const plcId = session?.plcId ?? null;
   const currentSignalIds = useMemo(
     () => (current ? [current.signalId] : []),
     [current],
   );
-  const liveValues = useFr007LiveReadings(currentSignalIds, "SCALED", 1000);
-  const liveValue = current ? liveValues.get(current.signalId) : null;
+  // Analog signals get a parallel "raw" subscription (`.AsDint` — DAO counts
+  // before scale + offset). Discrete is meaningless raw, so we only request
+  // the raw subscription for analog to avoid useless WS chatter.
+  const isAnalog = current?.signal.signalType === "ANALOG";
+  const rawSignalIds = useMemo(
+    () => (isAnalog && current ? [current.signalId] : []),
+    [isAnalog, current],
+  );
+  const liveValuesMap = useLiveValues(send, subscribe, wsConnected, plcId, currentSignalIds);
+  const rawValuesMap = useLiveValues(send, subscribe, wsConnected, plcId, rawSignalIds, "raw");
+  const liveValue = current ? liveValuesMap.get(current.signalId) : null;
+  const rawValue = current && isAnalog ? rawValuesMap.get(current.signalId) : null;
 
   // Skip-to-next-module: jump past every result whose source io_card matches
   // the current signal's card. Compare by ioCard.id resolved on each result.
@@ -229,41 +248,83 @@ export default function IOCheckSessionPage({
           {/* Live value — BIG */}
           <div className="flex flex-col items-center gap-1">
             {liveValue ? (
-              <>
-                {current.signal.signalType === "DISCRETE" ? (
-                  <div
-                    className={cn(
-                      "px-8 py-4 rounded-xl text-3xl font-bold",
-                      liveValue.value
-                        ? "bg-green-500/20 text-green-600"
-                        : "bg-muted text-muted-foreground",
+              (() => {
+                const quality = qualityFromStatusCode(liveValue.statusCode);
+                return (
+                  <>
+                    {current.signal.signalType === "DISCRETE" ? (
+                      <div
+                        className={cn(
+                          "px-8 py-4 rounded-xl text-3xl font-bold",
+                          // Quality first: bad/uncertain reads override the ON/OFF visuals.
+                          quality === "good"
+                            ? liveValue.value
+                              ? "bg-green-500/20 text-green-600"
+                              : "bg-muted text-muted-foreground"
+                            : qualityBadgeClass(quality),
+                        )}
+                      >
+                        {liveValue.value ? "ON" : "OFF"}
+                      </div>
+                    ) : (
+                      <p
+                        className={cn(
+                          "text-5xl font-bold tabular-nums",
+                          qualityTextClass(quality),
+                        )}
+                      >
+                        {typeof liveValue.value === "number"
+                          ? liveValue.value.toFixed(1)
+                          : String(liveValue.value ?? "—")}
+                      </p>
                     )}
-                  >
-                    {liveValue.value ? "ON" : "OFF"}
-                  </div>
-                ) : (
-                  <p className="text-5xl font-bold tabular-nums">
-                    {typeof liveValue.value === "number"
-                      ? liveValue.value.toFixed(1)
-                      : String(liveValue.value ?? "—")}
-                  </p>
-                )}
-                {current.signal.analogSignal?.engineeringUnit?.symbol && (
-                  <p className="text-lg text-muted-foreground">
-                    {current.signal.analogSignal.engineeringUnit.symbol}
-                  </p>
-                )}
-                <p
-                  className={cn(
-                    "text-xs",
-                    liveValue.status === "Good"
-                      ? "text-green-600"
-                      : "text-destructive",
-                  )}
-                >
-                  {liveValue.status}
-                </p>
-              </>
+                    {current.signal.analogSignal?.engineeringUnit?.symbol && (
+                      <p className="text-lg text-muted-foreground">
+                        {current.signal.analogSignal.engineeringUnit.symbol}
+                      </p>
+                    )}
+                    {/* Raw counts — analog only. Shown faintly under the
+                        scaled value so an operator can sanity-check the
+                        signal-conditioning chain (e.g. 4 mA → 0 counts,
+                        20 mA → full scale). Caveat per plugin FR-021:
+                        AsRaw IS resolved through the override chain, so
+                        if an HMI override is active the raw column
+                        reflects the override-equivalent counts, not the
+                        physical card reading. Swap to AsLastGood after
+                        plugin's HAL/DAO refactor for source-only. */}
+                    {isAnalog && rawValue && (
+                      (() => {
+                        const rawQuality = qualityFromStatusCode(rawValue.statusCode);
+                        const rawText = typeof rawValue.value === "number"
+                          ? rawValue.value.toString()
+                          : String(rawValue.value ?? "—");
+                        return (
+                          <p
+                            className={cn(
+                              "text-xs font-mono tabular-nums",
+                              rawQuality === "good"
+                                ? "text-muted-foreground"
+                                : qualityTextClass(rawQuality),
+                            )}
+                            title={`raw counts (${rawValue.dataType}) via AsRaw — resolved through override chain. Status ${rawValue.status}`}
+                          >
+                            raw: {rawText}
+                          </p>
+                        );
+                      })()
+                    )}
+                    <p
+                      className={cn(
+                        "text-xs px-2 py-0.5 rounded",
+                        qualityBadgeClass(quality),
+                      )}
+                      title={`StatusCode 0x${liveValue.statusCode.toString(16).padStart(8, "0")}`}
+                    >
+                      {liveValue.status}
+                    </p>
+                  </>
+                );
+              })()
             ) : (
               <p className="text-3xl text-muted-foreground">—</p>
             )}

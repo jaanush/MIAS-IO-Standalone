@@ -37,14 +37,19 @@ export default function IoCheckMatrixPage({
   const cells = data?.cells ?? {};
 
   const visible = useMemo(() => {
-    if (!filter) return signals;
-    const f = filter.toLowerCase();
-    return signals.filter(
-      (s) =>
-        (s.tag ?? "").toLowerCase().includes(f) ||
-        (s.description ?? "").toLowerCase().includes(f) ||
-        (s.ioCard?.carrier.name ?? "").toLowerCase().includes(f),
-    );
+    const tokens = filter.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return signals;
+    return signals.filter((s) => {
+      const haystack = [
+        s.tag,
+        s.description,
+        s.ioCard?.carrier.name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return tokens.every((t) => haystack.includes(t));
+    });
   }, [signals, filter]);
 
   return (

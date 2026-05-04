@@ -18,7 +18,7 @@ import type {
 import { connectionManager } from "../opcua/connection-manager";
 import { subscriptionManager } from "../opcua/subscription-manager";
 import { readValues, writeValue, browseNode } from "../opcua/operations";
-import { buildNodeId } from "../opcua/node-id";
+import { buildBaseNodeId, buildReadNodeId, buildRawReadNodeId } from "../opcua/node-id";
 import { db } from "../../../lib/db";
 
 function send(ws: WebSocket, data: unknown): void {
@@ -31,22 +31,55 @@ function sendError(ws: WebSocket, id: string | undefined, message: string): void
   send(ws, { type: "error", id, message });
 }
 
-/** Resolve signal IDs to OPC UA node IDs via the database */
-async function resolveSignalNodeIds(signalIds: number[]): Promise<Map<number, string>> {
+/** Resolve signal IDs to OPC UA node IDs via the database.
+ *  Uses the new `buildReadNodeId` (device prefix + systemGroup-strip + AsReal/AsBool getter)
+ *  for live reads. Skips any signal whose PLC has no codesysDeviceName set
+ *  or whose gvl/tag is missing — those produce node IDs that can't possibly
+ *  resolve. */
+async function resolveSignalNodeIds(
+  signalIds: number[],
+  mode: "read" | "base" | "raw" = "read",
+): Promise<Map<number, string>> {
   const signals = await db.signal.findMany({
     where: { id: { in: signalIds } },
     select: {
       id: true,
       tag: true,
+      signalType: true,
+      componentTag: true,
       gvl: { select: { name: true } },
+      ioCard: {
+        select: {
+          carrier: {
+            select: { plc: { select: { codesysDeviceName: true } } },
+          },
+        },
+      },
     },
   });
 
   const result = new Map<number, string>();
   for (const sig of signals) {
-    if (sig.tag && sig.gvl?.name) {
-      result.set(sig.id, buildNodeId(sig.gvl.name, sig.tag));
+    if (!sig.tag || !sig.gvl?.name) continue;
+    const deviceName = sig.ioCard?.carrier?.plc?.codesysDeviceName;
+    if (!deviceName) continue;     // PLC's CODESYS device-tree name not yet set
+    const components = {
+      deviceName,
+      gvlName: sig.gvl.name,
+      signalTag: sig.tag,
+      componentTag: sig.componentTag,
+    };
+    let nodeId: string | null;
+    if (mode === "read") {
+      nodeId = buildReadNodeId(components, sig.signalType as "DISCRETE" | "ANALOG");
+    } else if (mode === "raw") {
+      // Analog only — raw counts have no meaning for DISCRETE.
+      nodeId = buildRawReadNodeId(components, sig.signalType as "DISCRETE" | "ANALOG");
+    } else {
+      nodeId = buildBaseNodeId(components);
     }
+    if (!nodeId) continue;
+    result.set(sig.id, nodeId);
   }
   return result;
 }
@@ -99,23 +132,27 @@ export async function handleSubscribe(ws: WebSocket, msg: SubscribeMessage): Pro
     return;
   }
 
-  const signalMap = await resolveSignalNodeIds(msg.signalIds);
+  const mode = msg.mode ?? "scaled";
+  const resolveMode = mode === "raw" ? "raw" : "read";
+  const signalMap = await resolveSignalNodeIds(msg.signalIds, resolveMode);
   if (signalMap.size === 0) {
     sendError(ws, msg.id, "No valid signals found for the given IDs");
     return;
   }
 
   try {
-    await subscriptionManager.subscribe(ws, msg.plcId, signalMap);
+    await subscriptionManager.subscribe(ws, msg.plcId, signalMap, mode);
   } catch (err) {
     sendError(ws, msg.id, err instanceof Error ? err.message : String(err));
   }
 }
 
 export async function handleUnsubscribe(ws: WebSocket, msg: UnsubscribeMessage): Promise<void> {
-  const signalMap = await resolveSignalNodeIds(msg.signalIds);
+  const mode = msg.mode ?? "scaled";
+  const resolveMode = mode === "raw" ? "raw" : "read";
+  const signalMap = await resolveSignalNodeIds(msg.signalIds, resolveMode);
   const nodeIds = Array.from(signalMap.values());
-  await subscriptionManager.unsubscribe(ws, msg.plcId, nodeIds);
+  await subscriptionManager.unsubscribe(ws, msg.plcId, nodeIds, mode);
 }
 
 export async function handleRead(ws: WebSocket, msg: ReadMessage): Promise<void> {
@@ -162,12 +199,18 @@ export async function handleWrite(ws: WebSocket, msg: WriteMessage): Promise<voi
     return;
   }
 
-  const signalMap = await resolveSignalNodeIds([msg.signalId]);
-  const nodeId = signalMap.get(msg.signalId);
-  if (!nodeId) {
+  // For writes, use the BASE node (FB Object root). The optional subField
+  // appended below reaches the FB's typed sideload pin (e.g. _rHmiValue,
+  // _xHmiBool, _bHmiOverrideActive). Writing to the bare base node would
+  // fail — base is an Object, not a Variable.
+  const signalMap = await resolveSignalNodeIds([msg.signalId], "base");
+  const baseNodeId = signalMap.get(msg.signalId);
+  if (!baseNodeId) {
     sendError(ws, msg.id, `Signal ${msg.signalId} not found or has no OPC UA mapping`);
     return;
   }
+
+  const nodeId = msg.subField ? `${baseNodeId}.${msg.subField}` : baseNodeId;
 
   try {
     const result = await writeValue(msg.plcId, nodeId, msg.value, msg.dataType ?? "Boolean");

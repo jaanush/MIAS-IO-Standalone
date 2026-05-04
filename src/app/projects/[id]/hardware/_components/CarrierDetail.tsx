@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Trash2, ExternalLink } from "lucide-react";
 import { CardList } from "./CardList";
 import { PortNetworkEditor } from "./PortNetworkEditor";
+import { KbusHealthCheck } from "./KbusHealthCheck";
 import { wagoDatasheetUrl } from "@/lib/utils";
-import type { Carrier } from "@/lib/types/hardware";
+import type { Carrier, Plc } from "@/lib/types/hardware";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 
@@ -30,10 +31,14 @@ type FormValues = z.infer<typeof schema>;
 type Props = {
   carrier: Carrier;
   projectId: number;
+  /** Parent PLC (the one this carrier is attached to). Drives the K-bus
+   *  health check — the calculator aggregates every local carrier on the
+   *  parent PLC, since they all share the same K-bus chain. */
+  parentPlc?: Plc | null;
   onRefresh: () => void;
 };
 
-export function CarrierDetail({ carrier, projectId, onRefresh }: Props) {
+export function CarrierDetail({ carrier, projectId, parentPlc, onRefresh }: Props) {
   const [confirmProps, confirm] = useConfirm();
   const update = trpc.projectHardware.carrierUpdate.useMutation({ onSuccess: onRefresh });
   const deleteCarrier = trpc.projectHardware.carrierDelete.useMutation({ onSuccess: onRefresh });
@@ -173,6 +178,11 @@ export function CarrierDetail({ carrier, projectId, onRefresh }: Props) {
         cards={carrier.cards}
         onRefresh={onRefresh}
       />
+
+      {/* K-bus health check — only on the local-bus chain (carriers attached
+          directly to a PLC's K-bus, not on a remote fieldbus coupler). */}
+      {carrier.busId == null && parentPlc && <KbusHealthCheck plc={parentPlc} />}
+
       <ConfirmDialog {...confirmProps} confirmLabel="Delete" />
     </div>
   );

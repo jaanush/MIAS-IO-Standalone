@@ -16,6 +16,14 @@ interface LiveValue {
  *
  * Returns a Map<signalId, LiveValue> that updates in real-time.
  * Automatically subscribes/unsubscribes via the WebSocket.
+ *
+ * `mode` selects which leaf to monitor:
+ *   "scaled" (default) — `.AsReal` / `.AsBool` (engineering value with override chain)
+ *   "raw"              — analog only, `.AsDint` (unscaled DAO counts)
+ *
+ * The hook filters incoming `values` messages by `msg.mode` so that a
+ * sibling hook can subscribe to the same signals in the other mode
+ * without interleaving updates.
  */
 export function useLiveValues(
   send: (msg: any) => void,
@@ -23,6 +31,7 @@ export function useLiveValues(
   wsConnected: boolean,
   plcId: number | null,
   signalIds: number[],
+  mode: "scaled" | "raw" = "scaled",
 ) {
   const [values, setValues] = useState<Map<number, LiveValue>>(new Map());
   const subscribedRef = useRef(false);
@@ -31,41 +40,44 @@ export function useLiveValues(
   // Subscribe to value updates from WebSocket
   useEffect(() => {
     const unsub = subscribe((msg) => {
-      if (msg.type === "values" && msg.plcId === plcId) {
-        setValues((prev) => {
-          const next = new Map(prev);
-          for (const u of msg.updates) {
-            next.set(u.signalId, {
-              value: u.value,
-              dataType: u.dataType,
-              timestamp: u.ts,
-              status: u.status,
-              statusCode: u.statusCode,
-            });
-          }
-          return next;
-        });
-      }
+      if (msg.type !== "values" || msg.plcId !== plcId) return;
+      // Route by mode — the server tags each ValuesMessage; older
+      // server builds without the field default to "scaled".
+      const msgMode = msg.mode ?? "scaled";
+      if (msgMode !== mode) return;
+      setValues((prev) => {
+        const next = new Map(prev);
+        for (const u of msg.updates) {
+          next.set(u.signalId, {
+            value: u.value,
+            dataType: u.dataType,
+            timestamp: u.ts,
+            status: u.status,
+            statusCode: u.statusCode,
+          });
+        }
+        return next;
+      });
     });
     return unsub;
-  }, [subscribe, plcId]);
+  }, [subscribe, plcId, mode]);
 
   // Send subscribe/unsubscribe messages when signalIds change
   useEffect(() => {
     if (!wsConnected || !plcId || signalIds.length === 0) return;
 
-    const id = `sub-${++reqIdRef.current}`;
-    send({ type: "subscribe", id, plcId, signalIds });
+    const id = `sub-${mode}-${++reqIdRef.current}`;
+    send({ type: "subscribe", id, plcId, signalIds, mode });
     subscribedRef.current = true;
 
     return () => {
       if (subscribedRef.current && signalIds.length > 0) {
-        const unsubId = `unsub-${++reqIdRef.current}`;
-        send({ type: "unsubscribe", id: unsubId, plcId, signalIds });
+        const unsubId = `unsub-${mode}-${++reqIdRef.current}`;
+        send({ type: "unsubscribe", id: unsubId, plcId, signalIds, mode });
         subscribedRef.current = false;
       }
     };
-  }, [wsConnected, plcId, signalIds, send]);
+  }, [wsConnected, plcId, signalIds, send, mode]);
 
   return values;
 }

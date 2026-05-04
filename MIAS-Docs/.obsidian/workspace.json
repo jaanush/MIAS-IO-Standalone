@@ -1,0 +1,225 @@
+{
+  "main": {
+    "id": "d4c09a25cad7330d",
+    "type": "split",
+    "children": [
+      {
+        "id": "690d27a098bba5cf",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3785fec2ee7b96b5",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "MIAS 2.0/Architecture/Outstanding Questions.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Outstanding Questions"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "3219b2677475d7d0",
+    "type": "split",
+    "children": [
+      {
+        "id": "bb660185afa0bf66",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2b5930eb8b2a3eea",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "d92cb9bddb1bd47e",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "03bb1669abc704d0",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "fac1bd8c00dccd09",
+    "type": "split",
+    "children": [
+      {
+        "id": "99f66daac4a56685",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d8a749d0b6d0d0dc",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "MIAS 2.0/Architecture/Legacy vs New PMS Analysis.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Legacy vs New PMS Analysis"
+            }
+          },
+          {
+            "id": "2ec61c65934c7182",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "MIAS 2.0/Architecture/Legacy vs New PMS Analysis.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Legacy vs New PMS Analysis"
+            }
+          },
+          {
+            "id": "1e057660a1658aed",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "074bdd9a220bff03",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "c7542c95e22c73c8",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "MIAS 2.0/Architecture/Legacy vs New PMS Analysis.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Legacy vs New PMS Analysis"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "3785fec2ee7b96b5",
+  "lastOpenFiles": [
+    "Work Log.md.tmp.31864.1777665366999",
+    "MIAS 2.0/CODESYS Integration/FR-015-handoff.md",
+    "MIAS 2.0/Architecture/Outstanding Questions.md",
+    "Work Log.md",
+    "MIAS 2.0/Architecture/Component Composition Patterns.md",
+    "MIAS 2.0/Architecture/Simulation Framework.md",
+    "MIAS 2.0/Architecture/CBM Lifecycle Pattern.md",
+    "Lasse-Maja/Battery Calibration Procedure.md",
+    "MIAS 2.0/Architecture/Kreisel BMS CAN Protocol.md",
+    "MIAS 2.0/Architecture/PMS Separation Principle.md",
+    "MIAS 2.0/Architecture/dependency-registry.md",
+    "MIAS 2.0/Architecture/Self Regulating PMS Concept.md",
+    "MIAS 2.0/Architecture/Legacy vs New PMS Analysis.md",
+    "MIAS 2.0/Architecture/Component Inventory and Feasibility Analysis.md",
+    "MIAS-Legacy/Älveli/Deep Dive - Batteries, Charging, Propulsion, Editron.md",
+    "Lasse-Maja/Functional Description.md",
+    "MIAS-Legacy/Älveli/HMI Objects.md",
+    "MIAS-Legacy/Älveli/Alarm System.md",
+    "MIAS-Legacy/Älveli/PMS Architecture.md",
+    "MIAS-Legacy/README.md",
+    "Lasse-Maja/lasse_maja_mias_technical_document.md",
+    "Welcome.md",
+    "Reference/README.md",
+    "Lasse-Maja/README.md",
+    "MIAS 2.0/README.md",
+    "Reference/vesc_comm_can_documentation.md",
+    "Reference/CAN-DBC/debug_PCAN_234601.dbc",
+    "Reference/CAN-DBC/PTCAN_234601.dbc",
+    "Reference/Manuals/vesc_can_commands_telemetry.pdf",
+    "Reference/Manuals/dse_gencomm_modbus_register_map.pdf",
+    "Reference/Manuals/deutronic_dcdc_can_documentation.pdf",
+    "Reference/Manuals/deif_mic2_mkii_modbus_communication_manual.pdf",
+    "Reference/Manuals/deep_sea_electronics_modbus_integration_guide.pdf",
+    "Reference/Manuals/comap_igs_nt_communication_guide.pdf",
+    "Reference/Manuals/abb_pcs100_ess_user_manual.pdf",
+    "Reference/Manuals/abb_fena01_ethernet_modbus_tcp_manual.pdf"
+  ]
+}

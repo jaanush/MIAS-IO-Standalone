@@ -35,6 +35,9 @@ export function AppHeader({ user }: { user: HeaderUser }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  // DevTools has its own compact header, so suppress the main one there.
+  if (pathname.startsWith("/devtools")) return null;
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");

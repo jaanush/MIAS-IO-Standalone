@@ -50,6 +50,11 @@ export const projectRouter = createTRPCRouter({
         client: z.string().optional(),
         location: z.string().optional(),
         status: z.enum(PROJECT_STATUS).optional(),
+        // FR-022: hardware commissioning policy
+        commissioningPolicy: z.enum(["AUTO", "MANUAL_ONLY", "DISABLED"]).optional(),
+        commissioningInitialXLocalCommReq: z.boolean().optional(),
+        commissioningInitialXRunPlaybook: z.boolean().optional(),
+        commissioningRebootStrategy: z.enum(["BATCH_LAST_STEP", "PER_SLOT"]).optional(),
       })
     )
     .mutation(({ input }) => {

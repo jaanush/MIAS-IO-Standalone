@@ -7,6 +7,40 @@
 
 // ── Catalog shapes ──────────────────────────────────────────────────────────
 
+// Front-panel rendering + LED layout per WAGO module/coupler. Imported from
+// a local WAGO-IO-CHECK 3 install; see scripts/import_wago_modules.py.
+export type WagoLedItem = {
+  index: number;
+  color: string;     // numeric (0/1/10) for monochrome, named (GNGR / GEGR / RTGR) for bicolour
+  flag: string;      // usually "0" or "1"
+  label: string | null;
+};
+
+export type WagoFrontPanel = {
+  kind: "coupler" | "terminal";
+  descriptions: { en: string | null; de: string | null; fr: string | null };
+  moduleType: number | null;
+  moduleIcon: number | null;
+  supportedModes?: number | null;
+  bootDelayS?: number | null;
+  consumptionMa: number | null;
+  voltageV: number | null;
+  lk1: number | null;
+  lk2: number | null;
+  pe: number | null;
+  adjustable: boolean;
+  settingsApp: string | null;
+  settingsAppName: string | null;
+  image: { url: string; width: number; height: number; sourceBmp: string } | null;
+  leds: {
+    rows: number | null;
+    cols: number | null;
+    max: number | null;
+    rect: string | null;     // "x1,y1,x2,y2" image coords
+    items: WagoLedItem[];
+  } | null;
+};
+
 export type IoCardCatalog = {
   id: number;
   articleNumber: string;
@@ -19,6 +53,9 @@ export type IoCardCatalog = {
   providesNetwork?: boolean;
   protocols?: { protocol: string }[];
   approvals?: { approvalId: number }[];
+  // Prisma's JsonValue is wider than WagoFrontPanel; treat as unknown at the
+  // tRPC boundary and narrow at the read site (see RackStripView).
+  frontPanel?: unknown;
 };
 
 export type DeviceCatalog = {
@@ -29,6 +66,7 @@ export type DeviceCatalog = {
   busPowerBudgetMa?: number | null;
   ethernetPorts?: number | null;
   protocols?: { protocol: string }[];
+  frontPanel?: unknown;
 };
 
 // ── Hardware entities ───────────────────────────────────────────────────────

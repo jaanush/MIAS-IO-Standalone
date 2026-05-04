@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, ExternalLink, GripVertical, Zap, AlertTriangle } from "lucide-react";
 import { ModulePickerDialog } from "./ModulePickerDialog";
+import { CommissioningPanel } from "./CommissioningPanel";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -175,8 +176,8 @@ export function CardList({ carrierId, projectId, maxSlots, cards, onRefresh }: P
                     const missingCode = !card.typeCode;
 
                     return (
+                      <div key={card.id} className="contents">
                       <div
-                        key={card.id}
                         draggable
                         onDragStart={(e) => { dragIdRef.current = card.id; e.dataTransfer.effectAllowed = "move"; (e.currentTarget as HTMLElement).style.opacity = "0.4"; }}
                         onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = ""; dragIdRef.current = null; }}
@@ -287,6 +288,10 @@ export function CardList({ carrierId, projectId, maxSlots, cards, onRefresh }: P
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
+                      </div>
+                      <div className="px-2 pb-2 pt-1 bg-muted/20">
+                        <CommissioningPanel kind="ioCard" ioCardId={card.id} slotPosition={card.slotPosition} />
+                      </div>
                       </div>
                     );
                   })}

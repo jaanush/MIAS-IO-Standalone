@@ -1,0 +1,4586 @@
+[
+  {
+    "deviceType": 32776,
+    "deviceId": "9001_0750140000000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1400",
+    "name": "750-1400"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9001_0750140200000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1402",
+    "name": "750-1402"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9001_0750140500000000",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-1405",
+    "name": "750-1405"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9001_0750140500400000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-1405/040-000",
+    "name": "750-1405/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9001_0750140600000000",
+    "deviceVersion": "2.0.0.15",
+    "vendor": "WAGO",
+    "articleNumber": "750-1406",
+    "name": "750-1406"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9001_0750140700000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1407",
+    "name": "750-1407"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750141500000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1415",
+    "name": "750-1415"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750141500400000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1415/040-000",
+    "name": "750-1415/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750141600000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1416",
+    "name": "750-1416"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750141600400000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-1416/040-000",
+    "name": "750-1416/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750141700000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1417",
+    "name": "750-1417"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750141700400000",
+    "deviceVersion": "2.0.0.1",
+    "vendor": "WAGO",
+    "articleNumber": "750-1417/040-000",
+    "name": "750-1417/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750141800000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1418",
+    "name": "750-1418"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750142000000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1420",
+    "name": "750-1420"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750142100000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1421",
+    "name": "750-1421"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750142200000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1422",
+    "name": "750-1422"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750142300000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1423",
+    "name": "750-1423"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9007_0750142500000000",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-1425",
+    "name": "750-1425"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07501491000000000400",
+    "deviceVersion": "2.0.0.23",
+    "vendor": "WAGO",
+    "articleNumber": "750-1491",
+    "name": "750-1491#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9002_0750150000000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1500",
+    "name": "750-1500"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9002_0750150100000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1501",
+    "name": "750-1501"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "880F_0750150200000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1502",
+    "name": "750-1502"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9002_0750150400000000",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-1504",
+    "name": "750-1504"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9002_0750150500000000",
+    "deviceVersion": "2.0.0.15",
+    "vendor": "WAGO",
+    "articleNumber": "750-1505",
+    "name": "750-1505"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "880F_0750150600000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1506",
+    "name": "750-1506"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8802_0750151500000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1515",
+    "name": "750-1515"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8802_0750151500400000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1515/040-000",
+    "name": "750-1515/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8802_0750151600000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1516",
+    "name": "750-1516"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8802_0750151600400000",
+    "deviceVersion": "2.0.0.1",
+    "vendor": "WAGO",
+    "articleNumber": "750-1516/040-000",
+    "name": "750-1516/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750160500000000",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-1605",
+    "name": "750-1605"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750160500400000",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-1605/040-000",
+    "name": "750-1605/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750160600000000",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-1606",
+    "name": "750-1606"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750160600400000",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-1606/040-000",
+    "name": "750-1606/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750160700000000",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-1607",
+    "name": "750-1607"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07501632000001000606",
+    "deviceVersion": "2.0.0.39",
+    "vendor": "WAGO",
+    "articleNumber": "750-1632/000-100",
+    "name": "750-1632/000-100#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07501652000000000808",
+    "deviceVersion": "2.0.0.1",
+    "vendor": "WAGO",
+    "articleNumber": "750-1652",
+    "name": "750-1652#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07501652004000000808",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-1652/040-000",
+    "name": "750-1652/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07501657000000000404",
+    "deviceVersion": "2.0.0.15",
+    "vendor": "WAGO",
+    "articleNumber": "750-1657",
+    "name": "750-1657#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750040000000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-400",
+    "name": "750-400"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750040000060000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-400/006-000",
+    "name": "750-400/006-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750040000250000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-400/025-000",
+    "name": "750-400/025-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750040100000000",
+    "deviceVersion": "2.0.0.15",
+    "vendor": "WAGO",
+    "articleNumber": "750-401",
+    "name": "750-401"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750040200000000",
+    "deviceVersion": "2.0.0.15",
+    "vendor": "WAGO",
+    "articleNumber": "750-402",
+    "name": "750-402"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750040200020000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-402/002-000",
+    "name": "750-402/002-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750040200060000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-402/006-000",
+    "name": "750-402/006-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750040200250000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-402/025-000",
+    "name": "750-402/025-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750040300000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-403",
+    "name": "750-403"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404000000000606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-404",
+    "name": "750-404#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404000000010606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-404/000-001",
+    "name": "750-404/000-001#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404000000020606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-404/000-002",
+    "name": "750-404/000-002#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404000000030606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-404/000-003",
+    "name": "750-404/000-003#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404000000040606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-404/000-004",
+    "name": "750-404/000-004#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404000000050606",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-404/000-005",
+    "name": "750-404/000-005#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404000000061212",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-404/000-006",
+    "name": "750-404/000-006#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404000600000606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-404/006-000",
+    "name": "750-404/006-000#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404000600010606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-404/006-001",
+    "name": "750-404/006-001#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404000600030606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-404/006-003",
+    "name": "750-404/006-003#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500404004000030606",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-404/040-003",
+    "name": "750-404/040-003#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750040500000000",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-405",
+    "name": "750-405"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750040500000001",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-405/000-001",
+    "name": "750-405/000-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750040500200000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-405/020-000",
+    "name": "750-405/020-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750040600000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-406",
+    "name": "750-406"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750040700000000",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-407",
+    "name": "750-407"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750040700400000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-407/040-000",
+    "name": "750-407/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750040800000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-408",
+    "name": "750-408"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750040800250000",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-408/025-000",
+    "name": "750-408/025-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750040900000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-409",
+    "name": "750-409"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750041000000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-410",
+    "name": "750-410"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750041100000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-411",
+    "name": "750-411"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750041200000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-412",
+    "name": "750-412"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750041200000001",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-412/000-001",
+    "name": "750-412/000-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750041400000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-414",
+    "name": "750-414"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750041500000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-415",
+    "name": "750-415"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8407_0750041600000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-416",
+    "name": "750-416"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8407_0750041800000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-418",
+    "name": "750-418"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8407_0750041800000001",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-418/000-001",
+    "name": "750-418/000-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8405_0750041900000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-419",
+    "name": "750-419"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8405_0750042100000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-421",
+    "name": "750-421"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750042200000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-422",
+    "name": "750-422"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750042300000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-423",
+    "name": "750-423"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750042400000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-424",
+    "name": "750-424"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8405_0750042500000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-425",
+    "name": "750-425"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750042700000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-427",
+    "name": "750-427"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750042700400000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-427/040-000",
+    "name": "750-427/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750042800000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-428",
+    "name": "750-428"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750042900400001",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-429/040-001",
+    "name": "750-429/040-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750043000000000",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-430",
+    "name": "750-430"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750043000200000",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-430/020-000",
+    "name": "750-430/020-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750043000250000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-430/025-000",
+    "name": "750-430/025-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750043000400000",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-430/040-000",
+    "name": "750-430/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750043100000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-431",
+    "name": "750-431"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750043100400000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-431/040-000",
+    "name": "750-431/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750043200000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-432",
+    "name": "750-432"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750043300000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-433",
+    "name": "750-433"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750043400000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-434",
+    "name": "750-434"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750043500000000",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-435",
+    "name": "750-435"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750043600000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-436",
+    "name": "750-436"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750043600200000",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-436/020-000",
+    "name": "750-436/020-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8801_0750043700000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-437",
+    "name": "750-437"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750043800000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-438",
+    "name": "750-438"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9007_0750043900000000",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-439",
+    "name": "750-439"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "9007_0750043900400000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-439/040-000",
+    "name": "750-439/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8401_0750044000000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-440",
+    "name": "750-440"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750044100000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-441",
+    "name": "750-441"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500450000000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-450",
+    "name": "750-450#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500451000000001600",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-451",
+    "name": "750-451#16"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500451002500001600",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-451/025-000",
+    "name": "750-451/025-000#16"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500452000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-452",
+    "name": "750-452#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500452000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-452/000-001",
+    "name": "750-452/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500452000000020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-452/000-002",
+    "name": "750-452/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500452000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-452/000-200",
+    "name": "750-452/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500452000200000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-452/002-000",
+    "name": "750-452/002-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500452000600000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-452/006-000",
+    "name": "750-452/006-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500453000000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-453",
+    "name": "750-453#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500453004000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-453/040-000",
+    "name": "750-453/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500453020000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-453/200-000",
+    "name": "750-453/200-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500454000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-454",
+    "name": "750-454#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500454000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-454/000-001",
+    "name": "750-454/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500454000000020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-454/000-002",
+    "name": "750-454/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500454000000030400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-454/000-003",
+    "name": "750-454/000-003#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500454000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-454/000-200",
+    "name": "750-454/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500454000002010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-454/000-201",
+    "name": "750-454/000-201#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500454000200000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-454/002-000",
+    "name": "750-454/002-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500454000600000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-454/006-000",
+    "name": "750-454/006-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500454002500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-454/025-000",
+    "name": "750-454/025-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500454002500030400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-454/025-003",
+    "name": "750-454/025-003#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500455000000000800",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-455",
+    "name": "750-455#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500455002000000800",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-455/020-000",
+    "name": "750-455/020-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500455002500000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-455/025-000",
+    "name": "750-455/025-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500455004000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-455/040-000",
+    "name": "750-455/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500456000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-456",
+    "name": "750-456#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500456000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-456/000-001",
+    "name": "750-456/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500456000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-456/000-200",
+    "name": "750-456/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500456000200000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-456/002-000",
+    "name": "750-456/002-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500456000600000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-456/006-000",
+    "name": "750-456/006-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500457000000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-457",
+    "name": "750-457#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500457002500000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-457/025-000",
+    "name": "750-457/025-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500457004000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-457/040-000",
+    "name": "750-457/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500458000000001600",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-458",
+    "name": "750-458#16"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500459000000000800",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-459",
+    "name": "750-459#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500460000000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-460",
+    "name": "750-460#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500460000000030800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-460/000-003",
+    "name": "750-460/000-003#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500460000000050800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-460/000-005",
+    "name": "750-460/000-005#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500460000300000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-460/003-000",
+    "name": "750-460/003-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461",
+    "name": "750-461#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-002",
+    "name": "750-461/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000030400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-003",
+    "name": "750-461/000-003#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000040400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-004",
+    "name": "750-461/000-004#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000050400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-005",
+    "name": "750-461/000-005#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000060400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-006",
+    "name": "750-461/000-006#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000070400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-007",
+    "name": "750-461/000-007#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000090400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-009",
+    "name": "750-461/000-009#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000100400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-010",
+    "name": "750-461/000-010#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000110400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-011",
+    "name": "750-461/000-011#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000000160400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-016",
+    "name": "750-461/000-016#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-200",
+    "name": "750-461/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000002010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/000-201",
+    "name": "750-461/000-201#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000200000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/002-000",
+    "name": "750-461/002-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000300000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/003-000",
+    "name": "750-461/003-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461000600000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/006-000",
+    "name": "750-461/006-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461002000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/020-000",
+    "name": "750-461/020-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500461002500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-461/025-000",
+    "name": "750-461/025-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462",
+    "name": "750-462#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-001",
+    "name": "750-462/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-002",
+    "name": "750-462/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000030400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-003",
+    "name": "750-462/000-003#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000060400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-006",
+    "name": "750-462/000-006#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000070400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-007",
+    "name": "750-462/000-007#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000080400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-008",
+    "name": "750-462/000-008#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000090400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-009",
+    "name": "750-462/000-009#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000100400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-010",
+    "name": "750-462/000-010#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000110400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-011",
+    "name": "750-462/000-011#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000120400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-012",
+    "name": "750-462/000-012#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000500400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-050",
+    "name": "750-462/000-050#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500462000000610400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-462/000-061",
+    "name": "750-462/000-061#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500463000000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-463",
+    "name": "750-463#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500464000000000400",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-464",
+    "name": "750-464#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500464002000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-464/020-000",
+    "name": "750-464/020-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500464004000000400",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-464/040-000",
+    "name": "750-464/040-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500465000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-465",
+    "name": "750-465#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500465000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-465/000-001",
+    "name": "750-465/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500465000000020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-465/000-002",
+    "name": "750-465/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500465000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-465/000-200",
+    "name": "750-465/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500465002500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-465/025-000",
+    "name": "750-465/025-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500466000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-466",
+    "name": "750-466#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500466000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-466/000-001",
+    "name": "750-466/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500466000000020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-466/000-002",
+    "name": "750-466/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500466000000030400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-466/000-003",
+    "name": "750-466/000-003#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500466000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-466/000-200",
+    "name": "750-466/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500466000600000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-466/006-000",
+    "name": "750-466/006-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500466002500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-466/025-000",
+    "name": "750-466/025-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500467000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-467",
+    "name": "750-467#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500467000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-467/000-001",
+    "name": "750-467/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500467000000020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-467/000-002",
+    "name": "750-467/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500467000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-467/000-200",
+    "name": "750-467/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500467000600000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-467/006-000",
+    "name": "750-467/006-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500468000000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-468",
+    "name": "750-468#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500468000000010800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-468/000-001",
+    "name": "750-468/000-001#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500468000002000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-468/000-200",
+    "name": "750-468/000-200#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500468000200000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-468/002-000",
+    "name": "750-468/002-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500468000600000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-468/006-000",
+    "name": "750-468/006-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500468002500000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-468/025-000",
+    "name": "750-468/025-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500468004000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-468/040-000",
+    "name": "750-468/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469",
+    "name": "750-469#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-001",
+    "name": "750-469/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-002",
+    "name": "750-469/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000030400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-003",
+    "name": "750-469/000-003#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000060400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-006",
+    "name": "750-469/000-006#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000070400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-007",
+    "name": "750-469/000-007#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000080400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-008",
+    "name": "750-469/000-008#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000090400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-009",
+    "name": "750-469/000-009#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000120400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-012",
+    "name": "750-469/000-012#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000130400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-013",
+    "name": "750-469/000-013#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000140400",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-014",
+    "name": "750-469/000-014#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000500400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-050",
+    "name": "750-469/000-050#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000510400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-051",
+    "name": "750-469/000-051#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000000620400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-062",
+    "name": "750-469/000-062#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-200",
+    "name": "750-469/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000002020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-202",
+    "name": "750-469/000-202#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000002060400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/000-206",
+    "name": "750-469/000-206#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469000300000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/003-000",
+    "name": "750-469/003-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500469004000000400",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-469/040-000",
+    "name": "750-469/040-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500470000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-470",
+    "name": "750-470#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500470000500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-470/005-000",
+    "name": "750-470/005-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500471000000000800",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-471",
+    "name": "750-471#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500471004000000800",
+    "deviceVersion": "2.0.0.2",
+    "vendor": "WAGO",
+    "articleNumber": "750-471/040-000",
+    "name": "750-471/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500472000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-472",
+    "name": "750-472#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500472000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-472/000-001",
+    "name": "750-472/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500472000000020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-472/000-002",
+    "name": "750-472/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500472000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-472/000-200",
+    "name": "750-472/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500472000500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-472/005-000",
+    "name": "750-472/005-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500473000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-473",
+    "name": "750-473#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500473000500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-473/005-000",
+    "name": "750-473/005-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500474000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-474",
+    "name": "750-474#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500474000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-474/000-001",
+    "name": "750-474/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500474000000020400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-474/000-002",
+    "name": "750-474/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500474000000030400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-474/000-003",
+    "name": "750-474/000-003#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500474000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-474/000-200",
+    "name": "750-474/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500474000500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-474/005-000",
+    "name": "750-474/005-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500474000502000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-474/005-200",
+    "name": "750-474/005-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500475000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-475",
+    "name": "750-475#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500475002000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-475/020-000",
+    "name": "750-475/020-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500476000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-476",
+    "name": "750-476#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500476000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-476/000-001",
+    "name": "750-476/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500476000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-476/000-200",
+    "name": "750-476/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500476000500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-476/005-000",
+    "name": "750-476/005-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500477000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-477",
+    "name": "750-477#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500478000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-478",
+    "name": "750-478#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500478000002000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-478/000-200",
+    "name": "750-478/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500478000500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-478/005-000",
+    "name": "750-478/005-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500479000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-479",
+    "name": "750-479#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500479000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-479/000-001",
+    "name": "750-479/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500479000500000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-479/005-000",
+    "name": "750-479/005-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500480000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-480",
+    "name": "750-480#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500480000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-480/000-001",
+    "name": "750-480/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500481000300000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-481/003-000",
+    "name": "750-481/003-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500481004000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-481/040-000",
+    "name": "750-481/040-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500482000000000400",
+    "deviceVersion": "2.0.0.16",
+    "vendor": "WAGO",
+    "articleNumber": "750-482",
+    "name": "750-482#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500482000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-482/000-001",
+    "name": "750-482/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500482000003000400",
+    "deviceVersion": "2.0.0.15",
+    "vendor": "WAGO",
+    "articleNumber": "750-482/000-300",
+    "name": "750-482/000-300#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500482002500000400",
+    "deviceVersion": "2.0.0.16",
+    "vendor": "WAGO",
+    "articleNumber": "750-482/025-000",
+    "name": "750-482/025-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500483000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-483",
+    "name": "750-483#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500483004000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-483/040-000",
+    "name": "750-483/040-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500484000000000400",
+    "deviceVersion": "2.0.0.17",
+    "vendor": "WAGO",
+    "articleNumber": "750-484",
+    "name": "750-484#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500484000000010400",
+    "deviceVersion": "2.0.0.7",
+    "vendor": "WAGO",
+    "articleNumber": "750-484/000-001",
+    "name": "750-484/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500484004000000400",
+    "deviceVersion": "2.0.0.16",
+    "vendor": "WAGO",
+    "articleNumber": "750-484/040-000",
+    "name": "750-484/040-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500485000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-485",
+    "name": "750-485#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500486000000000800",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-486",
+    "name": "750-486#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500486004000000800",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-486/040-000",
+    "name": "750-486/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500487000300000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-487/003-000",
+    "name": "750-487/003-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500488000000000800",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-488",
+    "name": "750-488#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500489000000000800",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-489",
+    "name": "750-489#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500491000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-491",
+    "name": "750-491#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500491000000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-491/000-001",
+    "name": "750-491/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500492000000000400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-492",
+    "name": "750-492#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500492004000010400",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-492/040-001",
+    "name": "750-492/040-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500493000000001212",
+    "deviceVersion": "2.0.0.17",
+    "vendor": "WAGO",
+    "articleNumber": "750-493",
+    "name": "750-493#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500493000000011212",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-493/000-001",
+    "name": "750-493/000-001#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500493002500001212",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-493/025-000",
+    "name": "750-493/025-000#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500494000000002424",
+    "deviceVersion": "2.0.0.24",
+    "vendor": "WAGO",
+    "articleNumber": "750-494",
+    "name": "750-494#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500494000000012424",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-494/000-001",
+    "name": "750-494/000-001#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500494000000052424",
+    "deviceVersion": "2.0.0.23",
+    "vendor": "WAGO",
+    "articleNumber": "750-494/000-005",
+    "name": "750-494/000-005#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500494002500002424",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-494/025-000",
+    "name": "750-494/025-000#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500494002500012424",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-494/025-001",
+    "name": "750-494/025-001#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500495000000002424",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-495",
+    "name": "750-495#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500495000000012424",
+    "deviceVersion": "2.0.0.15",
+    "vendor": "WAGO",
+    "articleNumber": "750-495/000-001",
+    "name": "750-495/000-001#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500495000000022424",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-495/000-002",
+    "name": "750-495/000-002#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500495004000002424",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-495/040-000",
+    "name": "750-495/040-000#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500495004000012424",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-495/040-001",
+    "name": "750-495/040-001#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500495004000022424",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-495/040-002",
+    "name": "750-495/040-002#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500495004000102424",
+    "deviceVersion": "2.0.0.5",
+    "vendor": "WAGO",
+    "articleNumber": "750-495/040-010",
+    "name": "750-495/040-010#24"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500496000000001600",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-496",
+    "name": "750-496#16"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500497000000001600",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-497",
+    "name": "750-497#16"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500498000000001600",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-498",
+    "name": "750-498#16"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750050100000000",
+    "deviceVersion": "2.0.0.15",
+    "vendor": "WAGO",
+    "articleNumber": "750-501",
+    "name": "750-501"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750050100060000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-501/006-000",
+    "name": "750-501/006-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750050200000000",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-502",
+    "name": "750-502"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750050200060000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-502/006-000",
+    "name": "750-502/006-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750050400000000",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-504",
+    "name": "750-504"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750050400020000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-504/002-000",
+    "name": "750-504/002-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750050400060000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-504/006-000",
+    "name": "750-504/006-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750050400250000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-504/025-000",
+    "name": "750-504/025-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8403_0750050600000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-506",
+    "name": "750-506"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8403_0750050600060000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-506/006-000",
+    "name": "750-506/006-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8203_0750050700000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-507",
+    "name": "750-507"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8203_0750050800000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-508",
+    "name": "750-508"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8203_0750050800200001",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-508/020-001",
+    "name": "750-508/020-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8203_0750050800400000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-508/040-000",
+    "name": "750-508/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750050900000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-509",
+    "name": "750-509"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750050900060000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-509/006-000",
+    "name": "750-509/006-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500511000000000808",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-511",
+    "name": "750-511#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500511000000010808",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-511/000-001",
+    "name": "750-511/000-001#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500511000000020808",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-511/000-002",
+    "name": "750-511/000-002#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500511000000030808",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-511/000-003",
+    "name": "750-511/000-003#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500511000000040808",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-511/000-004",
+    "name": "750-511/000-004#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500511000000050808",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-511/000-005",
+    "name": "750-511/000-005#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500511000600000808",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-511/006-000",
+    "name": "750-511/006-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500511000600010808",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-511/006-001",
+    "name": "750-511/006-001#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750051200000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-512",
+    "name": "750-512"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750051200020000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-512/002-000",
+    "name": "750-512/002-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750051300000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-513",
+    "name": "750-513"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750051300000001",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-513/000-001",
+    "name": "750-513/000-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750051300020000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-513/002-000",
+    "name": "750-513/002-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750051300060000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-513/006-000",
+    "name": "750-513/006-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750051400000000",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-514",
+    "name": "750-514"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750051400060000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-514/006-000",
+    "name": "750-514/006-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750051500000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-515",
+    "name": "750-515"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750051600000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-516",
+    "name": "750-516"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750051700000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-517",
+    "name": "750-517"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750051700400000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-517/040-000",
+    "name": "750-517/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750051900000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-519",
+    "name": "750-519"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750052000000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-520",
+    "name": "750-520"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8203_0750052200000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-522",
+    "name": "750-522"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8203_0750052200000001",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-522/000-001",
+    "name": "750-522/000-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8203_0750052300000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-523",
+    "name": "750-523"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8203_0750052300100000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-523/010-000",
+    "name": "750-523/010-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750052700000000",
+    "deviceVersion": "2.0.0.1",
+    "vendor": "WAGO",
+    "articleNumber": "750-527",
+    "name": "750-527"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750052800000000",
+    "deviceVersion": "2.0.0.1",
+    "vendor": "WAGO",
+    "articleNumber": "750-528",
+    "name": "750-528"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8802_0750053000000000",
+    "deviceVersion": "2.0.0.15",
+    "vendor": "WAGO",
+    "articleNumber": "750-530",
+    "name": "750-530"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8802_0750053000060000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-530/006-000",
+    "name": "750-530/006-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8802_0750053000250000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-530/025-000",
+    "name": "750-530/025-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750053100000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-531",
+    "name": "750-531"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "840B_0750053200000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-532",
+    "name": "750-532"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "840B_0750053300000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-533",
+    "name": "750-533"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8802_0750053400000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-534",
+    "name": "750-534"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750053500000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-535",
+    "name": "750-535"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750053500400000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-535/040-000",
+    "name": "750-535/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8802_0750053600000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-536",
+    "name": "750-536"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "880B_0750053700000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-537",
+    "name": "750-537"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "880B_0750053700400000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-537/040-000",
+    "name": "750-537/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750053800000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-538",
+    "name": "750-538"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "840B_0750053900000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-539",
+    "name": "750-539"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750054000000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-540",
+    "name": "750-540"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750054200000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-542",
+    "name": "750-542"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8202_0750054300000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-543",
+    "name": "750-543"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8402_0750054400000000",
+    "deviceVersion": "2.0.0.8",
+    "vendor": "WAGO",
+    "articleNumber": "750-544",
+    "name": "750-544"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500550000000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-550",
+    "name": "750-550#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500550000002000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-550/000-200",
+    "name": "750-550/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500550000200000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-550/002-000",
+    "name": "750-550/002-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500550000600000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-550/006-000",
+    "name": "750-550/006-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500551000000000008",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-551",
+    "name": "750-551#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500552000000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-552",
+    "name": "750-552#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500552000000020004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-552/000-002",
+    "name": "750-552/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500552000002000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-552/000-200",
+    "name": "750-552/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500552000200000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-552/002-000",
+    "name": "750-552/002-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500552000600000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-552/006-000",
+    "name": "750-552/006-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500552002500000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-552/025-000",
+    "name": "750-552/025-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500553000000000008",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-553",
+    "name": "750-553#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500554000000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-554",
+    "name": "750-554#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500554000000020004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-554/000-002",
+    "name": "750-554/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500554000002000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-554/000-200",
+    "name": "750-554/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500554000200000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-554/002-000",
+    "name": "750-554/002-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500554000600000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-554/006-000",
+    "name": "750-554/006-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500554002500000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-554/025-000",
+    "name": "750-554/025-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500555000000000008",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-555",
+    "name": "750-555#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500556000000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-556",
+    "name": "750-556#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500556000002000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-556/000-200",
+    "name": "750-556/000-200#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500556000200000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-556/002-000",
+    "name": "750-556/002-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500556000600000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-556/006-000",
+    "name": "750-556/006-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500557000000000008",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-557",
+    "name": "750-557#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500557004000000008",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-557/040-000",
+    "name": "750-557/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500559000000000008",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-559",
+    "name": "750-559#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500559002500000008",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-559/025-000",
+    "name": "750-559/025-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500559004000000008",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-559/040-000",
+    "name": "750-559/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500559020000000008",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-559/200-000",
+    "name": "750-559/200-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500560000000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-560",
+    "name": "750-560#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500562000000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-562",
+    "name": "750-562#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500563000000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-563",
+    "name": "750-563#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500563004000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-563/040-000",
+    "name": "750-563/040-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500564000000000008",
+    "deviceVersion": "2.0.0.26",
+    "vendor": "WAGO",
+    "articleNumber": "750-564",
+    "name": "750-564#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500580000000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-580",
+    "name": "750-580#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500585000000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-585",
+    "name": "750-585#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500585004000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-585/040-000",
+    "name": "750-585/040-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500586000000000004",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-586",
+    "name": "750-586#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500597000000000016",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-597",
+    "name": "750-597#16"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750060100000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-601",
+    "name": "750-601"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750060100400000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-601/040-000",
+    "name": "750-601/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750060200000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-602",
+    "name": "750-602"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750060200250000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-602/025-000",
+    "name": "750-602/025-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750060200400000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-602/040-000",
+    "name": "750-602/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750060300000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-603",
+    "name": "750-603"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750060400000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-604",
+    "name": "750-604"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8200_0750060600000000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-606",
+    "name": "750-606"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8200_0750060600400000",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-606/040-000",
+    "name": "750-606/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750060900000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-609",
+    "name": "750-609"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750061000000000",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-610",
+    "name": "750-610"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750061000400000",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-610/040-000",
+    "name": "750-610/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "8201_0750061100000000",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-611",
+    "name": "750-611"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061200000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-612",
+    "name": "750-612"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061200400000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-612/040-000",
+    "name": "750-612/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061300000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-613",
+    "name": "750-613"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061300400000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-613/040-000",
+    "name": "750-613/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061400000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-614",
+    "name": "750-614"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061400400000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-614/040-000",
+    "name": "750-614/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061500000000",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-615",
+    "name": "750-615"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061600000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-616",
+    "name": "750-616"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061600300000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-616/030-000",
+    "name": "750-616/030-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061600400000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-616/040-000",
+    "name": "750-616/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750061700000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-617",
+    "name": "750-617"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062100000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-621",
+    "name": "750-621"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062400000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-624",
+    "name": "750-624"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062400000001",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-624/000-001",
+    "name": "750-624/000-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062400200000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-624/020-000",
+    "name": "750-624/020-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062400200001",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-624/020-001",
+    "name": "750-624/020-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "880E_0750062400200002",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-624/020-002",
+    "name": "750-624/020-002"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062400400000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-624/040-000",
+    "name": "750-624/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062400400001",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-624/040-001",
+    "name": "750-624/040-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062500000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-625",
+    "name": "750-625"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062500000001",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-625/000-001",
+    "name": "750-625/000-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062600000000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-626",
+    "name": "750-626"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062600200000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-626/020-000",
+    "name": "750-626/020-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "880E_0750062600200002",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-626/020-002",
+    "name": "750-626/020-002"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062600250000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-626/025-000",
+    "name": "750-626/025-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062600250001",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-626/025-001",
+    "name": "750-626/025-001"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "0750062600400000",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-626/040-000",
+    "name": "750-626/040-000"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000000400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630",
+    "name": "750-630#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000010400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-001",
+    "name": "750-630/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000020400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-002",
+    "name": "750-630/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000040400",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-004",
+    "name": "750-630/000-004#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000050400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-005",
+    "name": "750-630/000-005#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000060400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-006",
+    "name": "750-630/000-006#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000070400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-007",
+    "name": "750-630/000-007#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000080400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-008",
+    "name": "750-630/000-008#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000090400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-009",
+    "name": "750-630/000-009#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000110400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-011",
+    "name": "750-630/000-011#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000120400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-012",
+    "name": "750-630/000-012#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000000130400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/000-013",
+    "name": "750-630/000-013#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630000300000400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/003-000",
+    "name": "750-630/003-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500630004000010400",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-630/040-001",
+    "name": "750-630/040-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500631000000000808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-631",
+    "name": "750-631#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500631000000010808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-631/000-001",
+    "name": "750-631/000-001#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500631000000040808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-631/000-004",
+    "name": "750-631/000-004#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500631000000100808",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-631/000-010",
+    "name": "750-631/000-010#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500631000000110808",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-631/000-011",
+    "name": "750-631/000-011#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500632000000000606",
+    "deviceVersion": "2.1.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-632",
+    "name": "750-632#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500632000001000606",
+    "deviceVersion": "2.1.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-632/000-100",
+    "name": "750-632/000-100#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500633000000000606",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-633",
+    "name": "750-633#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500633004000000606",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-633/040-000",
+    "name": "750-633/040-000#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500634000000000808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-634",
+    "name": "750-634#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500635000000000404",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-635",
+    "name": "750-635#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500636000000000606",
+    "deviceVersion": "2.0.0.19",
+    "vendor": "WAGO",
+    "articleNumber": "750-636",
+    "name": "750-636#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500636000007000606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-636/000-700",
+    "name": "750-636/000-700#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500636000008000606",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-636/000-800",
+    "name": "750-636/000-800#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500636000300000606",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-636/003-000",
+    "name": "750-636/003-000#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500636002000000606",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-636/020-000",
+    "name": "750-636/020-000#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500636002500000606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-636/025-000",
+    "name": "750-636/025-000#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500637000000000808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-637",
+    "name": "750-637#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500637000000010808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-637/000-001",
+    "name": "750-637/000-001#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500637000000020808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-637/000-002",
+    "name": "750-637/000-002#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500637000000030808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-637/000-003",
+    "name": "750-637/000-003#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500637000000040808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-637/000-004",
+    "name": "750-637/000-004#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500637004000000808",
+    "deviceVersion": "2.0.0.1",
+    "vendor": "WAGO",
+    "articleNumber": "750-637/040-000",
+    "name": "750-637/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500637004000010808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-637/040-001",
+    "name": "750-637/040-001#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500638000000000808",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-638",
+    "name": "750-638#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500638002500000808",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-638/025-000",
+    "name": "750-638/025-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500639000000000404",
+    "deviceVersion": "2.0.0.9",
+    "vendor": "WAGO",
+    "articleNumber": "750-639",
+    "name": "750-639#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500640000000000606",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-640",
+    "name": "750-640#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500642000000000404",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-642",
+    "name": "750-642#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500643000000000808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-643",
+    "name": "750-643#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500644000000001212",
+    "deviceVersion": "2.0.0.21",
+    "vendor": "WAGO",
+    "articleNumber": "750-644",
+    "name": "750-644#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500645000000001616",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-645",
+    "name": "750-645#16"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000000404",
+    "deviceVersion": "2.0.0.20",
+    "vendor": "WAGO",
+    "articleNumber": "750-650",
+    "name": "750-650#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000010606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-001",
+    "name": "750-650/000-001#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000020404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-002",
+    "name": "750-650/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000030404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-003",
+    "name": "750-650/000-003#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000040404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-004",
+    "name": "750-650/000-004#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000060404",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-006",
+    "name": "750-650/000-006#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000070404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-007",
+    "name": "750-650/000-007#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000080404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-008",
+    "name": "750-650/000-008#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000090404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-009",
+    "name": "750-650/000-009#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000100404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-010",
+    "name": "750-650/000-010#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000110404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-011",
+    "name": "750-650/000-011#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000120404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-012",
+    "name": "750-650/000-012#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000130404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-013",
+    "name": "750-650/000-013#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000140404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-014",
+    "name": "750-650/000-014#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000150404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-015",
+    "name": "750-650/000-015#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000160606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-016",
+    "name": "750-650/000-016#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000170404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-017",
+    "name": "750-650/000-017#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000180606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-018",
+    "name": "750-650/000-018#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000190606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-019",
+    "name": "750-650/000-019#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000200404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-020",
+    "name": "750-650/000-020#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000210404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-021",
+    "name": "750-650/000-021#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000220606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-022",
+    "name": "750-650/000-022#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000230404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-023",
+    "name": "750-650/000-023#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000000250606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/000-025",
+    "name": "750-650/000-025#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500650000300000404",
+    "deviceVersion": "2.0.0.18",
+    "vendor": "WAGO",
+    "articleNumber": "750-650/003-000",
+    "name": "750-650/003-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500651000000000404",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-651",
+    "name": "750-651#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500651000000010606",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-651/000-001",
+    "name": "750-651/000-001#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500651000000020404",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-651/000-002",
+    "name": "750-651/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500651000000030404",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-651/000-003",
+    "name": "750-651/000-003#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500651000000040404",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-651/000-004",
+    "name": "750-651/000-004#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500651000000050404",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-651/000-005",
+    "name": "750-651/000-005#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500651000000060404",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-651/000-006",
+    "name": "750-651/000-006#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500651000000070606",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-651/000-007",
+    "name": "750-651/000-007#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500652000000000808",
+    "deviceVersion": "2.0.0.25",
+    "vendor": "WAGO",
+    "articleNumber": "750-652",
+    "name": "750-652#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500652000000100808",
+    "deviceVersion": "2.0.0.1",
+    "vendor": "WAGO",
+    "articleNumber": "750-652/000-010",
+    "name": "750-652/000-010#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500652002500000808",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-652/025-000",
+    "name": "750-652/025-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500652004000000808",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-652/040-000",
+    "name": "750-652/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000000404",
+    "deviceVersion": "2.0.0.21",
+    "vendor": "WAGO",
+    "articleNumber": "750-653",
+    "name": "750-653#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000010404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-001",
+    "name": "750-653/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000020404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-002",
+    "name": "750-653/000-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000030404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-003",
+    "name": "750-653/000-003#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000040404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-004",
+    "name": "750-653/000-004#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000050404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-005",
+    "name": "750-653/000-005#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000060606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-006",
+    "name": "750-653/000-006#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000070404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-007",
+    "name": "750-653/000-007#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000080404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-008",
+    "name": "750-653/000-008#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000090606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-009",
+    "name": "750-653/000-009#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000100404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-010",
+    "name": "750-653/000-010#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000110606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-011",
+    "name": "750-653/000-011#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000130404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-013",
+    "name": "750-653/000-013#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000140404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-014",
+    "name": "750-653/000-014#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000180606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-018",
+    "name": "750-653/000-018#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000200606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-020",
+    "name": "750-653/000-020#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000210606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-021",
+    "name": "750-653/000-021#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000000220606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/000-022",
+    "name": "750-653/000-022#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000300000404",
+    "deviceVersion": "2.0.0.19",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/003-000",
+    "name": "750-653/003-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000300010404",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/003-001",
+    "name": "750-653/003-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653000600020404",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/006-002",
+    "name": "750-653/006-002#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653002500000404",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/025-000",
+    "name": "750-653/025-000#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500653002500180606",
+    "deviceVersion": "2.0.0.11",
+    "vendor": "WAGO",
+    "articleNumber": "750-653/025-018",
+    "name": "750-653/025-018#06"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500654000000000404",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-654",
+    "name": "750-654#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500654000000010404",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-654/000-001",
+    "name": "750-654/000-001#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500655000000001212",
+    "deviceVersion": "2.0.0.13",
+    "vendor": "WAGO",
+    "articleNumber": "750-655",
+    "name": "750-655#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500657000000000404",
+    "deviceVersion": "2.0.0.12",
+    "vendor": "WAGO",
+    "articleNumber": "750-657",
+    "name": "750-657#04"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500658000000000808",
+    "deviceVersion": "2.0.0.14",
+    "vendor": "WAGO",
+    "articleNumber": "750-658",
+    "name": "750-658#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500658004000000808",
+    "deviceVersion": "2.0.0.16",
+    "vendor": "WAGO",
+    "articleNumber": "750-658/040-000",
+    "name": "750-658/040-000#08"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500666000001041212",
+    "deviceVersion": "2.0.0.4",
+    "vendor": "WAGO",
+    "articleNumber": "750-666/000-104",
+    "name": "750-666/000-104#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500667000001041212",
+    "deviceVersion": "2.0.0.25",
+    "vendor": "WAGO",
+    "articleNumber": "750-667/000-104",
+    "name": "750-667/000-104#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500670000000001212",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-670",
+    "name": "750-670#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500671000000001212",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-671",
+    "name": "750-671#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500672000000001212",
+    "deviceVersion": "2.0.0.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-672",
+    "name": "750-672#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500673000000001212",
+    "deviceVersion": "2.0.0.19",
+    "vendor": "WAGO",
+    "articleNumber": "750-673",
+    "name": "750-673#12"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500677000000001616",
+    "deviceVersion": "2.0.0.3",
+    "vendor": "WAGO",
+    "articleNumber": "750-677",
+    "name": "750-677#16"
+  },
+  {
+    "deviceType": 32776,
+    "deviceId": "07500677004000001616",
+    "deviceVersion": "2.0.0.4",
+    "vendor": "WAGO",
+    "articleNumber": "750-677/040-000",
+    "name": "750-677/040-000#16"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1104",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8110",
+    "name": "750-8110 PFC100 ECO"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1105",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8111",
+    "name": "750-8111 PFC100"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1106",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8112",
+    "name": "750-8112 PFC100"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1207",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8210",
+    "name": "750-8210 PFC200"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1212",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8210/040-001",
+    "name": "750-8210/0XX-001 PFC200 Telecontrol"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1208",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8211",
+    "name": "750-8211 PFC200"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1213",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8211/040-001",
+    "name": "750-8211/0XX-001 PFC200 Telecontrol"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1209",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8212",
+    "name": "750-8212 PFC200"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1210",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8212/000-100",
+    "name": "750-8212/000-100 PFC200 BACnet"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1215",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8212/025-002",
+    "name": "750-8212/0XX-002 PFC200 Telecontrol ECO"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1214",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8212/0XX-001",
+    "name": "750-8212/0XX-001 PFC200 Telecontrol"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 120C",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8213",
+    "name": "750-8213 PFC200"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 120A",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8214",
+    "name": "750-8214 PFC200"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 120b",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8215",
+    "name": "750-8215 PFC200"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 120D",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8216",
+    "name": "750-8216 PFC200"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1216",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8216/025-001",
+    "name": "750-8216/0XX-001 PFC200 Telecontrol"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 120E",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8217",
+    "name": "750-8217 PFC200"
+  },
+  {
+    "deviceType": 4096,
+    "deviceId": "1006 1300",
+    "deviceVersion": "6.4.6.10",
+    "vendor": "WAGO",
+    "articleNumber": "750-8302",
+    "name": "750-8302 PFC300"
+  }
+]

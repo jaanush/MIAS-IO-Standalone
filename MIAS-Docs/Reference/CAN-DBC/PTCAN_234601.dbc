@@ -1,0 +1,452 @@
+VERSION "1.1"
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: SC PT BMS SC05 SC09 SC13 SC17 SC21 SC25 SC29 SC02 SC06 SC10 SC14 SC18 SC22 SC26 SC30
+VAL_TABLE_ HVILState 15 "SNA" 1 "HVIL ERROR" 0 "HVIL OK" ;
+VAL_TABLE_ isolationErrorTable 15 "SNA" 2 "ISOLATION ERROR" 1 "ISOLATION WARNING" 0 "ISOLATION OK" ;
+VAL_TABLE_ uint4_t 15 "SNA" ;
+VAL_TABLE_ rangeRequest 15 "RANGE_INVALID" 14 "RANGE_MAXIMUM" 13 "RANGE_MODESOH8" 12 "RANGE_MODESOH7" 11 "RANGE_MODESOH6" 10 "RANGE_MODESOH5" 9 "RANGE_MODESOH4" 8 "RANGE_MODESOH3" 7 "RANGE_MODESOH2" 6 "RANGE_MODESOH1" 5 "RANGE_MODE407" 4 "RANGE_MODE405" 3 "RANGE_MODE4175" 2 "RANGE_MODE415" 1 "RANGE_LIMITED" 0 "RANGE_SHIPPING" ;
+VAL_TABLE_ uint32_t -1 "SNA" ;
+VAL_TABLE_ ChargeManagerChargeStateEnum 15 "CHARGESTATE_INVALID" 1 "CHARGESTATE_COMPLETE" 0 "CHARGESTATE_NOTCOMPLETE" ;
+VAL_TABLE_ ChargeManagerConnectionStateEnum 3 "CHARGEMANAGER_FULL_CONNECTION_DC" 2 "CHARGEMANAGER_FULL_CONNECTION_AC" 1 "CHARGEMANAGER_PARTIAL_CONNECTION" 0 "CHARGEMANAGER_NO_CONNECTION" ;
+VAL_TABLE_ StringStateManagerPrechargeState 15 "STRING_NOT_EXISTING" 5 "STRING_WILL_OPEN_SOON" 4 "STRING_ON" 3 "STRING_PAUSED" 2 "STRING_CLOSING" 1 "STRING_INDEFINED" 0 "STRING_OFF" ;
+VAL_TABLE_ enumeration 32 "32" 31 "31" 30 "30" 29 "29" 28 "28" 27 "27" 26 "26" 25 "25" 24 "24" 23 "23" 22 "22" 21 "21" 20 "20" 19 "19" 18 "18" 17 "17" 16 "16" 15 "15" 14 "14" 13 "13" 12 "12" 11 "11" 10 "10" 9 "09" 8 "08" 7 "07" 6 "06" 5 "05" 4 "04" 3 "03" 2 "02" 1 "01" 0 "00" ;
+VAL_TABLE_ itemState 2 "ITEM_EMERGENCY" 1 "ITEM_OFF" 0 "ITEM_ON" ;
+VAL_TABLE_ safeState 1 "SAFESTATE_UNSAFE" 0 "SAFESTATE_SAFE" ;
+VAL_TABLE_ isolationTestState 2 "ISOLATION_TEST_NEG" 1 "ISOLATION_TEST_POS" 0 "ISOLATION_OFF" ;
+VAL_TABLE_ prechargeState 8 "CTR_PRCHG_FAILED" 7 "CTR_PRCHG_COMPLETE" 6 "CTR_PRCHG_CLOSE_POS" 5 "CTR_PRCHG_MONITOR_VOLTAGE" 4 "CTR_PRCHG_CLOSE_NEG" 3 "CTR_PRCHG_NEG_WELD_CHECK" 2 "CTR_PRCHG_CLOSE_RELAY" 1 "CTR_PRCHG_WELD_CHECK" 0 "CTR_PRCHG_OFF" ;
+VAL_TABLE_ contactorState 4 "CTR_INVALID" 3 "CTR_STRING_OPENING" 2 "CTR_STRING_ON" 1 "CTR_STRING_PRECHARGE" 0 "CTR_STRING_OFF" ;
+VAL_TABLE_ multiplexer301_VT 3 "CH3_GND" 2 "CH2_HALL_SENSE" 1 "CH1_HALL_5VSUPPLY" 0 "CH0_2V877_REF" ;
+VAL_TABLE_ clockRequestCommand 255 "CLOCK_NOCOMMAND" 1 "CLOCK_LOW" 0 "CLOCK_HIGH" ;
+VAL_TABLE_ sleepRequestCommand 255 "SLEEP_NOCOMMAND" 1 "SLEEP_ON" 0 "SLEEP_OFF" ;
+VAL_TABLE_ uint8_tCommand 255 "NOCOMMAND" ;
+VAL_TABLE_ uint24_tCommand 16777215 "NOCOMMAND" ;
+VAL_TABLE_ contactorRequestCommand 255 "CONTACTOR_NOCONTROL" 1 "CONTACTOR_ON" 0 "CONTACTOR_OFF" ;
+VAL_TABLE_ chargeState 3 "CHARGESTATE_INVALID" 1 "CHARGESTATE_COMPLETE" 0 "CHARGESTATE_NOTCOMPLETE" ;
+VAL_TABLE_ VEH_stateRequest 2 "STATE_DRIVE" 15 "STATE_INVALID" 1 "STATE_DRIVE" 0 "STATE_STANDBY" ;
+VAL_TABLE_ DEMStatus 3 "DEM_INVALID" 2 "DEM_FAILED" 1 "DEM_PASSED" 0 "DEM_NOTTESTED" ;
+VAL_TABLE_ sleepRequest 15 "SLEEP_INVALID" 1 "SLEEP_ACTIVE" 0 "SLEEP_INACTIVE" ;
+VAL_TABLE_ isolationRequest 15 "ISOLATION_INVALID" 1 "ISOLATION_ACTIVE" 0 "ISOLATION_INACTIVE" ;
+VAL_TABLE_ state 15 "STATE_INVALID" 6 "STATE_SYSTEM_FAULT" 5 "STATE_STRING_FAULT" 4 "STATE_LIMPHOME" 3 "STATE_ACCESSORY" 2 "STATE_CHARGE" 1 "STATE_DRIVE" 0 "STATE_STANDBY" ;
+VAL_TABLE_ uint8_t 255 "SNA" ;
+VAL_TABLE_ uint16_t 65535 "SNA" ;
+VAL_TABLE_ emergencyState 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+
+
+BO_ 827 BMS_PowerPrediction: 8 BMS
+ SG_ dischargePowerPred_BMS : 55|16@0+ (0.01,0) [0|650] "kW"  PT
+ SG_ regenPowerPred_BMS : 39|16@0+ (0.01,0) [0|650] "kW"  PT
+ SG_ dischargeCurrentPred_BMS : 23|16@0+ (0.05,0) [0|3200] "A"  PT
+ SG_ regenCurrentPred_BMS : 7|16@0+ (0.05,0) [0|3200] "A"  PT
+
+BO_ 826 BMS_FluidMeasUserSOC: 8 BMS
+ SG_ fluidPressureInlet_BMS : 55|8@0+ (10,0) [0|2540] "mbar"  PT
+ SG_ userSOC_BMS : 39|16@0+ (0.01,0) [0|100] "PCT"  PT
+ SG_ fluidTemperatureOutlet_BMS : 23|8@0+ (0.5,-40) [-40|85] "C"  PT
+ SG_ fluidTemperatureInlet_BMS : 7|8@0+ (0.5,-40) [-40|85] "C"  PT
+
+BO_ 825 BMS_StringVoltages: 8 BMS
+ SG_ linkVoltageAuxiliary2_BMS : 55|16@0+ (0.02,0) [0|1200] "V"  PT
+ SG_ linkVoltageAuxiliary1_BMS : 39|16@0+ (0.02,0) [0|1200] "V"  PT
+ SG_ maxStringVoltage_BMS : 23|16@0+ (0.02,0) [0|1200] "V"  PT
+ SG_ minStringVoltage_BMS : 7|16@0+ (0.02,0) [0|1200] "V"  PT
+
+BO_ 823 BMS_ModuleTemperatures: 7 BMS
+ SG_ maxDewPointTemperature_BMS : 55|8@0+ (0.5,-40) [-40|85] "C"  PT
+ SG_ minModuleTempIndex_0based_BMS : 23|16@0+ (1,0) [0|65535] ""  PT
+ SG_ maxModuleTempIndex_0based_BMS : 39|16@0+ (1,0) [0|65535] ""  PT
+ SG_ maxModuleTemperature_BMS : 15|8@0+ (0.5,-40) [-40|85] "C"  PT
+ SG_ minModuleTemperature_BMS : 7|8@0+ (0.5,-40) [-40|85] "C"  PT
+
+BO_ 31 SC01_State: 5 SC
+ SG_ linkVoltage_SC01 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC01 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC01 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC01 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 32 SC02_State: 5 SC02
+ SG_ linkVoltage_SC02 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC02 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC02 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC02 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 35 SC05_State: 5 SC05
+ SG_ linkVoltage_SC05 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC05 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC05 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC05 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 36 SC06_State: 5 SC06
+ SG_ linkVoltage_SC06 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC06 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC06 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC06 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 39 SC09_State: 5 SC09
+ SG_ linkVoltage_SC09 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC09 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC09 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC09 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 40 SC10_State: 5 SC10
+ SG_ linkVoltage_SC10 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC10 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC10 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC10 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 43 SC13_State: 5 SC13
+ SG_ linkVoltage_SC13 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC13 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC13 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC13 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 44 SC14_State: 5 SC14
+ SG_ linkVoltage_SC14 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC14 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC14 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC14 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 47 SC17_State: 5 SC17
+ SG_ linkVoltage_SC17 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC17 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC17 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC17 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 48 SC18_State: 5 SC18
+ SG_ linkVoltage_SC18 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC18 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC18 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC18 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 51 SC21_State: 5 SC21
+ SG_ linkVoltage_SC21 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC21 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC21 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC21 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 52 SC22_State: 5 SC22
+ SG_ linkVoltage_SC22 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC22 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC22 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC22 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 55 SC25_State: 5 SC25
+ SG_ linkVoltage_SC25 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC25 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC25 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC25 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 56 SC26_State: 5 SC26
+ SG_ linkVoltage_SC26 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC26 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC26 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC26 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 59 SC29_State: 5 SC29
+ SG_ linkVoltage_SC29 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC29 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC29 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC29 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 60 SC30_State: 5 SC30
+ SG_ linkVoltage_SC30 : 7|16@0+ (0.04,-1250) [-1250|1250] "V"  PT
+ SG_ emergencyRequest_SC30 : 19|4@0+ (1,0) [0|0] ""  PT
+ SG_ alive_SC30 : 27|4@0+ (1,0) [0|255] ""  PT
+ SG_ CRC_SC30 : 39|8@0+ (1,0) [0|255] ""  PT
+
+BO_ 819 BMS_Charge: 4 BMS
+ SG_ chargeVoltageLimit_BMS : 23|16@0+ (0.02,0) [0|1200] "V"  PT
+ SG_ chargeCurrentSetpoint_BMS : 7|16@0+ (0.05,0) [0|3200] "A"  PT
+
+BO_ 822 BMS_IsolationSOC: 8 BMS
+ SG_ maxSOC_BMS : 55|16@0+ (0.01,0) [0|100] "PCT"  PT
+ SG_ minSOC_BMS : 39|16@0+ (0.01,0) [0|100] "PCT"  PT
+ SG_ isolationResistanceIntern_BMS : 23|16@0+ (2,0) [0|130000] "kOhm"  PT
+ SG_ isolationResistanceExtern_BMS : 7|16@0+ (2,0) [0|130000] "kOhm"  PT
+
+BO_ 820 BMS_EnergySOH: 8 BMS
+ SG_ maxSOH_BMS : 31|8@0+ (0.5,0) [0|120] "PCT"  PT
+ SG_ minSOH_BMS : 23|8@0+ (0.5,0) [0|120] "PCT"  PT
+ SG_ energyAvailable_BMS : 7|16@0+ (0.01,0) [0|650] "kWh"  PT
+
+BO_ 821 BMS_BrickVoltages: 8 BMS
+ SG_ maxBrickVoltageIndex_0based_BMS : 55|16@0+ (1,0) [0|65535] ""  PT
+ SG_ minBrickVoltageIndex_0based_BMS : 39|16@0+ (1,0) [0|65535] ""  PT
+ SG_ maxBrickVoltage_BMS : 23|16@0+ (0.0001,0) [0|6.5] "V"  PT
+ SG_ minBrickVoltage_BMS : 7|16@0+ (0.0001,0) [0|6.5] "V"  PT
+
+BO_ 818 BMS_DriveLimits: 8 BMS
+ SG_ dischargeCurrentLimit_BMS : 55|16@0+ (0.05,0) [0|3200] "A"  PT
+ SG_ regenCurrentLimit_BMS : 39|16@0+ (0.05,0) [0|3200] "A"  PT
+ SG_ minVoltageLimit_BMS : 23|16@0+ (0.02,0) [0|1200] "V"  PT
+ SG_ maxVoltageLimit_BMS : 7|16@0+ (0.02,0) [0|1200] "V"  PT
+
+BO_ 282 BMS_State: 5 BMS
+ SG_ stateTRIndex_BMS : 39|6@0+ (1,0) [0|63] ""  PT
+ SG_ stateTR_BMS : 19|4@0+ (1,0) [0|15] ""  PT
+ SG_ cntrStateAux4_BMS : 31|2@0+ (1,0) [0|0] ""  PT
+ SG_ cntrStateAux3_BMS : 29|2@0+ (1,0) [0|0] ""  PT
+ SG_ cntrStateAux2_BMS : 27|2@0+ (1,0) [0|0] ""  PT
+ SG_ cntrStateAux1_BMS : 25|2@0+ (1,0) [0|0] ""  PT
+ SG_ hvilState_BMS : 21|2@0+ (1,0) [0|0] ""  PT
+ SG_ isolationError_BMS : 23|2@0+ (1,0) [0|3] ""  PT
+ SG_ isolationState_BMS : 7|2@0+ (1,0) [0|0] ""  PT
+ SG_ chargeState_BMS : 5|2@0+ (1,0) [0|0] ""  PT
+ SG_ state_BMS : 3|4@0+ (1,0) [0|0] ""  PT
+ SG_ numberOfConnectedStrings_BMS : 15|8@0+ (1,0) [0|0] ""  PT
+
+BO_ 817 BMS_CurrentVoltage: 8 BMS
+ SG_ regenCurrentResidual_BMS : 55|16@0+ (0.1,-3200) [-3200|3200] "A"  PT
+ SG_ dischargeCurrentResidual_BMS : 39|16@0+ (0.1,-3200) [-3200|3200] "A"  PT
+ SG_ current_BMS : 23|16@0+ (0.1,-3200) [-3200|3200] "A"  PT
+ SG_ linkVoltage_BMS : 7|16@0+ (0.02,0) [0|1200] "V"  PT
+
+BO_ 283 PT_Request: 7 PT
+ SG_ cntrRequestAux4_PT : 43|1@0+ (1,0) [0|0] ""  BMS
+ SG_ cntrRequestAux3_PT : 42|1@0+ (1,0) [0|0] ""  BMS
+ SG_ cntrRequestAux2_PT : 41|1@0+ (1,0) [0|0] ""  BMS
+ SG_ cntrRequestAux1_PT : 40|1@0+ (1,0) [0|0] ""  BMS
+ SG_ rangeRequest_PT : 15|4@0+ (1,0) [0|0] ""  BMS
+ SG_ CRC_PT : 55|8@0+ (1,0) [0|255] ""  BMS
+ SG_ alive_PT : 47|4@0+ (1,0) [0|255] ""  BMS
+ SG_ chargePowerAvailable_PT : 23|16@0+ (0.01,0) [0|650] "kW"  BMS
+ SG_ sleepRequest_PT : 11|4@0+ (1,0) [0|0] ""  BMS
+ SG_ stateRequest_PT : 3|4@0+ (1,0) [0|0] ""  BMS
+ SG_ isolationRequest_PT : 7|4@0+ (1,0) [0|0] ""  BMS
+
+
+
+CM_ SG_ 827 dischargePowerPred_BMS "Short term prediction for available discharge power.";
+CM_ SG_ 827 regenPowerPred_BMS "Short term prediction for available regeneration power.";
+CM_ SG_ 827 dischargeCurrentPred_BMS "Short term prediction for available discharge current.";
+CM_ SG_ 827 regenCurrentPred_BMS "Short term prediction for available regeneration current.";
+CM_ SG_ 826 fluidPressureInlet_BMS "Maximum measured cooling fluid inlet pressure of all strings.";
+CM_ SG_ 826 userSOC_BMS "Blended SOC of all strings.";
+CM_ SG_ 826 fluidTemperatureOutlet_BMS "outet fluid temperature measured by ESS master.";
+CM_ SG_ 826 fluidTemperatureInlet_BMS "Inlet fluid temperature measured by ESS master.";
+CM_ SG_ 825 linkVoltageAuxiliary2_BMS "DC link voltage.";
+CM_ SG_ 825 linkVoltageAuxiliary1_BMS "DC link voltage.";
+CM_ SG_ 825 maxStringVoltage_BMS "Maximum string voltage of all strings.";
+CM_ SG_ 825 minStringVoltage_BMS "Minimum string voltage of all strings.";
+CM_ SG_ 823 maxDewPointTemperature_BMS "Maximum dew point temperature of all strings";
+CM_ SG_ 823 minModuleTempIndex_0based_BMS "Minimum module temperature index of all strings.";
+CM_ SG_ 823 maxModuleTempIndex_0based_BMS "Maximum module termperature index of all strings.";
+CM_ SG_ 823 maxModuleTemperature_BMS "Maximum module temperature of all strings.";
+CM_ SG_ 823 minModuleTemperature_BMS "Minimum module temperature of all strings.";
+CM_ SG_ 31 linkVoltage_SC01 "DC link voltage.";
+CM_ SG_ 31 emergencyRequest_SC01 "Emergency request to shut down all components of the DC bus.";
+CM_ SG_ 31 alive_SC01 "Alive counter.";
+CM_ SG_ 31 CRC_SC01 "Cyclic redundancy check.";
+CM_ SG_ 819 chargeVoltageLimit_BMS "DC voltage limit for charging.";
+CM_ SG_ 819 chargeCurrentSetpoint_BMS "DC charge current command. Output of charge control loop.";
+CM_ SG_ 822 maxSOC_BMS "Maximum SOC of all strings.";
+CM_ SG_ 822 minSOC_BMS "Minimum SOC of all strings.";
+CM_ SG_ 822 isolationResistanceIntern_BMS "Minimum isolation resistance of all strings.";
+CM_ SG_ 822 isolationResistanceExtern_BMS "Minimum system isolation resistance of all connected strings.";
+CM_ SG_ 820 maxSOH_BMS "Maximum SOH of all strings.";
+CM_ SG_ 820 minSOH_BMS "Minimum SOH of all strings.";
+CM_ SG_ 820 energyAvailable_BMS "Energy available of all strings.";
+CM_ SG_ 821 maxBrickVoltageIndex_0based_BMS "Maximum brick voltage index of all strings.";
+CM_ SG_ 821 minBrickVoltageIndex_0based_BMS "Minimum brick voltage index of all strings.";
+CM_ SG_ 821 maxBrickVoltage_BMS "Maximum brick voltage of all strings.";
+CM_ SG_ 821 minBrickVoltage_BMS "Minimum brick voltage of all strings.";
+CM_ SG_ 818 dischargeCurrentLimit_BMS "Current limit for discharging of all strings. This is a positive value.";
+CM_ SG_ 818 regenCurrentLimit_BMS "Current limit for regenerating of all strings.";
+CM_ SG_ 818 minVoltageLimit_BMS "Minimum string voltage limit of all strings.";
+CM_ SG_ 818 maxVoltageLimit_BMS "Maximum string voltage limit of all strings.";
+CM_ SG_ 282 stateTRIndex_BMS "ID of first battery detecting a thermal runaway.";
+CM_ SG_ 282 cntrStateAux4_BMS "Auxiliary contactor state.";
+CM_ SG_ 282 cntrStateAux3_BMS "Auxiliary contactor state.";
+CM_ SG_ 282 cntrStateAux2_BMS "Auxiliary contactor state.";
+CM_ SG_ 282 cntrStateAux1_BMS "Auxiliary contactor state.";
+CM_ SG_ 282 hvilState_BMS "HV interlock state of all strings.";
+CM_ SG_ 282 isolationError_BMS "The status of the external isolation based on isolationResistanceExtern_BMS value. It could be OK, WARNING or ERROR by comparing the value agsinst the calibrated limits.";
+CM_ SG_ 282 isolationState_BMS "The state of the external/system isolation monitoring. The signal isolationState_BMS shall be set to 0x1 - ISOLATION_ACTIVE, if at least one pack has contactors close and performs isolation testing.";
+CM_ SG_ 282 chargeState_BMS "Charge state.";
+CM_ SG_ 282 state_BMS "BMS state.";
+CM_ SG_ 282 numberOfConnectedStrings_BMS "Number of connected strings.";
+CM_ SG_ 817 regenCurrentResidual_BMS "Minimum difference of regen current limit and string current of all strings.
+Positive indicating available regen current. Negative value indicating regen current limit violation.";
+CM_ SG_ 817 dischargeCurrentResidual_BMS "Minimum difference of discharge current limit and string current of all strings.
+Positive indicating available discharge current. Negative value indicating discharge current limit violation.";
+CM_ SG_ 817 current_BMS "Current of all strings (positive=discharge, negative=charge).";
+CM_ SG_ 817 linkVoltage_BMS "DC link voltage.";
+CM_ SG_ 283 cntrRequestAux4_PT "Auxiliary contactor state request.";
+CM_ SG_ 283 cntrRequestAux3_PT "Auxiliary contactor state request.";
+CM_ SG_ 283 cntrRequestAux2_PT "Auxiliary contactor state request.";
+CM_ SG_ 283 cntrRequestAux1_PT "Auxiliary contactor state request.";
+CM_ SG_ 283 rangeRequest_PT "Range request to command the BMS for different charge targets.";
+CM_ SG_ 283 CRC_PT "Cyclic redundancy check.";
+CM_ SG_ 283 alive_PT "Alive counter.";
+CM_ SG_ 283 chargePowerAvailable_PT "Available power for charging.";
+CM_ SG_ 283 sleepRequest_PT "Sleep request to command the BMS to go to sleep mode.
+Sleep mode can only be entered if key signal is low and no messages on PTCAN present.";
+CM_ SG_ 283 stateRequest_PT "BMS state request.";
+CM_ SG_ 283 isolationRequest_PT "Optional disabling of isolation monitoring.";
+BA_DEF_ SG_  "GenSigSendType" ENUM  "Cyclic","OnWrite","OnWriteWithRepetition","OnChange","OnChangeWithRepetition","IfActive","IfActiveWithRepetition","NoSigSendType";
+BA_DEF_ BU_  "NmStationAddress" HEX 0 0;
+BA_DEF_  "DBName" STRING ;
+BA_DEF_ SG_  "GenSigInactiveValue" INT 0 0;
+BA_DEF_ BO_  "GenMsgCycleTime" INT 0 0;
+BA_DEF_ BO_  "GenMsgSendType" ENUM  "Cyclic","not_used","not_used","not_used","not_used","Cyclic","not_used","IfActive","NoMsgSendType";
+BA_DEF_  "BusType" STRING ;
+BA_DEF_DEF_  "GenSigSendType" "Cyclic";
+BA_DEF_DEF_  "NmStationAddress" 0;
+BA_DEF_DEF_  "DBName" "";
+BA_DEF_DEF_  "GenSigInactiveValue" 0;
+BA_DEF_DEF_  "GenMsgCycleTime" 0;
+BA_DEF_DEF_  "GenMsgSendType" "NoMsgSendType";
+BA_DEF_DEF_  "BusType" "";
+BA_ "DBName" "PowertrainCAN";
+BA_ "GenMsgCycleTime" BO_ 827 100;
+BA_ "GenMsgCycleTime" BO_ 826 1000;
+BA_ "GenMsgCycleTime" BO_ 825 100;
+BA_ "GenMsgCycleTime" BO_ 823 100;
+BA_ "GenMsgCycleTime" BO_ 31 100;
+BA_ "GenMsgCycleTime" BO_ 32 100;
+BA_ "GenMsgCycleTime" BO_ 35 100;
+BA_ "GenMsgCycleTime" BO_ 36 100;
+BA_ "GenMsgCycleTime" BO_ 39 100;
+BA_ "GenMsgCycleTime" BO_ 40 100;
+BA_ "GenMsgCycleTime" BO_ 43 100;
+BA_ "GenMsgCycleTime" BO_ 44 100;
+BA_ "GenMsgCycleTime" BO_ 47 100;
+BA_ "GenMsgCycleTime" BO_ 48 100;
+BA_ "GenMsgCycleTime" BO_ 51 100;
+BA_ "GenMsgCycleTime" BO_ 52 100;
+BA_ "GenMsgCycleTime" BO_ 55 100;
+BA_ "GenMsgCycleTime" BO_ 56 100;
+BA_ "GenMsgCycleTime" BO_ 59 100;
+BA_ "GenMsgCycleTime" BO_ 60 100;
+BA_ "GenMsgCycleTime" BO_ 819 100;
+BA_ "GenMsgCycleTime" BO_ 822 1000;
+BA_ "GenMsgCycleTime" BO_ 820 1000;
+BA_ "GenMsgCycleTime" BO_ 821 100;
+BA_ "GenMsgCycleTime" BO_ 818 10;
+BA_ "GenMsgCycleTime" BO_ 282 10;
+BA_ "GenMsgCycleTime" BO_ 817 10;
+BA_ "GenMsgCycleTime" BO_ 283 10;
+VAL_ 827 dischargePowerPred_BMS 65535 "SNA" ;
+VAL_ 827 regenPowerPred_BMS 65535 "SNA" ;
+VAL_ 827 dischargeCurrentPred_BMS 65535 "SNA" ;
+VAL_ 827 regenCurrentPred_BMS 65535 "SNA" ;
+VAL_ 826 fluidPressureInlet_BMS 255 "SNA" ;
+VAL_ 826 userSOC_BMS 65535 "SNA" ;
+VAL_ 826 fluidTemperatureOutlet_BMS 255 "SNA" ;
+VAL_ 826 fluidTemperatureInlet_BMS 255 "SNA" ;
+VAL_ 825 linkVoltageAuxiliary2_BMS 65535 "SNA" ;
+VAL_ 825 linkVoltageAuxiliary1_BMS 65535 "SNA" ;
+VAL_ 825 maxStringVoltage_BMS 65535 "SNA" ;
+VAL_ 825 minStringVoltage_BMS 65535 "SNA" ;
+VAL_ 823 maxDewPointTemperature_BMS 255 "SNA" ;
+VAL_ 823 minModuleTempIndex_0based_BMS 65535 "SNA" ;
+VAL_ 823 maxModuleTempIndex_0based_BMS 65535 "SNA" ;
+VAL_ 823 maxModuleTemperature_BMS 255 "SNA" ;
+VAL_ 823 minModuleTemperature_BMS 255 "SNA" ;
+VAL_ 31 linkVoltage_SC01 65535 "SNA" ;
+VAL_ 31 emergencyRequest_SC01 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 32 linkVoltage_SC02 65535 "SNA" ;
+VAL_ 32 emergencyRequest_SC02 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 35 linkVoltage_SC05 65535 "SNA" ;
+VAL_ 35 emergencyRequest_SC05 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 36 linkVoltage_SC06 65535 "SNA" ;
+VAL_ 36 emergencyRequest_SC06 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 39 linkVoltage_SC09 65535 "SNA" ;
+VAL_ 39 emergencyRequest_SC09 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 40 linkVoltage_SC10 65535 "SNA" ;
+VAL_ 40 emergencyRequest_SC10 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 43 linkVoltage_SC13 65535 "SNA" ;
+VAL_ 43 emergencyRequest_SC13 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 44 linkVoltage_SC14 65535 "SNA" ;
+VAL_ 44 emergencyRequest_SC14 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 47 linkVoltage_SC17 65535 "SNA" ;
+VAL_ 47 emergencyRequest_SC17 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 48 linkVoltage_SC18 65535 "SNA" ;
+VAL_ 48 emergencyRequest_SC18 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 51 linkVoltage_SC21 65535 "SNA" ;
+VAL_ 51 emergencyRequest_SC21 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 52 linkVoltage_SC22 65535 "SNA" ;
+VAL_ 52 emergencyRequest_SC22 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 55 linkVoltage_SC25 65535 "SNA" ;
+VAL_ 55 emergencyRequest_SC25 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 56 linkVoltage_SC26 65535 "SNA" ;
+VAL_ 56 emergencyRequest_SC26 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 59 linkVoltage_SC29 65535 "SNA" ;
+VAL_ 59 emergencyRequest_SC29 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 60 linkVoltage_SC30 65535 "SNA" ;
+VAL_ 60 emergencyRequest_SC30 1 "EMERGENCY_STATE_ACTIVE" 15 "EMERGENCY_STATE_INVALID" 0 "EMERGENCY_STATE_INACTIVE" ;
+VAL_ 819 chargeVoltageLimit_BMS 65535 "SNA" ;
+VAL_ 819 chargeCurrentSetpoint_BMS 65535 "SNA" ;
+VAL_ 822 maxSOC_BMS 65535 "SNA" ;
+VAL_ 822 minSOC_BMS 65535 "SNA" ;
+VAL_ 822 isolationResistanceIntern_BMS 65535 "SNA" ;
+VAL_ 822 isolationResistanceExtern_BMS 65535 "SNA" ;
+VAL_ 820 maxSOH_BMS 255 "SNA" ;
+VAL_ 820 minSOH_BMS 255 "SNA" ;
+VAL_ 820 energyAvailable_BMS 65535 "SNA" ;
+VAL_ 821 maxBrickVoltageIndex_0based_BMS 65535 "SNA" ;
+VAL_ 821 minBrickVoltageIndex_0based_BMS 65535 "SNA" ;
+VAL_ 821 maxBrickVoltage_BMS 65535 "SNA" ;
+VAL_ 821 minBrickVoltage_BMS 65535 "SNA" ;
+VAL_ 818 dischargeCurrentLimit_BMS 65535 "SNA" ;
+VAL_ 818 regenCurrentLimit_BMS 65535 "SNA" ;
+VAL_ 818 minVoltageLimit_BMS 65535 "SNA" ;
+VAL_ 818 maxVoltageLimit_BMS 65535 "SNA" ;
+VAL_ 282 stateTRIndex_BMS 63 "SNA" 32 "BMS 32" 30 "BMS 30" 29 "BMS 29" 28 "BMS 28" 27 "BMS 27" 26 "BMS 26" 25 "BMS 25" 24 "BMS 24" 23 "BMS 23" 22 "BMS 22" 21 "BMS 21" 20 "BMS 20" 19 "BMS 19" 18 "BMS 18" 17 "BMS 17" 16 "BMS 16" 31 "BMS 31" 14 "BMS 14" 13 "BMS 13" 12 "BMS 12" 11 "BMS 11" 10 "BMS 10" 9 "BMS 9" 8 "BMS 8" 7 "BMS 7" 6 "BMS 6" 5 "BMS 5" 4 "BMS 4" 3 "BMS 3" 15 "BMS 15" 2 "BMS 2" 1 "BMS 1" 0 "No TR" ;
+VAL_ 282 stateTR_BMS 15 "STATE_INVALID" 2 "STATE_TRD_ERROR" 1 "STATE_TRD_WARNING" 0 "STATE_TRD_OK" ;
+VAL_ 282 cntrStateAux4_BMS 2 "CTR_OPENING" 3 "CTR_INVALID" 1 "CTR_ON" 0 "CTR_OFF" ;
+VAL_ 282 cntrStateAux3_BMS 2 "CTR_OPENING" 3 "CTR_INVALID" 1 "CTR_ON" 0 "CTR_OFF" ;
+VAL_ 282 cntrStateAux2_BMS 2 "CTR_OPENING" 3 "CTR_INVALID" 1 "CTR_ON" 0 "CTR_OFF" ;
+VAL_ 282 cntrStateAux1_BMS 2 "CTR_OPENING" 3 "CTR_INVALID" 1 "CTR_ON" 0 "CTR_OFF" ;
+VAL_ 282 hvilState_BMS 3 "SNA" 1 "HVIL ERROR" 0 "HVIL OK" ;
+VAL_ 282 isolationError_BMS 3 "SNA" 2 "ISOLATION ERROR" 1 "ISOLATION WARNING" 0 "ISOLATION OK" ;
+VAL_ 282 isolationState_BMS 2 "ISOLATION_INVALID" 1 "ISOLATION_ACTIVE" 0 "ISOLATION_INACTIVE" ;
+VAL_ 282 chargeState_BMS 3 "CHARGESTATE_INVALID" 1 "CHARGESTATE_COMPLETE" 0 "CHARGESTATE_NOTCOMPLETE" ;
+VAL_ 282 state_BMS 15 "STATE_INVALID" 6 "STATE_ESS_FAULT" 5 "STATE_STRING_FAULT" 4 "STATE_LIMPHOME" 3 "STATE_ACCESSORY" 2 "STATE_CHARGE" 1 "STATE_DRIVE" 0 "STATE_STANDBY" ;
+VAL_ 282 numberOfConnectedStrings_BMS 255 "SNA" ;
+VAL_ 817 regenCurrentResidual_BMS 65535 "SNA" ;
+VAL_ 817 dischargeCurrentResidual_BMS 65535 "SNA" ;
+VAL_ 817 current_BMS 65535 "SNA" ;
+VAL_ 817 linkVoltage_BMS 65535 "SNA" ;
+VAL_ 283 cntrRequestAux4_PT 1 "CNTR_ON" 0 "CNTR_OFF" ;
+VAL_ 283 cntrRequestAux3_PT 1 "CNTR_ON" 0 "CNTR_OFF" ;
+VAL_ 283 cntrRequestAux2_PT 1 "CNTR_ON" 0 "CNTR_OFF" ;
+VAL_ 283 cntrRequestAux1_PT 1 "CNTR_ON" 0 "CNTR_OFF" ;
+VAL_ 283 rangeRequest_PT 15 "RANGE_INVALID" 14 "RANGE_SOC(100%)" 13 "RANGE_SOC(95%)" 12 "RANGE_SOC(90%)" 11 "RANGE_SOC(85%)" 10 "RANGE_SOC(80%)" 9 "RANGE_SOC(75%)" 8 "RANGE_SOC(70%)" 7 "RANGE_SOC(60%)" 6 "RANGE_SOC(50%)" 5 "RANGE_SOC(40%)" 4 "RANGE_SOC(30%)" 3 "RANGE_SOC(20%)" 2 "RANGE_SHIPPING(25%)" 1 "RANGE_LIMITED(80%)" 0 "RANGE_MAXIMUM(100%)" ;
+VAL_ 283 chargePowerAvailable_PT 65535 "SNA" ;
+VAL_ 283 sleepRequest_PT 15 "SLEEP_INVALID" 1 "SLEEP_ACTIVE" 0 "SLEEP_INACTIVE" ;
+VAL_ 283 stateRequest_PT 15 "STATE_INVALID" 6 "STATE_ESS_FAULT" 5 "STATE_STRING_FAULT" 4 "STATE_LIMPHOME" 3 "STATE_ACCESSORY" 2 "STATE_CHARGE" 1 "STATE_DRIVE" 0 "STATE_STANDBY" ;
+VAL_ 283 isolationRequest_PT 15 "ISOLATION_INVALID" 1 "ISOLATION_ACTIVE" 0 "ISOLATION_INACTIVE" ;
+

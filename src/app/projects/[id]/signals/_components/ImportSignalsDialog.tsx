@@ -311,7 +311,9 @@ export function ImportSignalsDialog({ projectId, open, onClose, onImported }: Pr
 
     const moduleMap = new Map<string, number>(modules.map((m) => [m.articleNumber, m.id]));
     const moduleCardTypeMap = new Map<string, string>(modules.map((m) => [m.articleNumber, m.cardType]));
-    const systemMap = new Map<string, number>(systems.map((s) => [s.code, s.id]));
+    const systemMap = new Map<string, number>(
+      systems.flatMap((s) => (s.code ? [[s.code, s.id] as [string, number]] : [])),
+    );
     const gvlMap = new Map<string, number>(gvls.map((g) => [g.name, g.id]));
     const euMap = new Map<string, number>(engineeringUnits.map((eu) => [eu.symbol, eu.id]));
     const inputTypeMap = new Map<string, number>(inputTypes.map((t) => [t.code, t.id]));

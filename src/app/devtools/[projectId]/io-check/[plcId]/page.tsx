@@ -4,7 +4,7 @@ import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/trpc/client";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, CheckSquare, Square, Play } from "lucide-react";
+import { ArrowLeft, CheckSquare, Square, Play, Search } from "lucide-react";
 import Link from "next/link";
 
 /** IO-Check signal selection — pick which signals to check, then start a session */
@@ -23,6 +23,7 @@ export default function IOCheckSelectPage({
 
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [operatorName, setOperatorName] = useState("");
+  const [filter, setFilter] = useState("");
 
   const createSession = trpc.devtools.ioCheckCreate.useMutation({
     onSuccess: (session) => {
@@ -30,10 +31,24 @@ export default function IOCheckSelectPage({
     },
   });
 
+  // Tokenized AND-match against tag/description/carrier/card.
+  const filtered = useMemo(() => {
+    if (!signals) return [];
+    const tokens = filter.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return signals;
+    return signals.filter((s) => {
+      const haystack = [s.tag, s.description, s.carrierName, s.cardArticle]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return tokens.every((t) => haystack.includes(t));
+    });
+  }, [signals, filter]);
+
   // Group by carrier + card
   const grouped = useMemo(() => {
     const groups = new Map<string, NonNullable<typeof signals>>();
-    for (const s of signals ?? []) {
+    for (const s of filtered) {
       if (!s.nodeId) continue; // Skip signals without OPC UA mapping
       const key = `${s.carrierName} / Slot ${s.slotPosition}${s.cardArticle ? ` (${s.cardArticle})` : ""}`;
       let arr = groups.get(key);
@@ -44,7 +59,7 @@ export default function IOCheckSelectPage({
       arr.push(s);
     }
     return groups;
-  }, [signals]);
+  }, [filtered]);
 
   const toggleSignal = (id: number) => {
     setSelected((prev) => {

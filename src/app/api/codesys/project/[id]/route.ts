@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireApiKey } from "../../_auth";
 import { computeCarrierAddresses, type AddressOffsets } from "../../_address";
+import { renderCommissioningBlock } from "../../_commissioning";
 
 /**
  * FR-012: derive an IEC-clean systemGroup string for grouping signals into
@@ -68,6 +69,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       id: true,
       name: true,
       status: true,
+      // FR-022: project-level commissioning policy
+      commissioningPolicy: true,
+      commissioningInitialXLocalCommReq: true,
+      commissioningInitialXRunPlaybook: true,
+      commissioningRebootStrategy: true,
       codesysSettings: {
         select: {
           fbAlarmDigital: true,
@@ -82,8 +88,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           name: true,
           ipAddress: true,
           notes: true,
+          codesysDeviceName: true,
+          kbusCycleTimeMs: true,
+          commissioning: {
+            select: { name: true, value: true, notes: true },
+            orderBy: { name: "asc" },
+          },
           catalog: {
-            select: { articleNumber: true, vendorName: true, description: true, codesysDeviceId: true },
+            select: { articleNumber: true, vendorName: true, description: true, codesysDeviceId: true, commissioningData: true },
           },
           busNodes: {
             select: {
@@ -101,9 +113,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
                   serialParity: true,
                   serialStopBits: true,
                   canMode: true,
+                  canFrameFormat: true,
+                  canFramingMode: true,
+                  canFramingDiscoveredAt: true,
                   canHeartbeatMs: true,
                   canSyncPeriodMs: true,
                   cyclePeriodMs: true,
+                  cyclicCallIntervalMs: true,
+                  canRole: true,
+                  processImageBytes: true,
                   ioCardId: true,
                 },
               },
@@ -138,8 +156,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
                   hasDiagnostics: true,
                   diagnosticType: true,
                   diagnosticBitsPerChannel: true,
+                  commissioning: {
+                    select: { name: true, value: true, notes: true },
+                    orderBy: { name: "asc" },
+                  },
                   catalog: {
-                    select: { articleNumber: true, vendorName: true, codesysModuleId: true, kbusImageSize: true },
+                    select: { articleNumber: true, vendorName: true, codesysModuleId: true, kbusImageSize: true, commissioningData: true },
                   },
                   hostedBuses: {
                     select: {
@@ -155,9 +177,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
                       serialParity: true,
                       serialStopBits: true,
                       canMode: true,
+                      canFrameFormat: true,
+                      canFramingMode: true,
+                      canFramingDiscoveredAt: true,
                       canHeartbeatMs: true,
                       canSyncPeriodMs: true,
                       cyclePeriodMs: true,
+                      cyclicCallIntervalMs: true,
+                      canRole: true,
+                      processImageBytes: true,
                       ioCardId: true,
                     },
                   },
@@ -546,11 +574,44 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({
     project: { id: project.id, name: project.name, status: project.status },
     codesysSettings,
+    // FR-022: project-level hardware commissioning policy. Plugin codegen
+    // reads `policy` to decide whether to emit the playbook + Commissioning_Task,
+    // and `initialXLocalCommReq` / `initialXRunPlaybook` for the GVL inits.
+    // `rebootStrategy` decides SAVE_FLASH placement. `catalogVersion` is a
+    // string the plugin can log for traceability — we don't currently track
+    // a hash, just the date the seed was last run.
+    commissioning: {
+      policy: project.commissioningPolicy,
+      initialXLocalCommReq: project.commissioningInitialXLocalCommReq,
+      initialXRunPlaybook: project.commissioningInitialXRunPlaybook,
+      rebootStrategy: project.commissioningRebootStrategy,
+      catalogVersion: "data/commissioning/wago_module_commissioning.json (seed via prisma/seed_commissioning_catalog.ts)",
+    },
     plcs: project.plcs.map((plc) => ({
       id: plc.id,
       name: plc.name,
       ipAddress: plc.ipAddress,
       notes: plc.notes,
+      codesysDeviceName: plc.codesysDeviceName,
+      // FR-021: PFC200 K-bus device parameter Id=128. null = use device default (10 ms).
+      kbusCycleTimeMs: (plc as any).kbusCycleTimeMs ?? null,
+      // Hardware commissioning project overrides on this PLC. Each entry's
+      // `name` matches a `commissioning_settings[].name` in the catalog
+      // entry pinned to plc.catalog (mirrored at MIAS-ref/docs/databases/
+      // wago/module_commissioning.json). When the plugin's commissioning
+      // function runs, the effective value resolves as: this list (project
+      // override) → catalog `mias_convention_value` → catalog `default_value`
+      // → null. Empty list = no overrides; use catalog defaults verbatim.
+      commissioningOverrides: plc.commissioning,
+      // FR-022 Path A: joined catalog + project commissioning block. Plugin
+      // codegen consumes this directly to emit the IEC playbook. null when
+      // the controller catalog has no commissioning data (older catalog rows).
+      commissioning: renderCommissioningBlock({
+        partId: plc.catalog ? `${plc.catalog.vendorName.toLowerCase()}:${plc.catalog.articleNumber}` : null,
+        catalogData: (plc.catalog?.commissioningData as never) ?? null,
+        slotPosition: null, // controllers don't have a K-bus slot
+        overrides: plc.commissioning,
+      }),
       catalog: plc.catalog
         ? { articleNumber: plc.catalog.articleNumber, manufacturer: plc.catalog.vendorName, description: plc.catalog.description, codesysDeviceId: plc.catalog.codesysDeviceId }
         : null,
@@ -573,9 +634,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             serialParity: n.serialParity,
             serialStopBits: n.serialStopBits,
             canMode: n.canMode,
+            // FR-015 (plugin): per-bus framing. Raw enum + boolean alias for codegen.
+            canFrameFormat: (n as any).canFrameFormat ?? null,
+            use29Bit: (n as any).canFrameFormat === "EXTENDED" ? true
+                    : (n as any).canFrameFormat === "STANDARD" ? false
+                    : null,
+            // FR-016 (plugin): FIXED = config authoritative; AUTO = bus is in
+            // discovery mode and the plugin will write back via /discovered.
+            canFramingMode: (n as any).canFramingMode ?? null,
+            canFramingDiscoveredAt: (n as any).canFramingDiscoveredAt ?? null,
             canHeartbeatMs: n.canHeartbeatMs,
             canSyncPeriodMs: n.canSyncPeriodMs,
             cyclePeriodMs: n.cyclePeriodMs,
+            // FR-019: per-iface CAN_Task cadence override. null = default (10 ms).
+            cyclicCallIntervalMs: n.cyclicCallIntervalMs ?? null,
+            // FR-019 follow-up: structured CAN role for the renderer +
+            // Kreisel auto-wiring. null ≡ GENERIC.
+            canRole: (n as any).canRole ?? null,
+            // FR-020: WAGO 750-658 K-bus PI size, bytes per direction.
+            // null = leave module's EEPROM-saved value alone.
+            processImageBytes: (n as any).processImageBytes ?? null,
             hostedByCardId: n.ioCardId,
           }));
       })(),
@@ -605,6 +683,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           hasDiagnostics: card.hasDiagnostics,
           diagnosticType: card.diagnosticType,
           diagnosticBitsPerChannel: card.diagnosticBitsPerChannel,
+          // Hardware commissioning project overrides on this IO card. See
+          // notes on plc.commissioningOverrides above for resolution order.
+          commissioningOverrides: card.commissioning,
+          // FR-022 Path A: joined catalog + project commissioning block.
+          commissioning: renderCommissioningBlock({
+            partId: card.catalog ? `${card.catalog.vendorName.toLowerCase()}:${card.catalog.articleNumber}` : null,
+            catalogData: (card.catalog?.commissioningData as never) ?? null,
+            slotPosition: card.slotPosition,
+            overrides: card.commissioning,
+          }),
           catalog: card.catalog ? { articleNumber: card.catalog.articleNumber, manufacturer: card.catalog.vendorName, codesysModuleId: card.catalog.codesysModuleId, kbusImageSize: card.catalog.kbusImageSize } : null,
         })),
       })),

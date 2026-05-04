@@ -216,6 +216,64 @@ enum CanMode {
   @@map("can_mode")
 }
 
+// Frame-format setting for a CAN bus. STANDARD = 11-bit IDs only (CAN 2.0A),
+// EXTENDED = 29-bit IDs only (CAN 2.0B), MIXED = both on the same bus.
+enum CanFrameFormat {
+  STANDARD
+  EXTENDED
+  MIXED
+
+  @@map("can_frame_format")
+}
+
+// FIXED = framing/baud authoritatively known and the codegen emits them
+// directly. AUTO = bus is in discovery mode; the plugin scouts a busy bus
+// at commissioning and posts back the discovered values via the
+// /can-buses/:busId/discovered endpoint, after which we usually flip back
+// to FIXED on the next operator confirmation.
+enum CanFramingMode {
+  FIXED
+  AUTO
+
+  @@map("can_framing_mode")
+}
+
+// FR-019 follow-up. Distinguishes the two CAN bus roles that matter
+// to the renderer + Kreisel auto-wiring:
+//   PT_CAN       — production / heartbeat-bearing; never throttle below
+//                  the heartbeat cadence. Maps to FB_KreiselBMS.pIface.
+//   P_CAN_DEBUG  — diagnostics-only debug bus; default disabled in app
+//                  code; safe to throttle. Maps to FB_KreiselBMS.pPCanDevice.
+//   GENERIC      — non-Kreisel CAN bus where the PT/P distinction
+//                  doesn't apply (Editron CANopen, gridsync, etc.).
+//   null         — same intent as GENERIC; either is fine.
+enum CanRole {
+  PT_CAN
+  P_CAN_DEBUG
+  GENERIC
+
+  @@map("can_role")
+}
+
+// FR-022: project-level commissioning policy. Drives codegen of
+// GVL_MIAS.xLocalCommReq / GVL_Commission.xRun init values + the
+// commissioner-task wiring on the plugin side.
+enum CommissioningPolicy {
+  AUTO          // commissioner task active, xRun = TRUE on first cycle
+  MANUAL_ONLY   // commissioner task active, xRun = FALSE (operator pulses)
+  DISABLED      // empty playbook, xLocalCommReq = FALSE, task removable
+
+  @@map("commissioning_policy")
+}
+
+// FR-022: how the commissioner schedules SAVE_FLASH steps in the playbook.
+enum CommissioningRebootStrategy {
+  BATCH_LAST_STEP   // single SAVE_FLASH at the end (single PFC reboot total)
+  PER_SLOT          // SAVE_FLASH per module (reboot after each)
+
+  @@map("commissioning_reboot_strategy")
+}
+
 enum SignalDirection {
   INPUT
   OUTPUT
@@ -352,6 +410,15 @@ model EngineeringUnit {
   description     String? @db.VarChar(100)
   plcDataTypeId   Int?    @map("plc_data_type_id")
   plcDataTypeCatalog PlcDataTypeCatalog? @relation(fields: [plcDataTypeId], references: [id], onDelete: SetNull)
+  // Physical quantity grouping: POWER_ACTIVE, VOLTAGE, TEMPERATURE, ... When
+  // present, isPrimary marks the canonical unit per quantity (enforced by a
+  // partial unique index on `quantity` where `is_primary = true`). The
+  // scaleToPrimary multiplier converts a value in this unit into the primary
+  // unit of the same quantity (so `MWh.scaleToPrimary = 1000` when `kWh` is
+  // primary). Primary rows have `scaleToPrimary = 1.0` by definition.
+  quantity        String?  @db.VarChar(40)
+  isPrimary       Boolean  @default(false) @map("is_primary")
+  scaleToPrimary  Decimal  @default(1.0) @db.Decimal(20, 10) @map("scale_to_primary")
 
   analogSignals   AnalogSignal[]
   componentSignals ComponentSignal[]
@@ -360,13 +427,37 @@ model EngineeringUnit {
 }
 
 model SignalSystem {
+  // `code` is the SFI numeric identifier when the system has one (e.g. "574",
+  // "625"). Systems without an SFI assignment leave it NULL; the `name`
+  // column carries identity in that case. The case-insensitive unique on
+  // `name` (DB index) keeps duplicates out. When `code` is set it must
+  // match a row in `sfi_code` (FK).
   id          Int     @id @default(autoincrement())
-  code        String  @unique @db.VarChar(50)
+  code        String? @unique @db.VarChar(50)
   name        String  @db.VarChar(255)
   description String? @db.VarChar(255)
   signals     Signal[]
+  sfi         SfiCode? @relation(fields: [code], references: [code], onUpdate: Cascade, onDelete: SetNull)
 
   @@map("signal_system")
+}
+
+// SFI Group System reference table. Hierarchical 1→2→3→4-digit codes
+// classifying ship subsystems. Seeded with the codes currently in use plus
+// their 1- and 2-digit ancestors so rollups work. Extend ad-hoc as new
+// projects introduce codes — full SFI catalogue is licensed (SpecTec) so
+// only seed codes you've verified.
+model SfiCode {
+  code        String   @id @db.VarChar(10)
+  description String?  @db.VarChar(255)
+  parentCode  String?  @db.VarChar(10) @map("parent_code")
+  level       Int      @db.SmallInt        // 1, 2, 3, 4...
+
+  parent      SfiCode? @relation("SfiHierarchy", fields: [parentCode], references: [code], onUpdate: Cascade, onDelete: SetNull)
+  children    SfiCode[] @relation("SfiHierarchy")
+  systems     SignalSystem[]
+
+  @@map("sfi_code")
 }
 
 model GlobalVariableList {
@@ -510,6 +601,24 @@ model DeviceCatalog {
   // CODESYS integration
   codesysDeviceId    String?          @db.VarChar(50) @map("codesys_device_id")
 
+  // Module commissioning catalog (defaults, value ranges, MIAS conventions, monitoring signals,
+  // constraints, apply method). Mirrors a single part_id entry in the docs JSON catalogue
+  // at MIAS-ref/docs/databases/wago/module_commissioning.json (and equivalents for other
+  // vendors). Vendored copy is at data/commissioning/module_commissioning.json. Per-project
+  // overrides on the deployed PLC live in PlcCommissioning rows. Schema:
+  // { module_class, needs_commissioning, library_fb, iec_globals_path_pattern,
+  //   commissioning_settings[], monitoring_signals[], commissioning_constraints[],
+  //   apply_method, source }.
+  commissioningData Json? @map("commissioning_data")
+
+  // Front-panel rendering + LED layout extracted from the WAGO-IO-CHECK 3
+  // installation. Imported by scripts/import_wago_modules.py and seeded via
+  // prisma/seed_wago_front_panels.ts. Shape:
+  // { kind, descriptions:{en/de/fr}, image:{url,width,height}, leds:{rows,cols,max,rect,items[]},
+  //   moduleType, moduleIcon, supportedModes, bootDelayS, consumptionMa,
+  //   voltageV, lk1, lk2, pe, adjustable, settingsApp, settingsAppName }.
+  frontPanel Json? @map("front_panel")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
 
@@ -588,6 +697,13 @@ model ModuleCatalog {
   diagnosticType           DiagnosticType @default(NONE)  @map("diagnostic_type")
   diagnosticBitsPerChannel Int?           @map("diagnostic_bits_per_channel")
 
+  // Module commissioning catalog — see DeviceCatalog.commissioningData for shape.
+  // Per-IoCard overrides live in IoCardCommissioning rows.
+  commissioningData Json? @map("commissioning_data")
+
+  // Front-panel rendering + LED layout — see DeviceCatalog.frontPanel for shape.
+  frontPanel Json? @map("front_panel")
+
   createdAt                 DateTime   @default(now()) @map("created_at")
   updatedAt                 DateTime   @updatedAt @map("updated_at")
 
@@ -629,6 +745,16 @@ model Project {
   currentRevision   String         @default("A") @db.VarChar(10) @map("current_revision")
   dataVersion       Int            @default(0) @map("data_version")
 
+  // FR-022: hardware commissioning policy. Codegen on the plugin side
+  // reads these to emit the right init values for `GVL_MIAS.xLocalCommReq`,
+  // `GVL_Commission.xRun`, and the SAVE_FLASH scheduling. Defaults are
+  // safe for new projects: MANUAL_ONLY + xLocalCommReq enabled +
+  // xRunPlaybook off — nothing auto-writes until the operator opts in.
+  commissioningPolicy               CommissioningPolicy        @default(MANUAL_ONLY)        @map("commissioning_policy")
+  commissioningInitialXLocalCommReq Boolean                     @default(true)               @map("commissioning_initial_x_local_comm_req")
+  commissioningInitialXRunPlaybook  Boolean                     @default(false)              @map("commissioning_initial_x_run_playbook")
+  commissioningRebootStrategy       CommissioningRebootStrategy @default(BATCH_LAST_STEP)    @map("commissioning_reboot_strategy")
+
   creator           User?                  @relation("ProjectCreatedBy", fields: [createdBy], references: [id])
   members           ProjectMember[]
   approvals         ProjectApproval[]
@@ -642,6 +768,7 @@ model Project {
   codesysSettings   CodesysSettings?
   codesysImports    CodesysImport[]
   wiringRecipes     WiringRecipe[]
+  wiringRecipeGaps  WiringRecipeGap[]
   codesysSessions   CodesysSession[]
   ioCheckSessions   IoCheckSession[]
   signalMonitoring  SignalMonitoring[]
@@ -674,6 +801,17 @@ model Plc {
   name      String    @db.VarChar(255)
   model     String?   @db.VarChar(100)
   ipAddress String?   @db.VarChar(45) @map("ip_address")
+  // Device-tree name as it appears in the OPC UA path. CODESYS exposes
+  // application variables under `<codesysDeviceName>.Application.<gvl>.<tag>`.
+  // Set per-PLC by the integrator (or auto-discovered on connect).
+  // Example for the LasseMaja D01: "WAGO 750-8210 PFC200 G2 4ETH".
+  codesysDeviceName String? @db.VarChar(100) @map("codesys_device_name")
+  // FR-021: PFC200 K-bus cycle time (Kbus device parameter Id=128). null =
+  // use device default (10 ms). Range enforced at API: integer 1..50.
+  // Plugin renderer emits the value into `Kbus.device.xml.v3` Id=128.
+  // Requires full download to take effect (no online change for device
+  // parameters).
+  kbusCycleTimeMs   Int?    @map("kbus_cycle_time_ms")
   notes     String?
   createdBy String?   @db.Uuid @map("created_by")
   createdAt DateTime  @default(now()) @map("created_at")
@@ -686,6 +824,7 @@ model Plc {
   ports            PlcPort[]
   busNodes         BusNode[]
   ioCheckSessions  IoCheckSession[]
+  commissioning    PlcCommissioning[]
 
   @@map("plc")
 }
@@ -733,9 +872,33 @@ model Bus {
   ipPort        Int?          @db.SmallInt @map("ip_port")
 
   // CAN (CANBUS, CANOPEN, J1939, DEVICENET)
-  canMode         CanMode? @map("can_mode")
-  canHeartbeatMs  Int?     @map("can_heartbeat_ms")
-  canSyncPeriodMs Int?     @map("can_sync_period_ms")
+  canMode         CanMode?         @map("can_mode")
+  canFrameFormat  CanFrameFormat?  @map("can_frame_format")  // 11-bit / 29-bit / mixed
+  // FR-016: FIXED = config is authoritative; AUTO = bus is in discovery
+  // mode and the plugin will write back values via /discovered.
+  canFramingMode  CanFramingMode?  @default(FIXED) @map("can_framing_mode")
+  canFramingDiscoveredAt DateTime? @map("can_framing_discovered_at")
+  canHeartbeatMs  Int?             @map("can_heartbeat_ms")
+  canSyncPeriodMs Int?             @map("can_sync_period_ms")
+  // FR-019: per-iface CAN_Task cadence override. null = use CAN_Task cycle
+  // (10 ms today). Range enforced at API: integer 10..200, multiple of 10.
+  // Plugin renderer emits `tCallInterval := T#<value>MS` per iface_CAN_X
+  // and auto-staggers `tCallOffset` to avoid all slow ifaces firing on the
+  // same tick.
+  cyclicCallIntervalMs Int? @map("cyclic_call_interval_ms")
+  // FR-019 follow-up: structured CAN role distinction so the renderer
+  // doesn't have to parse free-form bus descriptions to decide which
+  // CAN ifaces are throttle-safe vs heartbeat-bearing. Also drives
+  // auto-wiring of `pIface` (PT-CAN) vs `pPCanDevice` (P-CAN debug)
+  // on `FB_KreiselBMS` instances.
+  canRole              CanRole? @map("can_role")
+  // FR-020: WAGO 750-658 K-bus process image size in bytes per direction.
+  // null = leave the module's EEPROM-saved value alone. Allowed values:
+  // 8, 12, 16, 20, 24, 32, 40, 48 (enforced at API). Renderer emits a
+  // commissioning step that calls FbModuleConfigurationAndStatus with
+  // xCmdWriteFlash — triggers controller restart per WAGO 750-658
+  // manual page 56, so commissioning-time only.
+  processImageBytes    Int?     @map("process_image_bytes")
 
   // General polling / cycle
   cyclePeriodMs Int? @map("cycle_period_ms")
@@ -846,6 +1009,7 @@ model IoCard {
   creator        User?          @relation("IoCardCreatedBy", fields: [createdBy], references: [id])
   signals        Signal[]
   hostedBuses    Bus[]          @relation("NetworkHostCard")
+  commissioning  IoCardCommissioning[]
 
   @@unique([carrierId, slotPosition])
   @@unique([carrierId, subgroup, typeCode, instanceNumber])
@@ -882,6 +1046,54 @@ model CarrierPort {
 
   @@unique([carrierId, portNumber])
   @@map("carrier_port")
+}
+
+// =============================================================
+// HARDWARE COMMISSIONING — per-Plc and per-IoCard setting overrides
+// =============================================================
+//
+// Defaults live on DeviceCatalog.commissioningData / ModuleCatalog.commissioningData
+// (Json). When a project deploys hardware that needs a value different from
+// the catalog default — e.g. a 750-658 with PI=48 instead of factory 24 —
+// the project-level override goes here. `name` matches an entry under
+// `commissioningData.commissioning_settings[].name`. `value` is stored as
+// text and interpreted per the catalog setting's `data_type`.
+//
+// Effective value resolution (read order): project override → catalog
+// `mias_convention_value` → catalog `default_value` → null. The CODESYS
+// API exposes the resolved value to the plugin's commissioning function;
+// the plugin doesn't query overrides directly.
+
+model PlcCommissioning {
+  id        Int      @id @default(autoincrement())
+  plcId     Int      @map("plc_id")
+  name      String   @db.VarChar(120)
+  value     String   @db.VarChar(500)
+  notes     String?  @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt        @map("updated_at")
+
+  plc Plc @relation(fields: [plcId], references: [id], onDelete: Cascade)
+
+  @@unique([plcId, name])
+  @@index([plcId])
+  @@map("plc_commissioning")
+}
+
+model IoCardCommissioning {
+  id        Int      @id @default(autoincrement())
+  ioCardId  Int      @map("io_card_id")
+  name      String   @db.VarChar(120)
+  value     String   @db.VarChar(500)
+  notes     String?  @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt        @map("updated_at")
+
+  ioCard IoCard @relation(fields: [ioCardId], references: [id], onDelete: Cascade)
+
+  @@unique([ioCardId, name])
+  @@index([ioCardId])
+  @@map("io_card_commissioning")
 }
 
 // =============================================================
@@ -969,8 +1181,11 @@ model Signal {
   monitoring      SignalMonitoring[]
   liveReadings    SignalReadingLive[]
 
-  // Unique per card channel when assigned — NULLs are allowed to repeat in PostgreSQL
-  @@unique([ioCardId, channelPosition])
+  // Unique per card channel + diagnostic flag — diagnostic signals can share
+  // a (card, channel) tuple with their data parent (ANALOG_STATUS_BYTE) or
+  // sit alongside data signals at the diag-channel offset (DIGITAL_PAIRED).
+  // NULLs are allowed to repeat in PostgreSQL.
+  @@unique([ioCardId, channelPosition, isDiagnostic])
   @@index([projectId])
   @@index([ioCardId])
   @@index([instanceSignalId])
@@ -1322,6 +1537,7 @@ model ComponentInstance {
   signals    InstanceSignal[]
   codesysFbInstances CodesysFbInstance[]
   parameters ComponentInstanceParameter[]
+  wiringRecipeGaps WiringRecipeGap[]
   parent     ComponentInstance?  @relation("InstanceComposition", fields: [parentInstanceId], references: [id], onDelete: SetNull)
   children   ComponentInstance[] @relation("InstanceComposition")
 
@@ -1673,6 +1889,16 @@ model CodesysFbDefinition {
   name        String   @db.VarChar(255)
   extendsName String?  @db.VarChar(255) @map("extends_name")
   sourceFile  String   @db.VarChar(500) @map("source_file")
+  // FR-015 / NOTIF-023: governance flags pushed by plugin alongside
+  // wiringHint metadata.
+  // - alwaysReview: matcher classifies every pin on this FB as
+  //   `needs_review` regardless of pin-level score (e.g. contactor
+  //   drives, e-stops, isolation requests).
+  // - hintSchemaVersion: matcher refuses to consume hints whose major
+  //   doesn't match its expected major; logs a gap with reason
+  //   `INCOMPATIBLE_HINT_VERSION`.
+  alwaysReview      Boolean @default(false) @map("always_review")
+  hintSchemaVersion String? @db.VarChar(20) @map("hint_schema_version")
 
   import      CodesysImport?       @relation(fields: [importId], references: [id], onDelete: Cascade)
   component   HardwareComponent?   @relation(fields: [componentId], references: [id], onDelete: SetNull)
@@ -1691,10 +1917,167 @@ model CodesysFbParameter {
   direction      String @db.VarChar(20)   // VAR_INPUT, VAR_OUTPUT, VAR_IN_OUT, VAR
   dataType       String @db.VarChar(100)  @map("data_type")
 
-  fbDefinition CodesysFbDefinition @relation(fields: [fbDefinitionId], references: [id], onDelete: Cascade)
+  fbDefinition CodesysFbDefinition       @relation(fields: [fbDefinitionId], references: [id], onDelete: Cascade)
+  hint         CodesysFbParameterHint?
+  gaps         WiringRecipeGap[]
 
   @@unique([fbDefinitionId, name])
   @@map("codesys_fb_parameter")
+}
+
+// FR-015 / NOTIF-023: per-pin wiring metadata pushed by plugin to drive
+// MIAS-IO's auto-wire matcher. 1:1 with codesys_fb_parameter — keep
+// hint columns out of the parameter table itself so the FB-definition
+// schema doesn't get nullable hint fields polluting every row.
+enum WiringHintKind {
+  SIGNAL     // matcher should resolve to a project signal
+  PARAMETER  // matcher should fill from a literal/setpoint, not bind a signal
+
+  @@map("wiring_hint_kind")
+}
+
+enum WiringHintValueRole {
+  ACTUAL     // measurement / current state
+  SETPOINT   // operator-supplied target
+  REFERENCE  // upstream reference / command target
+  LIMIT      // min/max guard
+  ALARM      // threshold
+  COMMAND    // discrete action
+
+  @@map("wiring_hint_value_role")
+}
+
+enum WiringHintCommandKind {
+  PULSE  // edge-triggered (start, reset, …)
+  LEVEL  // sustained (enable, run, …)
+
+  @@map("wiring_hint_command_kind")
+}
+
+model CodesysFbParameterHint {
+  id               Int                    @id @default(autoincrement())
+  parameterId      Int                    @unique @map("parameter_id")
+  // hintSchemaVersion echoes the FB-level value at time of push so old
+  // hints don't get silently re-interpreted under a new matcher.
+  hintSchemaVersion String?               @db.VarChar(20) @map("hint_schema_version")
+  kind             WiringHintKind         @default(SIGNAL)
+  semantic         String?                @db.VarChar(100)
+  expectedUnit     String?                @db.VarChar(50) @map("expected_unit")
+  instrumentClass  String?                @db.VarChar(20) @map("instrument_class")
+  matchTag         String[]               @default([]) @map("match_tag")
+  required         Boolean                @default(false)
+  defaultLiteral   String?                @db.VarChar(255) @map("default_literal")
+  pairedWith       String?                @db.VarChar(255) @map("paired_with")
+  structRole       String?                @db.VarChar(100) @map("struct_role")
+  arrayCardinality Int?                   @map("array_cardinality")
+  valueRole        WiringHintValueRole?   @map("value_role")
+  humanReview      Boolean                @default(false) @map("human_review")
+  commandKind      WiringHintCommandKind? @map("command_kind")
+  notes            String?
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+
+  parameter CodesysFbParameter @relation(fields: [parameterId], references: [id], onDelete: Cascade)
+
+  @@map("codesys_fb_parameter_hint")
+}
+
+enum WiringGapReason {
+  NO_HINT
+  NO_CANDIDATE_SIGNAL
+  LOW_CONFIDENCE
+  AMBIGUOUS_MATCH
+  HUMAN_REVIEW_FLAGGED
+  DANGEROUS_FB
+  INCOMPATIBLE_HINT_VERSION
+
+  @@map("wiring_gap_reason")
+}
+
+// FR-015 / NOTIF-023: matcher gap log. Each row is one auto-wire
+// attempt that didn't produce a confidently-bound WiringRecipeParam.
+// `resolvedAt` is set when an operator manually fills the gap (or the
+// matcher succeeds on a re-run after hint curation).
+model WiringRecipeGap {
+  id                  Int             @id @default(autoincrement())
+  projectId           Int             @map("project_id")
+  componentInstanceId Int             @map("component_instance_id")
+  parameterId         Int             @map("parameter_id")
+  reason              WiringGapReason
+  details             String?
+  resolvedAt          DateTime?       @map("resolved_at")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  componentInstance ComponentInstance  @relation(fields: [componentInstanceId], references: [id], onDelete: Cascade)
+  parameter         CodesysFbParameter @relation(fields: [parameterId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([componentInstanceId])
+  @@index([reason])
+  @@map("wiring_recipe_gap")
+}
+
+// FR-014: enums + structs from MIAS_Core (and project overlays). Pushed
+// via POST /api/codesys/data-types and consumed by the bridge so that
+// codesys_fb_parameter rows whose dataType is a custom type can be
+// resolved instead of skipped.
+enum CodesysDataTypeKind {
+  ENUM
+  STRUCT
+
+  @@map("codesys_data_type_kind")
+}
+
+model CodesysDataType {
+  id          Int                 @id @default(autoincrement())
+  name        String              @db.VarChar(255)
+  kind        CodesysDataTypeKind
+  // For ENUM: underlying integer type (BYTE / USINT / INT / DINT / …).
+  // For STRUCT: NULL.
+  baseType    String?             @db.VarChar(50) @map("base_type")
+  // For ENUM: which value name from values[] is the default initialiser.
+  defaultName String?             @db.VarChar(100) @map("default_name")
+  sourceFile  String              @db.VarChar(255) @map("source_file")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  values  CodesysDataTypeValue[]
+  members CodesysDataTypeMember[]
+
+  @@unique([name, sourceFile])
+  @@map("codesys_data_type")
+}
+
+model CodesysDataTypeValue {
+  id         Int             @id @default(autoincrement())
+  dataTypeId Int             @map("data_type_id")
+  name       String          @db.VarChar(100)
+  // BigInt because CODESYS DWORD-backed enums use the full unsigned 32-bit
+  // range (0..4294967295), which exceeds signed Int. E.g. E_DataQuality
+  // declares BAD = 16#80000000 (= 2147483648). Plugin sends values as JSON
+  // numbers; Prisma BigInt accepts those.
+  value      BigInt
+  sortOrder  Int             @default(0) @map("sort_order")
+  dataType   CodesysDataType @relation(fields: [dataTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([dataTypeId, name])
+  @@map("codesys_data_type_value")
+}
+
+model CodesysDataTypeMember {
+  id         Int             @id @default(autoincrement())
+  dataTypeId Int             @map("data_type_id")
+  name       String          @db.VarChar(255)
+  // Verbatim CODESYS dataType expression — primitive, ARRAY [..] OF X,
+  // REFERENCE TO FB_X, T_OtherStruct, E_OtherEnum, etc.
+  memberType String          @db.VarChar(255) @map("member_type")
+  sortOrder  Int             @default(0) @map("sort_order")
+  dataType   CodesysDataType @relation(fields: [dataTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([dataTypeId, name])
+  @@map("codesys_data_type_member")
 }
 
 model CodesysFbInstance {

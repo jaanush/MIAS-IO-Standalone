@@ -21,6 +21,9 @@ const cardInclude = {
       busCurrentConsumptionMa: true,
       protocols: { select: { protocol: true } },
       approvals: { select: { approvalId: true } },
+      // Front-panel rendering + LED layout (imported from WAGO-IO-CHECK 3
+      // via scripts/import_wago_modules.py / prisma/seed_wago_front_panels.ts).
+      frontPanel: true,
     },
   },
 };
@@ -33,6 +36,7 @@ const carrierInclude = {
       vendorName: true,
       maxModules: true,
       ethernetPorts: true,
+      frontPanel: true,
     },
   },
   cards: { include: cardInclude, orderBy: { slotPosition: "asc" as const } },
@@ -63,6 +67,7 @@ const plcInclude = {
       busPowerBudgetMa: true,
       ethernetPorts: true,
       protocols: { select: { protocol: true } },
+      frontPanel: true,
     },
   },
   busNodes: {
@@ -1173,5 +1178,114 @@ export const projectHardwareRouter = createTRPCRouter({
       }
 
       return { created };
+    }),
+
+  // ── Hardware commissioning ────────────────────────────────────────────
+  // Project-level overrides on top of catalog defaults. Catalog data lives
+  // on DeviceCatalog.commissioningData / ModuleCatalog.commissioningData
+  // (mirror of MIAS-ref/docs/databases/wago/module_commissioning.json,
+  // seeded by prisma/seed_commissioning_catalog.ts). Effective resolution
+  // happens client-side or in the CODESYS API layer:
+  //   override row → catalog mias_convention_value → catalog default_value → null
+
+  plcCommissioningList: protectedProcedure
+    .input(z.object({ plcId: z.number().int() }))
+    .query(async ({ input }) => {
+      const plc = await db.plc.findUnique({
+        where: { id: input.plcId },
+        select: {
+          id: true,
+          name: true,
+          catalog: { select: { commissioningData: true, articleNumber: true, vendorName: true } },
+          commissioning: {
+            select: { id: true, name: true, value: true, notes: true, updatedAt: true },
+            orderBy: { name: "asc" },
+          },
+        },
+      });
+      if (!plc) throw new Error(`Plc ${input.plcId} not found`);
+      return plc;
+    }),
+
+  plcCommissioningSet: protectedProcedure
+    .input(
+      z.object({
+        plcId: z.number().int(),
+        name: z.string().min(1).max(120),
+        value: z.string().max(500),
+        notes: z.string().max(500).optional().nullable(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return db.plcCommissioning.upsert({
+        where: { plcId_name: { plcId: input.plcId, name: input.name } },
+        update: { value: input.value, notes: input.notes ?? null },
+        create: {
+          plcId: input.plcId,
+          name: input.name,
+          value: input.value,
+          notes: input.notes ?? null,
+        },
+      });
+    }),
+
+  plcCommissioningClear: protectedProcedure
+    .input(z.object({ plcId: z.number().int(), name: z.string().min(1).max(120) }))
+    .mutation(async ({ input }) => {
+      await db.plcCommissioning.deleteMany({
+        where: { plcId: input.plcId, name: input.name },
+      });
+      return { ok: true };
+    }),
+
+  ioCardCommissioningList: protectedProcedure
+    .input(z.object({ ioCardId: z.number().int() }))
+    .query(async ({ input }) => {
+      const card = await db.ioCard.findUnique({
+        where: { id: input.ioCardId },
+        select: {
+          id: true,
+          name: true,
+          slotPosition: true,
+          catalog: { select: { commissioningData: true, articleNumber: true, vendorName: true } },
+          commissioning: {
+            select: { id: true, name: true, value: true, notes: true, updatedAt: true },
+            orderBy: { name: "asc" },
+          },
+        },
+      });
+      if (!card) throw new Error(`IoCard ${input.ioCardId} not found`);
+      return card;
+    }),
+
+  ioCardCommissioningSet: protectedProcedure
+    .input(
+      z.object({
+        ioCardId: z.number().int(),
+        name: z.string().min(1).max(120),
+        value: z.string().max(500),
+        notes: z.string().max(500).optional().nullable(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return db.ioCardCommissioning.upsert({
+        where: { ioCardId_name: { ioCardId: input.ioCardId, name: input.name } },
+        update: { value: input.value, notes: input.notes ?? null },
+        create: {
+          ioCardId: input.ioCardId,
+          name: input.name,
+          value: input.value,
+          notes: input.notes ?? null,
+        },
+      });
+    }),
+
+  ioCardCommissioningClear: protectedProcedure
+    .input(z.object({ ioCardId: z.number().int(), name: z.string().min(1).max(120) }))
+    .mutation(async ({ input }) => {
+      await db.ioCardCommissioning.deleteMany({
+        where: { ioCardId: input.ioCardId, name: input.name },
+      });
+      return { ok: true };
     }),
 });
