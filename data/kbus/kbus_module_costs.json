@@ -1,0 +1,168 @@
+{
+  "_about": "Curated K-bus formula inputs per part, consumed by mias-io's kbus capacity calculator. The Beckhoff K-bus cycle-time formula (T_cyc_us = N_cycles × (600 + N_DI × 2.5 + N_AI × 32 + N_AO × 42)) needs per-module {channel counts, specialty bytes, n_cycles, mode multiplier} that the catalog-derived part records don't carry directly. This file fills that gap for the modules MIAS uses; extend when new parts land in projects.",
+  "_source": [
+    "Beckhoff infosys.beckhoff.com/content/1033/bk3xx0/3028165003.html — formula and N_cycles ≥ 2 rule for terminals with >6 bytes data",
+    "suppliers/Wago/Controller manuals/wago_pfc200_750-8212_g2_manual.pdf §8.9.5 Table 198 — controller cycle-time bounds, output watchdog",
+    "suppliers/Wago/IO modules/wago_750-658_manual.pdf §6 (Process Image), §9.1.3.3 (size set)",
+    "suppliers/Wago/IO modules/wago_750-652_manual.pdf Table 28 (PI sizes)",
+    "Techdata/PLC/wago_pfc200_kbus_capacity.md — synthesis, mitigation order, empirical curve"
+  ],
+  "_schema": "Each module entry has: kind (digital | analog_in | analog_out | specialty_mailbox | specialty_serial | controller), and the formula-relevant fields below. Fields prefixed `_tbd_` indicate values still to be measured/cited; treat as null until closed by the corresponding NOTIF.",
+  "formula": {
+    "name": "Beckhoff K-bus cycle (canonical)",
+    "expression_us": "T_cyc_us = N_cycles × (600 + N_DI × 2.5 + N_AI × 32 + N_AO × 42)",
+    "n_cycles_rule": "≥2 if any module on the chain has >6 bytes process image (4-channel terminals or larger). Calculator should set N_cycles = max(1, max(modules.n_cycles_required)).",
+    "precision": "~10% per Beckhoff statement",
+    "source": "infosys.beckhoff.com/content/1033/bk3xx0/3028165003.html"
+  },
+  "controllers": {
+    "wago:750-8210": {
+      "kind": "controller",
+      "label": "PFC200 G2 4ETH",
+      "kbus_cycle_ms_min": 1,
+      "kbus_cycle_ms_default": 10,
+      "kbus_cycle_ms_max": 50,
+      "output_watchdog_ms": 100,
+      "io_modules_max_per_node": 64,
+      "io_modules_max_per_node_with_extension": 250,
+      "supports_async_mode": true,
+      "supports_sync_mode": true,
+      "source": "suppliers/Wago/Controller manuals/wago_pfc200_750-8212_g2_manual.pdf §8.9.5 Table 198 (G2 family — same K-bus chapter as 750-8210)"
+    },
+    "wago:750-8212": {
+      "kind": "controller",
+      "label": "PFC200 G2 2ETH RS",
+      "kbus_cycle_ms_min": 1,
+      "kbus_cycle_ms_default": 10,
+      "kbus_cycle_ms_max": 50,
+      "output_watchdog_ms": 100,
+      "io_modules_max_per_node": 64,
+      "io_modules_max_per_node_with_extension": 250,
+      "supports_async_mode": true,
+      "supports_sync_mode": true,
+      "source": "suppliers/Wago/Controller manuals/wago_pfc200_750-8212_g2_manual.pdf §8.9.5 Table 198"
+    },
+    "wago:750-8202": {
+      "kind": "controller",
+      "label": "PFC200 G1 2ETH RS",
+      "kbus_cycle_ms_min": 1,
+      "kbus_cycle_ms_default": 10,
+      "kbus_cycle_ms_max": 50,
+      "output_watchdog_ms": 100,
+      "io_modules_max_per_node": 64,
+      "io_modules_max_per_node_with_extension": 250,
+      "supports_async_mode": true,
+      "supports_sync_mode": true,
+      "source": "suppliers/Wago/Controller manuals/wago_pfc200_750-8202_g1_manual.pdf — assumed equivalent K-bus chapter; verify and amend on first project that uses G1"
+    }
+  },
+  "modules": {
+    "wago:750-658": {
+      "kind": "specialty_mailbox",
+      "label": "CAN gateway (Layer-2 + CANopen)",
+      "process_image_bytes": {
+        "options": [8, 12, 16, 20, 24, 32, 40, 48],
+        "default_documented": null,
+        "default_documented_note": "Not stated in 750-658 manual or WAGO TechDocs as of 2026-05-02; tracked as open gap in Techdata/PLC/wago_pfc200_kbus_capacity.md and as NOTIF-007 item 1 to mias-plugin.",
+        "convention_used_by_mias": 24
+      },
+      "mailbox_window_bytes": {
+        "options": [2, 3, 4, 5, 6],
+        "convention_used_by_mias": 6,
+        "note": "WAGO 750-658 manual line 2260: 'Set the mailbox in these operating modes to values between 2 and 6 bytes to have the greatest possible data throughput.'"
+      },
+      "operating_modes": ["Sniffer", "Transparent", "Mapped"],
+      "operating_mode_multipliers": {
+        "Mapped": {
+          "value": 1.0,
+          "source": "Convention; Mapped is the cheapest mode per Techdata/PLC/wago_pfc200_kbus_capacity.md (cyclic K-bus updates rather than acyclic mailbox routing)."
+        },
+        "Sniffer": {
+          "value": null,
+          "source": "TBD — open NOTIF-008 to mias-plugin. Page asserts Sniffer/Transparent are 4–10× more expensive per frame than Mapped qualitatively; not yet quantified."
+        },
+        "Transparent": {
+          "value": null,
+          "source": "TBD — open NOTIF-008 to mias-plugin. Critical for MIAS: LasseMaja and (per the page §typFullConfiguration) all current MIAS racks run 750-658 in Transparent. Calculator should emit a MODE_MULTIPLIER_MISSING warning when Transparent is selected and value is null."
+        }
+      },
+      "n_cycles_required": 2,
+      "n_cycles_rule": "PI > 6 B always triggers ≥2 cycles per Beckhoff. PI=8 is the minimum that still triggers 2 cycles; the smaller PI options don't reduce N_cycles below 2.",
+      "channels_di": 0,
+      "channels_ai": 0,
+      "channels_ao": 0,
+      "byte_cost_us": null,
+      "byte_cost_us_note": "Beckhoff formula doesn't have a coefficient for specialty mailbox bytes — only DI/AI/AO channels. For a first-cut TIER 1 calculator, use a placeholder of 100 µs per byte for specialty modules with PI > 6 B; this is conservative and should be replaced when WAGO provides authoritative data or when empirical fitting against the LasseMaja datapoint is performed. Tracked as a TIER 2 follow-up in Techdata/PLC/wago_pfc200_kbus_capacity.md."
+    },
+    "wago:750-652": {
+      "kind": "specialty_serial",
+      "label": "RS-232/RS-485 / DMX / Data Exchange gateway",
+      "process_image_bytes": {
+        "options": [8, 24, 48],
+        "default_documented": 24,
+        "default_documented_source": "suppliers/Wago/IO modules/wago_750-652_manual.pdf Table 28"
+      },
+      "operating_modes": ["RS-232", "RS-485", "DMX", "Data Exchange"],
+      "operating_mode_multipliers": {
+        "RS-232": {"value": 1.0, "source": "Convention — no documented K-bus cost difference between serial sub-modes; treat as 1.0× until measured."},
+        "RS-485": {"value": 1.0, "source": "Convention"},
+        "DMX": {"value": 1.0, "source": "Convention"},
+        "Data Exchange": {"value": 1.0, "source": "Convention"}
+      },
+      "n_cycles_required": 2,
+      "n_cycles_rule": "PI ≥ 8 B; minimum 8 B is at the >6 B threshold so always triggers 2 cycles. PI=24 (default) and 48 are larger.",
+      "channels_di": 0,
+      "channels_ai": 0,
+      "channels_ao": 0,
+      "byte_cost_us": null,
+      "byte_cost_us_note": "Same caveat as 750-658 — the Beckhoff formula doesn't have a coefficient for specialty modules. Use 100 µs/byte placeholder for PI > 6 until measured."
+    },
+    "wago:750-1405": {
+      "kind": "digital",
+      "label": "16 DI 24V DC",
+      "process_image_bytes": 2,
+      "channels_di": 16,
+      "channels_do": 0,
+      "n_cycles_required": 1,
+      "source": "WAGO catalog (docs/databases/wago/wago_full_catalog.json) — 16-channel digital input"
+    },
+    "wago:750-1504": {
+      "kind": "digital",
+      "label": "16 DO 24V DC",
+      "process_image_bytes": 2,
+      "channels_di": 0,
+      "channels_do": 16,
+      "n_cycles_required": 1,
+      "source": "WAGO catalog — 16-channel digital output"
+    },
+    "wago:750-455": {
+      "kind": "analog_in",
+      "label": "4 AI 4..20mA single-ended",
+      "process_image_bytes": 8,
+      "channels_ai": 4,
+      "n_cycles_required": 2,
+      "n_cycles_rule": "4-channel rule per Beckhoff: terminals with 4 channels require ≥2 K-bus cycles even when PI is small.",
+      "source": "WAGO catalog — 4-channel current AI"
+    },
+    "wago:750-559": {
+      "kind": "analog_out",
+      "label": "4 AO 0..10V",
+      "process_image_bytes": 8,
+      "channels_ao": 4,
+      "n_cycles_required": 2,
+      "source": "WAGO catalog — 4-channel voltage AO"
+    }
+  },
+  "extension_modules": {
+    "wago:750-628": {
+      "label": "K-bus extension coupler (head of segment)",
+      "kbus_cost_us": 0,
+      "note": "Mechanical/electrical hop only; does NOT reduce K-bus loading. Counted by the calculator only to enforce the with-extension module-count limit (250 vs 64) and the per-segment limits (max 11 blocks of 10 modules, max 5 m between blocks per PFC200 G2 manual §3.8.6 Table 22)."
+    },
+    "wago:750-627": {
+      "label": "K-bus extension end (tail of segment)",
+      "kbus_cost_us": 0,
+      "note": "Pairs with 750-628; same caveat."
+    }
+  }
+}

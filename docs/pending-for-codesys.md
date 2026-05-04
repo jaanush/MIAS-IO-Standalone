@@ -986,3 +986,74 @@ the disk path stops being authoritative. Plugin DLL rebuilt + deployed
 to sandbox CODESYS. LasseMaja's `policy = AUTO` backfill noted; will
 PATCH to `MANUAL_ONLY` before bench smoke-test starts. Removed per the
 "acknowledges and acts" rule.)
+
+---
+
+## NOTIF-029: FR-023 closed — per-instance commissioning metadata live
+
+**From:** `mias-io`
+**Date:** 2026-05-04
+**Re:** FR-023 in your inbox.
+
+### What landed
+
+1. **Schema** — added two columns on `component_instance`:
+   - `commissioning_part_id VARCHAR(100)` — your `danfoss-editron:ec-c1200-450`-style pointer.
+   - `commissioning_variant VARCHAR(40)` — your `mc | dcdc | afe | ug | bc | switch_control` etc.
+   `nodeId` reuses the existing `nodeAddress` (CANopen node 1..127), `networkId` reuses `busId`. Migration `20260504200000_fr023_instance_commissioning_metadata`.
+
+2. **API** — `GET /api/codesys/project/{id}` now puts a `commissioning` block on every `signals[].instance` object:
+
+   ```jsonc
+   "instance": {
+     "id": 45,
+     "tag": "875-U02",
+     "name": "GRID CONVERTER 875-U02",
+     "componentId": 5,
+     "componentName": "Editron Converter FW11 uG AFE",
+     "commissioning": {
+       "partId":   "danfoss-editron:ec-c1200-450",
+       "variant":  "afe",
+       "nodeId":   null,    // operator-assignable
+       "networkId": 18      // mirrors busSignal.networkId
+     }
+   }
+   ```
+
+   Same shape on every signal of the same instance — dedupe by `instance.id` if you want a flat `devices[]` map.
+
+3. **Backfill** — LasseMaja's 7 Editron converters populated by `componentName` parsing (verified):
+
+   | Instance | Tag / Name | Variant |
+   |---|---|---|
+   | 45 | GRID CONVERTER 875-U02 | `afe` |
+   | 46 | PROPULSION CONVERTER 625-U02 | `mc` |
+   | 47 | GENSET CONVERTER 861-U01 | `dcdc` |
+   | 48 | GRID CONVERTER 875-U01 | `afe` |
+   | 49 | PROPULSION CONVERTER 625-U01 | `mc` |
+   | 50 | DC SHORE CONNECTION 868 | `dcdc` |
+   | 51 | DC SHORE CONNECTION 869 | `dcdc` |
+
+   All 7 get `partId = "danfoss-editron:ec-c1200-450"`. `nodeId` is **null on all 7** — these were never wired with CANopen node addresses on the mias-io side. Operator needs to set them before your commissioning recipe walk can run; UI now exposes the field.
+
+4. **UI** — `InstanceDetail` (project hardware tree → click any CAN-bus instance) shows a new "Device Commissioning" section with a partId text input and a variant dropdown (Editron variants pre-populated; falls back to free text for other vendors). `Node ID` is the existing CANopen Node ID input in the Bus Node Settings section above it.
+
+5. **Validation** — mias-io accepts arbitrary `variant` strings (the docs `parts.json` is the source of truth for valid values per vendor). Validate plugin-side against `parts.json[partId].specs.can_commissioning.variants` keys before consuming. We can add stricter validation here later if drift becomes an issue.
+
+6. **tRPC** — `projectHardware.instanceUpdate` zod input extended with `commissioningPartId` + `commissioningVariant`. UI uses this on Save.
+
+### Out of scope (deliberately, matching your FR)
+
+- PSSC node-id/baud bring-up — unchanged. Still PowerUSER-on-PSSC operation per `MIAS-ref/Techdata/PLC/editron_can_commissioning.md` Path Y. mias-io doesn't model that.
+- `devices[]` deduped collection — left out for v1; if the per-signal repeat causes pain, raise it and I'll add a top-level `devices` array keyed by instance id.
+- Other vendors beyond Editron — partId/variant accept any string; when you land Kreisel BMS / DEIF MIC-2 etc., wire them into the variant-dropdown lookup table on the mias-io side (`VARIANT_OPTIONS_BY_PART` in `InstanceDetail.tsx`) and the UI gets the same dropdown affordance for free.
+
+### What's left for you
+
+1. Set `nodeId` on the 7 Editron instances via PATCH (none have a node id today). The standard CANopen node-id assignment per the project would slot in here — share the mapping and I can backfill, or you set them via your CommissioningRenderer's pre-flight step.
+2. Wire `CommissioningRenderer.cs` to read this block and emit the per-target sequence. Same gate as NOTIF-027 (DLL deploy + smoke test).
+3. Ack and remove this notif when consumed.
+
+### Heads-up on the running prod
+
+Standalone Docker on `:3000` rebuilt + restarted with v0.6.13 + this migration. Coolify production lags behind master; needs a deploy when you're ready to roll FR-023 there.

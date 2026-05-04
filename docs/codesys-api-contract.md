@@ -177,7 +177,13 @@ and derive everything they need from it.
         "tag": "861-G01",
         "name": "Diesel Genset",
         "componentId": 7,
-        "componentName": "ComAP Genset Controller"
+        "componentName": "ComAP Genset Controller",
+        "commissioning": {
+          "partId": "danfoss-editron:ec-c1200-450",
+          "variant": "afe",
+          "nodeId": 2,
+          "networkId": 18
+        }
       },
       "channelPosition": 0,
       "plcAddress": "%IW0",
@@ -274,6 +280,31 @@ and derive everything they need from it.
 - When present, contains the component instance tag/name and the parent component ID/name
 - `componentId` + `componentName` identify the `HardwareComponent` — the plugin can use
   `componentId` to look up the associated function block in its own database
+
+**Notes on `instance.commissioning` (FR-023):**
+- Carries device-commissioning metadata for CANopen device-recipe codegen.
+  Same shape on every signal of the same instance — plugin should dedupe by
+  `instance.id` (or pre-build a project-level `devices[]` map indexed by
+  instance id).
+- `partId`: pointer into MIAS-ref hardware DB
+  (`<vendor-slug>:<article-stem>`, e.g. `"danfoss-editron:ec-c1200-450"`).
+  Plugin reads recipe from
+  `MIAS-ref/docs/databases/<vendor>/parts.json[partId].specs.can_commissioning.variants[variant].minimum_sequence`.
+- `variant`: firmware variant key matching the keys under
+  `<part>.specs.can_commissioning.variants`. For Editron currently
+  `dcdc | mc | afe | ug | bc | switch_control`. Mias-io accepts arbitrary
+  strings (the docs JSON is the source of truth for valid values per
+  vendor); plugin should validate against parts.json before consuming.
+- `nodeId`: CANopen node id 1..127 reused from
+  `ComponentInstance.nodeAddress`. `null` when not yet assigned — operator
+  fills via mias-io UI before commissioning runs.
+- `networkId`: bus FK reused from `ComponentInstance.busId`. Same value as
+  `busSignal.networkId` for any signal on this instance — exposed here so
+  the plugin doesn't have to reconcile across thousands of signals.
+- LasseMaja's 7 Editron converters are backfilled (4 dcdc + 2 mc + 2 afe);
+  `nodeId` left null for operator entry. New instances enter the metadata
+  via the InstanceDetail UI's "Device Commissioning" section (visible on
+  CAN-bus instances).
 
 **Notes on `systemId` / `systemGroup`:**
 - `systemId`: integer FK into `signal_system` (or `null`).

@@ -352,6 +352,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
               tag: true,
               name: true,
               componentId: true,
+              // FR-023: per-instance commissioning metadata for CANopen device recipes.
+              busId: true,
+              nodeAddress: true,
+              commissioningPartId: true,
+              commissioningVariant: true,
               component: {
                 select: {
                   id: true,
@@ -437,6 +442,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           name: s.instanceSignal.instance.name,
           componentId: s.instanceSignal.instance.componentId,
           componentName: s.instanceSignal.instance.component.name,
+          // FR-023: commissioning block. Same shape on every signal of the
+          // same instance — plugin can dedupe by instance.id. partId/variant
+          // are user-set (backfilled for LasseMaja's 7 Editron converters);
+          // nodeId reuses ComponentInstance.nodeAddress; networkId is busId.
+          commissioning: {
+            partId: (s.instanceSignal.instance as any).commissioningPartId ?? null,
+            variant: (s.instanceSignal.instance as any).commissioningVariant ?? null,
+            nodeId: (s.instanceSignal.instance as any).nodeAddress ?? null,
+            networkId: (s.instanceSignal.instance as any).busId ?? null,
+          },
         }
       : null;
 

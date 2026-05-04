@@ -1,0 +1,392 @@
+[
+  {
+    "part_id": "wago:750-8210",
+    "module_class": "controller",
+    "needs_commissioning": true,
+    "library_fb": null,
+    "iec_globals_path_pattern": null,
+    "commissioning_settings": [
+      {
+        "name": "KBus update mode",
+        "register_or_object": "Web-Based Management / e!RUNTIME / WAGO-I/O-CHECK",
+        "data_type": "ENUM",
+        "value_range": "Asynchronous | Synchronous",
+        "default_value": "Asynchronous",
+        "mias_convention_value": "Asynchronous",
+        "description": "How K-bus process data is refreshed (PFC200 G2 manual §8.9.5 Table 198). Asynchronous: K-bus runs on its own timer at the configured cycle. Synchronous: K-bus syncs to the fastest CODESYS task that touches the local bus.",
+        "writable_via": ["WBM (Web-Based Management)", "Configuration dialog"]
+      },
+      {
+        "name": "KBus cycle time",
+        "register_or_object": "Web-Based Management / e!RUNTIME setting",
+        "data_type": "UDINT",
+        "value_range": "1000 µs (min) .. 50000 µs (max)",
+        "default_value": "10000 µs (10 ms)",
+        "mias_convention_value": "10000 µs",
+        "unit": "µs",
+        "description": "Update interval for the K-bus in asynchronous update mode. Output watchdog 100 ms — modules reset to defaults if no K-bus cycle within 100 ms (PFC200 G2 manual §8.9.4).",
+        "writable_via": ["WBM (Web-Based Management)"]
+      },
+      {
+        "name": "KBus thread priority",
+        "register_or_object": "Web-Based Management",
+        "data_type": "INT",
+        "value_range": "0 (highest) .. 15 (lowest)",
+        "default_value": "0",
+        "mias_convention_value": "0",
+        "description": "Priority for the K-bus thread. Effective in asynchronous mode only. Manual warns: must beat IEC task priority or async mode 'freezes' (§8.9.5.1.1).",
+        "writable_via": ["WBM (Web-Based Management)"]
+      },
+      {
+        "name": "PLC stop behaviour",
+        "register_or_object": "Web-Based Management",
+        "data_type": "ENUM",
+        "value_range": "Hold last value | Set to zero",
+        "default_value": "Set to zero",
+        "mias_convention_value": "Set to zero",
+        "description": "Response of K-bus outputs when the PLC application stops.",
+        "writable_via": ["WBM (Web-Based Management)"]
+      },
+      {
+        "name": "Network IP configuration",
+        "data_type": "STRUCT",
+        "description": "Eth1/Eth2 IP, netmask, gateway, DNS, switched-vs-separated mode. Set per-project; not a module-level commissioning concern but listed for completeness.",
+        "writable_via": ["WBM (Web-Based Management)", "PFC config file"]
+      },
+      {
+        "name": "Web visualisation auth",
+        "data_type": "STRING",
+        "description": "Webvisu credentials for the controller's HMI.",
+        "writable_via": ["WBM (Web-Based Management)"]
+      }
+    ],
+    "monitoring_signals": [
+      {
+        "name": "K-bus error info",
+        "iec_field": "KBUS_ERROR_INFORMATION",
+        "data_type": "STRUCT",
+        "description": "From mod_com.lib (CODESYS 2.x). Carries last K-bus error code + slot. Not callable in synchronous mode while a K-bus error is present (PFC200 G2 manual §8.9.5.1.2).",
+        "readable_via": ["IEC FB output"]
+      },
+      {
+        "name": "CPU load",
+        "data_type": "REAL",
+        "unit": "%",
+        "description": "From OS-level top via SSH; CODESYS task instant CPU% via runtime APIs. Watchpoint: > 70 % at idle = CPU-bound on K-bus (per the K-bus capacity page).",
+        "readable_via": ["OPC UA"]
+      }
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {
+      "save_to_eeprom_required": true,
+      "takes_effect_immediately": false,
+      "requires_runtime_restart": true,
+      "requires_full_pfc_reboot": false,
+      "notes": "KBus settings persist across reboots. Some changes (cycle time, update mode) apply on next /etc/init.d/runtime restart; some (network) need a full PFC reboot."
+    },
+    "source": {
+      "manual_pdf": "suppliers/Wago/Controller manuals/wago_pfc200_750-8212_g2_manual.pdf",
+      "manual_text": "suppliers/Wago/Controller manuals/wago_pfc200_750-8212_g2_manual.txt",
+      "manual_section_refs": ["§8.9 Local Bus Synchronization", "§8.9.5 Local Bus (KBus) Settings Table 198"],
+      "verified_against_running_hardware": true,
+      "verification_project": "LasseMaja"
+    }
+  },
+  {
+    "part_id": "wago:750-658",
+    "module_class": "can_gateway",
+    "needs_commissioning": true,
+    "library_fb": {
+      "codesys_v2_lib": "WagoLib_CAN_Gateway.lib",
+      "codesys_v3_namespace": "WagoSysModule_75x_658 + WagoAppCanLayer2",
+      "config_fb": "FbModuleConfigurationAndStatus",
+      "module_fb": "FbModule_75x_658",
+      "extra_fbs": ["FbCanL2Open", "FbCanRx11BitFrameAll", "FbCanRx29BitFrameAll", "FbCanTx11BitFrame*", "FbCanTx29BitFrame*"]
+    },
+    "iec_globals_path_pattern": "IoConfig_Globals._750_658_S<slot>",
+    "commissioning_settings": [
+      {"name": "Operating mode", "register_or_object": "R13 (extended register; exact encoding pending) — also via WAGO-I/O-CHECK Sniffer/Transparent/Mapped buttons", "data_type": "ENUM", "value_range": "Sniffer | Transparent | Mapped", "default_value": "(factory default not stated in manual)", "mias_convention_value": "Transparent", "description": "Sniffer = passive rx-only, no ACK; Transparent = active rx+tx via Mailbox 2.0; Mapped = direct cyclic byte mapping. MIAS uses Transparent for Layer-2 raw CAN.", "writable_via": ["WAGO-I/O-CHECK", "Mailbox 0x80 protocol", "Library FB input"]},
+      {"name": "CAN data format", "register_or_object": "R16 + R32 (paired)", "data_type": "ENUM", "value_range": "2.0A Standard (11-bit ID) | 2.0B Extended (29-bit ID)", "default_value": "(factory default not stated)", "mias_convention_value": "Project-dependent — Editron CANopen = 11-bit; Kreisel PT-CAN = 29-bit", "description": "Frame format. R16 + R32 must be set together to matching encoding. Mismatch with application bUse29Bit is the silent-filter trap.", "writable_via": ["WAGO-I/O-CHECK", "Mailbox 0x80 protocol", "Library FB input"], "encoding_observed": {"R16=0x0001 + R32=0x0150": "11-bit Standard", "R16=0x0004 + R32=0x0154": "29-bit Extended"}},
+      {"name": "CAN baud rate", "register_or_object": "R12 (extended register, bit-timing encoding)", "data_type": "ENUM", "value_range": "10/20/50/125/250/500/800/1000 kbit/s + Auto-baud", "default_value": "Auto-baud (factory)", "mias_convention_value": "500 kbit/s (typical)", "description": "Auto-baud cycles every 100 ms and locks on first cleanly-received frame. R12 holds bit-timing encoding; observed 0x1818 = 500 kbit/s.", "writable_via": ["WAGO-I/O-CHECK", "Mailbox 0x80 protocol", "Library FB input"], "encoding_observed": {"R12=0x1818": "500 kbit/s"}},
+      {"name": "Process image size", "register_or_object": "Configuration dialog / Mailbox 0x80 register write (manual §9.1.3.3)", "data_type": "ENUM", "value_range": "8 | 12 | 16 | 20 | 24 | 32 | 40 | 48 bytes", "default_value": "(not stated in manual; tracked as NOTIF-007 item 1)", "mias_convention_value": "24 bytes", "unit": "bytes", "description": "Symmetric in/out PI size. Changing PI size restarts the controller. Writable from IEC via FbModuleConfigurationAndStatus.typConfigData.aRegister (full config struct write).", "writable_via": ["WAGO-I/O-CHECK", "Library FB input (typConfigData.aRegister via FbModuleConfigurationAndStatus)"]},
+      {"name": "Mailbox length", "register_or_object": "Configuration dialog / Mailbox 0x80 register write (§9.1.3.2)", "data_type": "UINT", "value_range": "2 .. PI_size; manual recommends 2..6 for best throughput", "default_value": "(not stated)", "mias_convention_value": "6 bytes", "unit": "bytes", "description": "Bytes 1..mailbox_len of PI form the Mailbox 2.0 channel. Writable from IEC via FbModuleConfigurationAndStatus.typConfigData.aRegister.", "writable_via": ["WAGO-I/O-CHECK", "Library FB input (typConfigData.aRegister)"]},
+      {"name": "Mailbox diagnosis", "register_or_object": "Configuration dialog / Mailbox 0x80 register write (§9.1.3.1)", "data_type": "BOOL", "value_range": "Off | On", "default_value": "Off", "mias_convention_value": "On", "description": "Enables advanced mailbox diagnostics — error codes via Mailbox 0x81, classified LED on the module. Writable from IEC via FbModuleConfigurationAndStatus.xDiagOverMbx0Enabled.", "writable_via": ["WAGO-I/O-CHECK", "Library FB input (xDiagOverMbx0Enabled)"]},
+      {"name": "Filter configuration (6 filters)", "register_or_object": "Tables 50..55 (Mailbox 0x80) — registers 0..5 per filter table", "data_type": "STRUCT", "description": "Each filter has [CAN ID lower limit, CAN ID upper limit, enable, FIFO policy]. FIFO policy: Keep All (default) or Overwrite. Writable from IEC via FbModuleConfigurationAndStatus.typConfigData.COB_ID_Filter[0..5] (array of typFilterSettings).", "writable_via": ["WAGO-I/O-CHECK", "Library FB input (typConfigData.COB_ID_Filter[0..5])", "Mailbox 0x80 protocol"]},
+      {"name": "Mapped-mode output telegrams", "register_or_object": "Tables 100..144 (Mailbox 0x80) — 9 registers per telegram", "data_type": "STRUCT", "value_range": "Up to 45 output telegrams. Per telegram: CAN ID, IDE, RTR, DLC, send-group (1..8 or unassigned), send-on-change, cycle time, per-byte source.", "description": "Only used in Mapped mode. Writable from IEC via FbModuleConfigurationAndStatus.typConfigData.myTX_Mapping[0..44] (array of typMappingTxSettings).", "writable_via": ["WAGO-I/O-CHECK", "Library FB input (typConfigData.myTX_Mapping[0..44])", "Mailbox 0x80 protocol"]},
+      {"name": "Mapped-mode input mappings", "register_or_object": "Tables 200..244 (Mailbox 0x80) — 7 registers per mapping", "data_type": "STRUCT", "value_range": "Up to 45 input mappings.", "description": "Only used in Mapped mode. Writable from IEC via FbModuleConfigurationAndStatus.typConfigData.myRX_Mapping[0..44] (array of typMappingRxSettings).", "writable_via": ["WAGO-I/O-CHECK", "Library FB input (typConfigData.myRX_Mapping[0..44])", "Mailbox 0x80 protocol"]}
+    ],
+    "monitoring_signals": [
+      {"name": "Module operational state", "iec_field": "m_state", "data_type": "UINT", "description": "Module FSM state. 20 = operational/running.", "interpretation": {"20": "operational / running"}, "alarm_thresholds": {"alarm_on_change": true}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "K-bus runnable counter", "iec_field": "m_RunnableCounter", "data_type": "UDINT", "description": "Increments each time the controller services this module's mailbox slot. Climbing = alive. Frozen = wedged.", "alarm_thresholds": {"alarm_on_change": false}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "CAN bus-off events", "iec_field": "auxBusOffCounter", "data_type": "UDINT", "description": "Counter of CAN bus-off events.", "alarm_thresholds": {"alarms": [{"condition": "HIGH", "setpoint": 0, "severity": "WARNING", "delay_seconds": 0, "message_template": "{tag}: {name} non-zero ({value}) — bus or module fault. Project should override setpoint and delay per tolerance."}]}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "CAN warning events", "iec_field": "auxBusWarningCounter", "data_type": "UDINT", "description": "Counter of CAN bus warning events.", "alarm_thresholds": {"alarms": [{"condition": "HIGH", "setpoint": 0, "severity": "WARNING", "delay_seconds": 0, "message_template": "{tag}: {name} non-zero ({value}) — bus or module fault. Project should override setpoint and delay per tolerance."}]}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "CAN RX errors", "iec_field": "auxRxErrorCounter", "data_type": "UDINT", "description": "Counter of CAN RX errors.", "alarm_thresholds": {"alarms": [{"condition": "HIGH", "setpoint": 0, "severity": "WARNING", "delay_seconds": 0, "message_template": "{tag}: {name} non-zero ({value}) — bus or module fault. Project should override setpoint and delay per tolerance."}]}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "CAN TX errors", "iec_field": "auxTxErrorCounter", "data_type": "UDINT", "description": "Counter of CAN TX errors.", "alarm_thresholds": {"alarms": [{"condition": "HIGH", "setpoint": 0, "severity": "WARNING", "delay_seconds": 0, "message_template": "{tag}: {name} non-zero ({value}) — bus or module fault. Project should override setpoint and delay per tolerance."}]}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "Layer-2 RX errors", "iec_field": "auxRxLayer2ErrorCounter", "data_type": "UDINT", "description": "L2-specific RX error counter.", "alarm_thresholds": {"alarms": [{"condition": "HIGH", "setpoint": 0, "severity": "WARNING", "delay_seconds": 0, "message_template": "{tag}: {name} non-zero ({value}) — bus or module fault. Project should override setpoint and delay per tolerance."}]}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "Layer-2 TX errors", "iec_field": "auxTxLayer2ErrorCounter", "data_type": "UDINT", "description": "L2-specific TX error counter.", "alarm_thresholds": {"alarms": [{"condition": "HIGH", "setpoint": 0, "severity": "WARNING", "delay_seconds": 0, "message_template": "{tag}: {name} non-zero ({value}) — bus or module fault. Project should override setpoint and delay per tolerance."}]}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "Bus diagnosis", "iec_field": "auxBusDiag", "data_type": "DWORD", "description": "Bit-flag set; 0 = OK.", "alarm_thresholds": {"alarms": [{"condition": "HIGH", "setpoint": 0, "severity": "WARNING", "delay_seconds": 0, "message_template": "{tag}: {name} non-zero ({value}) — bus or module fault. Project should override setpoint and delay per tolerance."}]}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "Actual baudrate (silicon)", "iec_field": "m_actualBaudrate", "data_type": "UINT", "description": "Encoded baud index from WagoTypesModule_75x_658.eBitrate.", "interpretation": {"3": "125 kbit/s", "4": "250 kbit/s", "5": "500 kbit/s", "7": "1000 kbit/s"}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "Actual operating mode (silicon)", "iec_field": "m_actualMode", "data_type": "UINT", "description": "Encoded operating mode.", "interpretation": {"0": "Sniffer", "1": "Transparent", "2": "Mapped"}, "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "Frame format mode (silicon)", "iec_field": "m_29BitModeConfigured", "data_type": "BOOL", "description": "TRUE = 29-bit Extended mode active. FALSE = 11-bit Standard. Read this to verify mode after commissioning.", "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "Module FW revision", "iec_field": "m_iSoftwareVersion", "data_type": "INT", "description": "Module firmware revision. -1 = not yet read.", "readable_via": ["IEC FB output", "OPC UA"]},
+      {"name": "PI status byte (PI byte 0 input)", "process_image_bit": "Bit 5 = GEN_ERR, Bit 4 = CAN_ERR, Bit 3 = TX_OVF, Bit 2 = RX_OVF, Bit 1 = INT_ERR", "data_type": "BYTE", "description": "Per-cycle status byte. GEN_ERR aggregates the others. INT_ERR causes: 24V missing / mailbox-PD inconsistency / parameterization fault / register fault.", "readable_via": ["PI status byte"]},
+      {"name": "Mailbox 0x81 diagnostic event stream", "data_type": "STRUCT", "description": "Event/error codes (3E8..3FB CAN-side, 7D0..7DB internal, BB8..BD7 mailbox parameterization) classified Notification/Warning/Error with appears/disappears mode.", "readable_via": ["Mailbox 0x81 diagnostics"]}
+    ],
+    "commissioning_constraints": [
+      {"affected_settings": ["CAN data format", "Application FB family (bUse29Bit on FbCanL2Open)"], "rule": "Module's R16+R32 frame-format setting MUST match the application's FbCanL2Open.bUse29Bit input and the Rx/Tx FB family.", "violation_consequence": "Silent filter trap — frames are filtered at the silicon and never reach CODESYS."},
+      {"affected_settings": ["R16", "R32"], "rule": "R16 and R32 are paired; both must be set to matching encoding.", "violation_consequence": "Module enters inconsistent state."},
+      {"affected_settings": ["Process image size", "Mailbox length", "Mapped output telegrams", "Mapped input mappings"], "rule": "Available CAN user-data bytes per direction = PI_size − 1 (status) − mailbox_len − 1 (toggle, Mapped only). Mapping configurations exceeding this fail.", "violation_consequence": "Configuration write rejected; mapped data not visible in PI."}
+    ],
+    "apply_method": {"save_to_eeprom_required": true, "takes_effect_immediately": false, "requires_runtime_restart": false, "requires_full_pfc_reboot": true, "notes": "FbModuleConfigurationAndStatus exposes the FULL module config via the typConfigData : typFullConfiguration INOUT — aRegister[*] for all registers (PI size, baud, mailbox length, etc.), COB_ID_Filter[0..5] for filters, myTX_Mapping[0..44] / myRX_Mapping[0..44] for mapped output/input tables, plus eBitrate/eMode/x29BitEnabled/xSdoEnabled/xDiagOverMbx0Enabled discrete pins. The IEC commissioner writes the full struct then issues xExecute + xWriteRead=TRUE + xSaveValues=TRUE to commit to EEPROM. MIAS does not run WAGO-I/O-CHECK in production — every parameter is set from IEC. WAGO-I/O-CHECK listed as a fallback channel only. EEPROM-saved values typically take effect on the next module re-init; FB-driven writes that re-issue Open also re-init the silicon, so a runtime-restart is not strictly required for FB-driven changes (versus the NOTIF-010 case which was about EEPROM-saved-but-not-yet-loaded values from a separate WAGO-I/O-CHECK session)."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-658_manual.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-658_manual.txt", "manual_section_refs": ["§5 Function Description", "§6 Process Image", "§9 Configuration", "§12.1 Mailbox 2.0", "§12.2 Protocols 0x80 + 0x81", "§12.3 Tables", "§12.4 Register Communication"], "verified_against_running_hardware": true, "verification_project": "LasseMaja"}
+  },
+  {
+    "part_id": "wago:750-652",
+    "module_class": "serial_gateway",
+    "needs_commissioning": true,
+    "library_fb": {"codesys_v3_namespace": "WagoSysModule_75x_652", "config_fb": null, "module_fb": null, "extra_fbs": ["WagoAppSerialCommunication serial framing FBs"]},
+    "iec_globals_path_pattern": "IoConfig_Globals._750_652_S<slot>",
+    "commissioning_settings": [
+      {"name": "Operating mode", "data_type": "ENUM", "value_range": "RS-232 | RS-485 | DMX | Data Exchange", "default_value": "RS-232", "mias_convention_value": "RS-485 (typical, e.g. for DEIF MIC-2 MKII Modbus RTU)", "description": "Selects the serial physical layer mode.", "writable_via": ["WAGO-I/O-CHECK"]},
+      {"name": "Process image size", "data_type": "ENUM", "value_range": "8 | 24 | 48 bytes", "default_value": "24 bytes", "mias_convention_value": "24 bytes", "unit": "bytes", "description": "Symmetric in/out. DMX-receive forces 24 bytes.", "writable_via": ["WAGO-I/O-CHECK"]},
+      {"name": "Baud rate", "data_type": "UDINT", "value_range": "300 .. 115200 bit/s (typical)", "default_value": "(project-dependent)", "mias_convention_value": "19200 (Modbus RTU default)", "unit": "bit/s", "description": "Serial baud rate. RS-485 multidrop; max 1000 m / 32 nodes per segment.", "writable_via": ["WAGO-I/O-CHECK"]},
+      {"name": "Data bits / parity / stop bits", "data_type": "STRUCT", "value_range": "Typical: 8N1 / 8E1 / 8O1", "default_value": "8N1", "mias_convention_value": "8N1 (Modbus RTU standard)", "description": "Serial framing parameters.", "writable_via": ["WAGO-I/O-CHECK"]}
+    ],
+    "monitoring_signals": [
+      {"name": "Status byte error flags", "process_image_bit": "EOV (overflow), EFR (framing), EPR (parity)", "data_type": "BYTE", "description": "Per-cycle status byte error bits.", "alarm_thresholds": {"alarm_on_change": true}, "readable_via": ["PI status byte"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"save_to_eeprom_required": true, "takes_effect_immediately": false, "requires_runtime_restart": false, "requires_full_pfc_reboot": true, "notes": "Same constraint as 750-658 — full PFC reboot required for EEPROM config to land in silicon."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-652_manual.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-652_manual.txt", "manual_section_refs": ["§5 Function Description", "§6 Process Image", "Table 28 (PI sizes)", "Table 18 (user-data layout)"], "verified_against_running_hardware": true, "verification_project": "LasseMaja"}
+  },
+  {
+    "part_id": "wago:750-600",
+    "module_class": "end_module",
+    "needs_commissioning": false,
+    "library_fb": null,
+    "iec_globals_path_pattern": null,
+    "commissioning_settings": [],
+    "monitoring_signals": [],
+    "commissioning_constraints": [],
+    "apply_method": {"save_to_eeprom_required": false, "takes_effect_immediately": true, "requires_runtime_restart": false, "requires_full_pfc_reboot": false, "notes": "Passive K-bus terminator. No configuration. Mias-core commissioning function should skip this module type entirely."},
+    "source": {"manual_pdf": null, "verified_against_running_hardware": true, "verification_project": "LasseMaja"}
+  },
+  {
+    "part_id": "wago:750-451",
+    "module_class": "analog_in",
+    "needs_commissioning": true,
+    "library_fb": {"codesys_v3_namespace": "WagoSysModule_75x_451 (likely; pending verification)"},
+    "iec_globals_path_pattern": null,
+    "commissioning_settings": [
+      {"name": "Sensor type per channel", "data_type": "ENUM", "value_range": "Pt100 (default) | Pt200 | Pt500 | Pt1000 | Ni100 | Ni120 | Ni1000 (TK6180 + TK5000) | Potentiometer 10R..1k2 | Potentiometer 10R..5k0", "default_value": "Pt100", "mias_convention_value": "(project-dependent)", "description": "8-channel resistance/RTD module. Per-channel sensor type configured via WAGO-I/O-CHECK / CODESYS Library / e!COCKPIT. Module auto-linearises the temperature range. Resolution: 0.1 °C overall, 0.01 °C in -50..150 °C window for Pt1000/Ni1000.", "writable_via": ["WAGO-I/O-CHECK", "Library FB input"]},
+      {"name": "Connection type", "data_type": "ENUM", "value_range": "2-wire (only — per datasheet 'Sensor connection: 8 x (2-wire)')", "default_value": "2-wire", "mias_convention_value": "2-wire", "description": "750-451 supports 2-wire connection only on this 8-channel variant. 3-/4-wire RTD requires the 4-channel sibling 750-460/468 family.", "writable_via": ["WAGO-I/O-CHECK"]},
+      {"name": "Channel deactivation", "data_type": "BOOL", "default_value": "all channels active", "description": "Per-channel enable/disable. Unused channels can be deactivated to suppress wire-break LED.", "writable_via": ["WAGO-I/O-CHECK"]}
+    ],
+    "monitoring_signals": [
+      {"name": "Per-channel sensor error", "data_type": "BOOL", "description": "Sensor error (short circuit, wire break, or out-of-measurement-range) is indicated by the per-channel red LED (LED 9-16) and reflected in the per-channel control/status byte (8 x 8-bit control/status optional in PI).", "alarm_thresholds": {"alarm_on_change": true}, "readable_via": ["PI status byte"]},
+      {"name": "Per-channel measured value", "data_type": "INT", "unit": "°C × scale or Ω", "description": "16-bit per-channel measured value (8 x 16-bit data in PI). Conversion time ~100 ms typical, response time max 3 s. Measurement error ±0.6 K (Pt100/Pt200/Pt500/Ni100/Ni120), ±0.2 K (Pt1000/Ni1000), ±0.3 Ω resistance.", "readable_via": ["IEC FB output", "OPC UA"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"save_to_eeprom_required": true, "takes_effect_immediately": false, "requires_runtime_restart": false, "requires_full_pfc_reboot": true, "notes": "Sensor-type config persists in module EEPROM; PFC reboot needed for new sensor-type config to take effect."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-451_datasheet.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-451_datasheet.txt", "datasheet_url": "https://www.wago.com/750-451", "manual_section_refs": ["Datasheet Page 1-2 (Technical data, Sensor types, Configuration options)"], "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-496",
+    "module_class": "analog_in",
+    "needs_commissioning": true,
+    "library_fb": {"codesys_v3_namespace": "WagoSysModule_75x_496 (likely; pending verification)"},
+    "iec_globals_path_pattern": null,
+    "commissioning_settings": [
+      {"name": "Signal range per channel", "data_type": "ENUM", "value_range": "0..20 mA | 4..20 mA | 3.6..21 mA (Namur NE43)", "default_value": "(not stated in datasheet)", "mias_convention_value": "4..20 mA (industry standard with wire-break detect)", "description": "8-channel current input. Per-channel signal range. The 3.6..21 mA Namur NE43 range provides standardized wire-break / out-of-range signaling.", "writable_via": ["WAGO-I/O-CHECK", "Library FB input"]},
+      {"name": "Channel deactivation", "data_type": "BOOL", "default_value": "all channels active", "description": "Per-channel enable/disable. Unused channels can be deactivated to suppress error LED.", "writable_via": ["WAGO-I/O-CHECK"]}
+    ],
+    "monitoring_signals": [
+      {"name": "Per-channel error indication", "data_type": "BOOL", "description": "Wire break, short circuit, or out-of-measurement-range is indicated by the per-channel red LED (LED 9-16) and reflected in the per-channel control/status byte. 4..20 mA mode provides wire-break detect (current < 3.6 mA = open).", "alarm_thresholds": {"alarm_on_change": true}, "readable_via": ["PI status byte"]},
+      {"name": "Per-channel measured value", "data_type": "INT", "unit": "mA × scale", "description": "16-bit per-channel measured value (8 x 16-bit data in PI). 12-bit resolution. Conversion time 10 ms typical. Measurement error 0.1% of upper-range value at 25 °C; temp drift 0.01%/K. Module provides 24 V to 2-wire sensors directly.", "readable_via": ["IEC FB output", "OPC UA"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"save_to_eeprom_required": true, "takes_effect_immediately": false, "requires_runtime_restart": false, "requires_full_pfc_reboot": true},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-496_manual.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-496_manual.txt", "datasheet_url": "https://www.wago.com/750-496", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-553",
+    "module_class": "analog_out",
+    "needs_commissioning": true,
+    "library_fb": {"codesys_v3_namespace": "WagoSysModule_75x_553 (likely)"},
+    "iec_globals_path_pattern": null,
+    "commissioning_settings": [
+      {"name": "Signal range", "data_type": "ENUM", "value_range": "0..20 mA (only — per datasheet 'Signal type (current): 0 … 20 mADC'; this variant does NOT support 4..20 mA — use 750-554 for 4..20 mA output)", "default_value": "0..20 mA", "mias_convention_value": "0..20 mA", "description": "4-channel current output, fixed range. Manual mentions 'Start of measurement range' field — likely a per-channel scaling start (e.g. enter 4 mA to map raw 0..32767 → 4..20 mA at the application boundary).", "writable_via": ["WAGO-I/O-CHECK"]},
+      {"name": "Start of measurement range (per channel scaling)", "data_type": "REAL", "value_range": "depends on physical range — manual cites '4 mA' as an example", "description": "Per-channel range start for the value-to-current mapping. Useful when the application's REAL value should map starting at 4 mA rather than 0.", "writable_via": ["WAGO-I/O-CHECK"]},
+      {"name": "End of measurement range (per channel scaling)", "data_type": "REAL", "value_range": "depends on physical range", "description": "Companion to start-of-range; defines the upper end of the application-to-current mapping.", "writable_via": ["WAGO-I/O-CHECK"]},
+      {"name": "Replacement value on PLC stop", "data_type": "INT", "description": "Per-channel value to drive when PLC stops or comms is lost. Standard WAGO AO behaviour.", "writable_via": ["WAGO-I/O-CHECK"]}
+    ],
+    "monitoring_signals": [
+      {"name": "Per-channel error", "data_type": "BOOL", "description": "Red LED (LED B) per channel + control/status byte bit indicates output error (open circuit / short / load impedance fault). Load impedance must be 0..300 Ω OR 300..600 Ω (same for all channels).", "alarm_thresholds": {"alarm_on_change": true}, "readable_via": ["PI status byte"]}
+    ],
+    "commissioning_constraints": [
+      {"affected_settings": ["Load impedance"], "rule": "Per datasheet: load impedance is 0..300 Ω OR 300..600 Ω, with the same range for all 4 channels. Mixing high-impedance and low-impedance loads on the same module is not supported.", "violation_consequence": "Output error on the mismatched channel; reduced output range."}
+    ],
+    "apply_method": {"save_to_eeprom_required": true, "takes_effect_immediately": false, "requires_runtime_restart": false, "requires_full_pfc_reboot": true},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-553_manual.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-553_manual.txt", "datasheet_url": "https://www.wago.com/750-553", "manual_section_refs": ["Datasheet Technical data", "Manual configuration section (\"Start of measurement range\" / \"4 mA\" example)"], "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-483",
+    "module_class": "analog_in",
+    "needs_commissioning": true,
+    "library_fb": {"codesys_v3_namespace": "WagoSysModule_75x_483 (likely)"},
+    "iec_globals_path_pattern": null,
+    "commissioning_settings": [
+      {"name": "Signal range", "data_type": "ENUM", "value_range": "0..30 V DC (only — fixed range on this variant)", "default_value": "0..30 V DC", "mias_convention_value": "0..30 V DC", "description": "2-channel differential voltage input, fixed range. 14-bit resolution; admissible continuous overload 60 V; LSB = 1.8 mV. Sampling: 5 µs per sample, 1 ms sampling repetition time, 1 ms module-level sampling delay.", "writable_via": ["WAGO-I/O-CHECK"]},
+      {"name": "Operating mode", "data_type": "ENUM", "value_range": "Continuously sampling (default) — verify whether other modes exist via WAGO-I/O-CHECK", "default_value": "Continuously sampling", "description": "Per datasheet: operating mode is 'Continuously sampling (default)'. SAR (Successive Approximation Register) conversion. Internal RC filter 1st-order with fG = 5 kHz.", "writable_via": ["WAGO-I/O-CHECK"]}
+    ],
+    "monitoring_signals": [
+      {"name": "Measurement range overflow/underflow", "data_type": "BOOL", "description": "Indicated via status byte AND per-channel red LED (LED B, D = error AI 1, AI 2). Differential signal; isolation 500 V system/field OR channel/channel.", "alarm_thresholds": {"alarm_on_change": true}, "readable_via": ["PI status byte"]},
+      {"name": "Per-channel measured value", "data_type": "INT", "unit": "V × scale", "description": "16-bit per-channel data (2 x 16-bit data + optional 2 x 8-bit control/status). 14-bit effective resolution. Measurement error 0.05% upper-range at 25 °C, ≤0.4% over full temp range, 0.01%/K drift. Crosstalk attenuation 80 dB. Internal resistance 1000 kΩ.", "readable_via": ["IEC FB output", "OPC UA"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"save_to_eeprom_required": true, "requires_full_pfc_reboot": true},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-483_manual.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-483_manual.txt", "datasheet_url": "https://www.wago.com/750-483", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-1405",
+    "module_class": "digital_in",
+    "needs_commissioning": false,
+    "library_fb": null,
+    "commissioning_settings": [],
+    "monitoring_signals": [
+      {"name": "Per-channel signal state", "data_type": "BOOL", "description": "16 channels × 1-bit signal state in PI input. Green LED 1-16 indicates state. High-side switching; voltage range: signal(0) -3..+5 V DC; signal(1) 15..30 V DC.", "readable_via": ["IEC FB output", "OPC UA"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"save_to_eeprom_required": false, "takes_effect_immediately": true, "requires_full_pfc_reboot": false, "notes": "Hardware-fixed 3 ms input filter (debounce). No configurable parameters on this 750-1405 variant — different SKU suffixes (e.g. 750-1405/000-040) may have different filter times. Module is essentially plug-and-play; mias-core commissioning function should skip it."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-1405_datasheet.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-1405_datasheet.txt", "datasheet_url": "https://www.wago.com/750-1405", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-1504",
+    "module_class": "digital_out",
+    "needs_commissioning": true,
+    "library_fb": null,
+    "commissioning_settings": [
+      {"name": "Replacement value on PLC stop", "data_type": "BOOL", "default_value": "(typ. 0 / off)", "description": "Per-channel safe-state value when PLC stops or comms is lost. Configurable on most WAGO digital output modules via WAGO-I/O-CHECK Configuration dialog. Datasheet doesn't explicitly cite this for 750-1504 — verify against the WAGO-I/O-CHECK dialog presented for this slot.", "writable_via": ["WAGO-I/O-CHECK"]}
+    ],
+    "monitoring_signals": [
+      {"name": "Per-channel signal state", "data_type": "BOOL", "description": "16 channels × 1-bit output state echoed in PI. Green LED 1-16 indicates state. Output 0.5 A short-circuit-protected; resistive/inductive/lamp loads; max switching frequency 1 kHz.", "readable_via": ["IEC FB output", "OPC UA"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"save_to_eeprom_required": true, "requires_full_pfc_reboot": true, "notes": "Replacement-value config is module-EEPROM-stored where supported."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-1504_datasheet.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-1504_datasheet.txt", "datasheet_url": "https://www.wago.com/750-1504", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-508",
+    "module_class": "digital_out",
+    "needs_commissioning": false,
+    "library_fb": {"codesys_v3_namespace": "WagoSysModule_75x_508 (likely)"},
+    "commissioning_settings": [],
+    "monitoring_signals": [
+      {"name": "Per-channel diagnostic bit (DIAG 1, DIAG 2)", "iec_field": null, "process_image_bit": "PI input bit 0 = DIAG 1, bit 1 = DIAG 2", "data_type": "BOOL", "description": "Per-channel error flag in PI input. 0 = normal operation; 1 = error on the channel: open circuit (no load) / short circuit to ground / short circuit to +24 V / overtemperature on overload. Auto-resets when fault clears. Output current 2 A per channel; short-circuit limited to 15 A typ.; reverse voltage protected; open-circuit detect threshold 0.2 mA.", "alarm_thresholds": {"alarm_on_change": true}, "readable_via": ["PI status byte", "IEC FB output"]},
+      {"name": "Per-channel signal state", "data_type": "BOOL", "description": "PI output bit 0 = DO 1 setpoint, bit 1 = DO 2 setpoint. Output 'follows the output bit' in normal operation. On short circuit to ground or overload, output silently changes to 0 and back to 1 once fault clears.", "readable_via": ["IEC FB output"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"save_to_eeprom_required": false, "takes_effect_immediately": true, "requires_full_pfc_reboot": false, "notes": "Diagnostics are always-on; no enable/disable setting. PI is fixed shape (2 output bits + 2 input diagnostic bits). No commissioning function action needed beyond detecting it on the K-bus chain. NOTE: when used as replacement for older 750-507, additional considerations apply per manual §7.1."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-508_manual.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-508_manual.txt", "datasheet_url": "https://www.wago.com/750-508", "manual_section_refs": ["§4.2 Diagnostic Function", "§4.3 Process Image", "§6 Diagnostics"], "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-362",
+    "module_class": "fieldbus_coupler",
+    "needs_commissioning": true,
+    "library_fb": null,
+    "commissioning_settings": [
+      {"name": "IP addressing mode", "data_type": "ENUM", "value_range": "DHCP | BootP | static (configured by DIP switch + WBM)", "default_value": "DHCP/BootP", "description": "DIP switch on the front configures last byte of the IP address; full IP/netmask/gateway via WBM (Web-Based Management).", "writable_via": ["WBM (Web-Based Management)", "WAGO-I/O-CHECK"]},
+      {"name": "IP address / netmask / gateway / DNS", "data_type": "STRUCT", "description": "Static IP config when not using DHCP/BootP. LasseMaja D03 carrier sits at 192.168.1.12.", "writable_via": ["WBM (Web-Based Management)"]},
+      {"name": "Modbus unit identifier (node address)", "data_type": "BYTE", "value_range": "1..247", "default_value": "1", "description": "Modbus TCP unit ID. LasseMaja D03 is node 2.", "writable_via": ["WBM (Web-Based Management)", "WAGO-I/O-CHECK"]},
+      {"name": "Watchdog / connection timeout", "data_type": "UDINT", "value_range": "0 (disabled) .. 65535 ms", "description": "Modbus connection watchdog — reset outputs to safe state if no Modbus master communication within timeout.", "writable_via": ["WBM (Web-Based Management)", "WAGO-I/O-CHECK"]},
+      {"name": "Process image size (max)", "data_type": "STRUCT", "value_range": "Up to 1020 input words / 1020 output words", "description": "Coupler aggregates K-bus modules into a Modbus-accessible PI. Max 250 modules per node (64 without bus extension).", "writable_via": ["WAGO-I/O-CHECK"]}
+    ],
+    "monitoring_signals": [
+      {"name": "Network connection / Link / Activity", "data_type": "BOOL", "description": "LED LINK/ACT green per port (2 ports, integrated switch). Visible front-panel only — also reportable via SNMP if enabled.", "readable_via": ["WBM"]},
+      {"name": "Module status (MS) / Network status (NS)", "data_type": "ENUM", "description": "LED MS / NS red/green — controller state and network state. Standard CIP/Modbus indicators.", "readable_via": ["WBM"]},
+      {"name": "Local I/O bus status", "data_type": "ENUM", "description": "LED I/O red/green/orange — K-bus health. Red = fault on K-bus.", "readable_via": ["WBM"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"save_to_eeprom_required": true, "takes_effect_immediately": false, "requires_runtime_restart": false, "requires_full_pfc_reboot": true, "notes": "750-362 is itself a fieldbus coupler with its own bootloader — most config persists in the coupler's flash; IP changes typically apply on its own reboot, not the host PFC."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-362_manual.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-362_manual.txt", "datasheet_url": "https://www.wago.com/750-362", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-613",
+    "module_class": "psu",
+    "needs_commissioning": false,
+    "library_fb": null,
+    "commissioning_settings": [],
+    "monitoring_signals": [
+      {"name": "System supply voltage status", "data_type": "BOOL", "description": "LED A green = system supply OK. LED B green = power-jumper-contact field supply OK. No K-bus diagnostic surface — front-panel LEDs only.", "readable_via": ["WBM"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"takes_effect_immediately": true, "notes": "Internal system supply module that adds 2 A to the K-bus 5 V capacity. Pure passive — no commissioning. Total current 2 A; field-side 24 V passes through to neighbouring power jumper contacts."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-613_datasheet.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-613_datasheet.txt", "datasheet_url": "https://www.wago.com/750-613", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-624",
+    "module_class": "filter_psu",
+    "needs_commissioning": false,
+    "commissioning_settings": [],
+    "monitoring_signals": [
+      {"name": "Field supply status", "data_type": "BOOL", "description": "LED B green = field supply OK. No K-bus side diagnostic surface.", "readable_via": ["WBM"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"takes_effect_immediately": true, "notes": "Pure passive filter module — protects field-side 24 V supply against transient overvoltages caused by inductive loads. Marine-certified (Germanischer Lloyd / Lloyd's Register). Use in conjunction with Ex i supply module + 750 PROFIsafe modules. No commissioning."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-624_datasheet.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-624_datasheet.txt", "datasheet_url": "https://www.wago.com/750-624", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-626",
+    "module_class": "filter_psu",
+    "needs_commissioning": false,
+    "commissioning_settings": [],
+    "monitoring_signals": [
+      {"name": "System and field supply status", "data_type": "BOOL", "description": "LED A green = system supply OK; LED B green = field supply (power jumper contacts) OK.", "readable_via": ["WBM"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"takes_effect_immediately": true, "notes": "Pure passive filter module with surge suppression on the system-side 24 V supply. High-isolation versions (suffix /020-002 used in LasseMaja) are streamlined for systems with insulation monitoring. External fuses required (2 A slow-blow for system supply, 10 A for jumper contacts). No commissioning."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-626_datasheet.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-626_datasheet.txt", "datasheet_url": "https://www.wago.com/750-626", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-1605",
+    "module_class": "field_module",
+    "needs_commissioning": false,
+    "commissioning_settings": [],
+    "monitoring_signals": [],
+    "commissioning_constraints": [],
+    "apply_method": {"takes_effect_immediately": true, "notes": "Passive 16-way 24 V potential distribution module — provides 24 V to 16 push-in CAGE CLAMP terminals from the upstream module's power jumper contacts. Pairs typically with 750-1405/750-1406 16-channel digital inputs to eliminate DIN-rail terminal blocks for field wiring. Pure passive — no K-bus side at all (no data contacts)."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-1605_datasheet.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-1605_datasheet.txt", "datasheet_url": "https://www.wago.com/750-1605", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:750-1607",
+    "module_class": "field_module",
+    "needs_commissioning": false,
+    "commissioning_settings": [],
+    "monitoring_signals": [],
+    "commissioning_constraints": [],
+    "apply_method": {"takes_effect_immediately": true, "notes": "Passive 8-way 24 V / 8-way 0 V potential distribution module — provides 8 × 24 V + 8 × 0 V to push-in CAGE CLAMP terminals. Pairs typically with 750-1506 8-channel I/O modules. Pure passive — no K-bus side."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_750-1607_datasheet.pdf", "manual_text": "suppliers/Wago/IO modules/wago_750-1607_datasheet.txt", "datasheet_url": "https://www.wago.com/750-1607", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:787-2801",
+    "module_class": "dc_dc_converter",
+    "needs_commissioning": false,
+    "commissioning_settings": [],
+    "monitoring_signals": [
+      {"name": "DC OK output contact", "data_type": "BOOL", "description": "Hardwired DC OK signal output indicating output voltage is within range. Wire to a digital input module if PLC monitoring is required. Not on K-bus.", "alarm_thresholds": {"alarm_on_change": true}, "readable_via": ["IEC FB output"]}
+    ],
+    "commissioning_constraints": [],
+    "apply_method": {"takes_effect_immediately": true, "notes": "DC/DC converter, 6 mm housing, 24 V DC input → 5 V DC output, 0.5 A / 2.5 W. Input range 10..30 V. Common with 857 / 2857 series. No K-bus interface — pure power supply. DC OK contact is a hardwired digital output suitable for monitoring via a digital-input module."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_787-2801_datasheet.pdf", "manual_text": "suppliers/Wago/IO modules/wago_787-2801_datasheet.txt", "datasheet_url": "https://www.wago.com/787-2801", "verified_against_running_hardware": false}
+  },
+  {
+    "part_id": "wago:857-411",
+    "module_class": "isolation_amplifier",
+    "needs_commissioning": false,
+    "commissioning_settings": [],
+    "monitoring_signals": [],
+    "commissioning_constraints": [],
+    "apply_method": {"takes_effect_immediately": true, "notes": "Pre-configured isolation amplifier — current input 0..20 mA / 4..20 mA → current output 0..20 mA. 3-way electrical isolation, 3 kV test voltage. 24 V DC supply. No K-bus interface — standalone signal conditioner. Per datasheet: 'Configuration options: Pre-configured' — fixed function, no commissioning."},
+    "source": {"manual_pdf": "suppliers/Wago/IO modules/wago_857-411_datasheet.pdf", "manual_text": "suppliers/Wago/IO modules/wago_857-411_datasheet.txt", "datasheet_url": "https://www.wago.com/857-411", "verified_against_running_hardware": false}
+  }
+]

@@ -1519,6 +1519,15 @@ model ComponentInstance {
   byteOrder    ByteOrder?        @map("byte_order")
   canIdOffset  Int?              @map("can_id_offset")
   functionBlockOverride  String?    @db.VarChar(100) @map("function_block_override")
+  // FR-023: per-instance commissioning metadata. Lets the plugin emit
+  // device-specific commissioning sequences (e.g. Editron CANopen
+  // converters) without parsing free-form componentName strings.
+  // - partId: pointer into MIAS-ref hardware DB ("danfoss-editron:ec-c1200-450").
+  // - variant: firmware variant flag matching `<part>.specs.can_commissioning.variants`
+  //   keys for that partId. For Editron: dcdc | mc | afe | ug | bc | switch_control.
+  // The CANopen node id reuses the existing nodeAddress column; the bus reuses busId.
+  commissioningPartId   String? @db.VarChar(100) @map("commissioning_part_id")
+  commissioningVariant  String? @db.VarChar(40)  @map("commissioning_variant")
   notes                  String?
   // FR-009: composition runtime — when this instance was stamped from a
   // composite parent, parentInstanceId points at the composite and

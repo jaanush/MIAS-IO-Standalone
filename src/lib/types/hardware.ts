@@ -110,6 +110,9 @@ export type ComponentInstance = {
   nodeAddress?: number | null;
   canIdOffset?: number | null;
   functionBlockOverride?: string | null;
+  // FR-023: per-instance commissioning metadata for CANopen device recipes.
+  commissioningPartId?: string | null;
+  commissioningVariant?: string | null;
   component: {
     id: number;
     name: string;

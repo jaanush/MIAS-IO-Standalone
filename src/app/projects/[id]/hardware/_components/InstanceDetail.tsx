@@ -30,6 +30,8 @@ export function InstanceDetail({ instance, network, projectId, onDeleted, onRefr
   const [nodeAddress, setNodeAddress] = useState(instance.nodeAddress != null ? String(instance.nodeAddress) : "");
   const [canIdOffset, setCanIdOffset] = useState(instance.canIdOffset != null ? String(instance.canIdOffset) : "");
   const [fbOverride, setFbOverride] = useState(instance.functionBlockOverride ?? "");
+  const [commPartId, setCommPartId] = useState((instance as any).commissioningPartId ?? "");
+  const [commVariant, setCommVariant] = useState((instance as any).commissioningVariant ?? "");
 
   useEffect(() => {
     setName(instance.name);
@@ -39,6 +41,8 @@ export function InstanceDetail({ instance, network, projectId, onDeleted, onRefr
     setNodeAddress(instance.nodeAddress != null ? String(instance.nodeAddress) : "");
     setCanIdOffset(instance.canIdOffset != null ? String(instance.canIdOffset) : "");
     setFbOverride(instance.functionBlockOverride ?? "");
+    setCommPartId((instance as any).commissioningPartId ?? "");
+    setCommVariant((instance as any).commissioningVariant ?? "");
   }, [instance]);
 
   const update = trpc.projectHardware.instanceUpdate.useMutation({ onSuccess: onRefresh });
@@ -55,8 +59,19 @@ export function InstanceDetail({ instance, network, projectId, onDeleted, onRefr
       nodeAddress: nodeAddress ? Number(nodeAddress) : null,
       canIdOffset: canIdOffset ? Number(canIdOffset) : null,
       functionBlockOverride: fbOverride.trim() || null,
+      commissioningPartId: commPartId.trim() || null,
+      commissioningVariant: commVariant.trim() || null,
     });
   }
+
+  // FR-023: known variant sets per partId — derived from MIAS-ref's
+  // databases/<vendor>/parts.json `specs.can_commissioning.variants` keys.
+  // Currently only Editron's set is wired client-side; future vendors land
+  // here as projects encounter them.
+  const VARIANT_OPTIONS_BY_PART: Record<string, string[]> = {
+    "danfoss-editron:ec-c1200-450": ["mc", "dcdc", "afe", "ug", "bc", "switch_control"],
+  };
+  const variantOptions = VARIANT_OPTIONS_BY_PART[commPartId] ?? null;
 
   async function handleDelete() {
     confirmAction(`Delete instance "${instance.name}"? This will also delete all its signals.`, async () => {
@@ -140,6 +155,52 @@ export function InstanceDetail({ instance, network, projectId, onDeleted, onRefr
                   />
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* FR-023: device commissioning metadata. Plugin uses partId+variant
+            to consume the right MIAS-ref `parts.json` recipe per device. */}
+        {isCan && (
+          <div className="rounded-md border p-3 space-y-3 bg-muted/20">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Device Commissioning</span>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1 col-span-2">
+                <Label className="text-xs">Part ID</Label>
+                <Input
+                  value={commPartId}
+                  onChange={(e) => setCommPartId(e.target.value)}
+                  placeholder="e.g. danfoss-editron:ec-c1200-450"
+                  className="h-8 text-sm font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground">Pointer into MIAS-ref hardware DB. Plugin reads recipe from <code className="font-mono">parts.json[partId].specs.can_commissioning.variants[variant]</code>.</p>
+              </div>
+              <div className="space-y-1 col-span-2">
+                <Label className="text-xs">Firmware Variant</Label>
+                {variantOptions ? (
+                  <Select
+                    key={"cv-" + commVariant}
+                    value={commVariant || "__none__"}
+                    onValueChange={(v) => setCommVariant(v === "__none__" ? "" : v)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="—" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">—</SelectItem>
+                      {variantOptions.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={commVariant}
+                    onChange={(e) => setCommVariant(e.target.value)}
+                    placeholder="e.g. afe (vendor-specific)"
+                    className="h-8 text-sm"
+                  />
+                )}
+                <p className="text-[10px] text-muted-foreground">Which firmware variant is loaded — plugin selects the matching <code className="font-mono">minimum_sequence</code>.</p>
+              </div>
             </div>
           </div>
         )}

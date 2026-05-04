@@ -46,8 +46,23 @@ exports/
 # Import files
 import/
 
-# Reference data (PDFs, DBC files, vendor docs — large binaries, not committed)
-data/
+# Reference data (PDFs, DBC files, vendor docs — large binaries, not committed).
+# Whitelist below: small JSONs the Docker entrypoint seeders + K-bus calculator
+# read at build/runtime — must be in git so a fresh clone (e.g. on Linux) can
+# build the standalone image without external state.
+# Use `data/*` (not `data/`) so re-include patterns below take effect.
+data/*
+!data/wago/
+data/wago/*
+!data/wago/wago_modules.json
+!data/commissioning/
+data/commissioning/*
+!data/commissioning/README.md
+!data/commissioning/wago_module_commissioning.json
+!data/kbus/
+data/kbus/*
+!data/kbus/README.md
+!data/kbus/kbus_module_costs.json
 
 # Project-specific analysis docs (not source code)
 claude_project_handoff.md

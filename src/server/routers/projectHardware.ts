@@ -990,6 +990,9 @@ export const projectHardwareRouter = createTRPCRouter({
       nodeAddress: z.coerce.number().int().optional().nullable(),
       canIdOffset: z.number().int().optional().nullable(),
       functionBlockOverride: z.string().max(100).optional().nullable(),
+      // FR-023: per-instance commissioning metadata for CANopen device recipes.
+      commissioningPartId: z.string().max(100).optional().nullable(),
+      commissioningVariant: z.string().max(40).optional().nullable(),
     }))
     .mutation(({ input }) => {
       const { id, ...data } = input;
