@@ -5,9 +5,9 @@ node_modules
 .env.local
 .env.*.local
 .deploy-env
-data/
 exports/
 import/
 *.log
 .DS_Store
 Thumbs.db
+# data/ is included — entrypoint seeders read commissioning + WAGO JSON from it.

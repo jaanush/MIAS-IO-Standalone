@@ -1,2 +1,4 @@
-[dotenv@17.3.1] injecting env (6) from .env.local -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
-[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+-- No-op migration. The original file was contaminated with dotenv stdout
+-- noise from a Prisma diff invocation; the actual schema delta was empty
+-- (later migrations carried the real changes). Kept for migration-history
+-- continuity so prisma migrate deploy doesn't see a re-numbered chain.

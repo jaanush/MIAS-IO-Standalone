@@ -4,30 +4,41 @@
 --
 -- All signals start as active=true; the CODESYS agent will reply with the actual
 -- consumed subset and a follow-up migration will toggle the rest to active=false.
+--
+-- Fresh-install guard: hardware_component is populated by seed_data.sql which runs
+-- AFTER `prisma migrate deploy`. On a from-scratch deploy, id=9 doesn't exist yet
+-- and this migration is a no-op — the seed itself installs the correct template
+-- shape. On an upgrade-deploy where id=9 already exists, this migration rebuilds
+-- the signals to match FR-005.
 
-BEGIN;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM "hardware_component" WHERE id = 9) THEN
+    RAISE NOTICE 'hardware_component id=9 not yet seeded; rebuild_deif_mic2_mkii_template skipped (fresh install).';
+    RETURN;
+  END IF;
 
--- 1. Rename the component to match FR-005 wording
-UPDATE "hardware_component"
-SET "name" = 'DEIF MIC-2 MKII',
-    "description" = 'DEIF MIC-2 MKII power meter — Modbus RTU, 19200 8N1, 53-signal strMKII register map (0x4000–0x4061)',
-    "function_block" = 'FB_Sync',
-    updated_at = NOW()
-WHERE id = 9;
+  -- 1. Rename the component to match FR-005 wording
+  UPDATE "hardware_component"
+  SET "name" = 'DEIF MIC-2 MKII',
+      "description" = 'DEIF MIC-2 MKII power meter — Modbus RTU, 19200 8N1, 53-signal strMKII register map (0x4000–0x4061)',
+      "function_block" = 'FB_Sync',
+      updated_at = NOW()
+  WHERE id = 9;
 
--- 2. Wipe existing signals (verified 0 FK references in instance_signal,
---    component_analog_alarm, component_discrete_alarm)
-DELETE FROM "component_signal" WHERE "component_id" = 9;
+  -- 2. Wipe existing signals (verified 0 FK references in instance_signal,
+  --    component_analog_alarm, component_discrete_alarm)
+  DELETE FROM "component_signal" WHERE "component_id" = 9;
 
--- 3. Insert 53 fresh signals — snake_case tag_suffix matches strMKII fields verbatim,
---    register addresses populated, all read-only (HOLDING_REGISTER / FC03), big-endian.
---    channel_offset is the unique-per-component sequence number (1..53).
+  -- 3. Insert 53 fresh signals — snake_case tag_suffix matches strMKII fields verbatim,
+  --    register addresses populated, all read-only (HOLDING_REGISTER / FC03), big-endian.
+  --    channel_offset is the unique-per-component sequence number (1..53).
 
--- Block 1 — 36× REAL (32-bit float, 2 regs each), 0x4000–0x4047
-INSERT INTO "component_signal"
-  (component_id, channel_offset, tag_suffix, description, io_type, origin,
-   raw_data_type, byte_order, modbus_register_type, modbus_register_offset, active)
-VALUES
+  -- Block 1 — 36× REAL (32-bit float, 2 regs each), 0x4000–0x4047
+  INSERT INTO "component_signal"
+    (component_id, channel_offset, tag_suffix, description, io_type, origin,
+     raw_data_type, byte_order, modbus_register_type, modbus_register_offset, active)
+  VALUES
   (9,  1, 'Frequency',                       'Frequency',                        'AI', 'MODBUS_RTU', 'REAL',  'BIG_ENDIAN', 'HOLDING_REGISTER', 16384, TRUE),
   (9,  2, 'Phase_voltage_V1',                'Phase voltage V1',                 'AI', 'MODBUS_RTU', 'REAL',  'BIG_ENDIAN', 'HOLDING_REGISTER', 16386, TRUE),
   (9,  3, 'Phase_voltage_V2',                'Phase voltage V2',                 'AI', 'MODBUS_RTU', 'REAL',  'BIG_ENDIAN', 'HOLDING_REGISTER', 16388, TRUE),
@@ -85,5 +96,4 @@ VALUES
   (9, 51, 'THD_I2',                          'THD I2',                           'AI', 'MODBUS_RTU', 'WORD',  'BIG_ENDIAN', 'HOLDING_REGISTER', 16479, TRUE),
   (9, 52, 'THD_I3',                          'THD I3',                           'AI', 'MODBUS_RTU', 'WORD',  'BIG_ENDIAN', 'HOLDING_REGISTER', 16480, TRUE),
   (9, 53, 'Average_THD_I',                   'Average THD I',                    'AI', 'MODBUS_RTU', 'WORD',  'BIG_ENDIAN', 'HOLDING_REGISTER', 16481, TRUE);
-
-COMMIT;
+END$$;

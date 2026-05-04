@@ -1,2 +1,4 @@
-[dotenv@17.3.1] injecting env (6) from .env.local -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
-[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+-- No-op migration. The original file was contaminated with dotenv stdout
+-- noise from a Prisma diff invocation; the actual schema delta was empty
+-- (later migrations carried the real changes). Kept for migration-history
+-- continuity so prisma migrate deploy doesn't see a re-numbered chain.

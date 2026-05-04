@@ -20,9 +20,17 @@ async function main() {
     !l.startsWith("\\") && !l.startsWith("pg_dump:") && !l.includes("pg_catalog.setval")
   ).join("\n");
 
-  // Step 1: Truncate + insert data
+  // Step 1: Truncate + insert data. `users` is included so the seed-side
+  // INSERTs (admin@mias.io + initial accounts) don't conflict with rows the
+  // docker entrypoint's default-admin step may have already created.
+  // session_replication_role=replica bypasses FK trigger checks during the
+  // load; seed_data.sql is a pg_dump that doesn't insert in FK-safe order
+  // (e.g. plc_network references io_card_id but plc_network rows come first).
   const dataSql = `
+    SET session_replication_role = 'replica';
+
     TRUNCATE
+      users,
       analog_alarm, discrete_alarm,
       analog_signal, discrete_signal, bus_signal, signal,
       pdo_config, instance_signal, component_instance,
@@ -40,6 +48,8 @@ async function main() {
     CASCADE;
 
     ${sql}
+
+    SET session_replication_role = 'origin';
   `;
 
   await prisma.$executeRawUnsafe(dataSql);

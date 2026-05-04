@@ -12,6 +12,11 @@ RUN npm ci
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# `prisma generate` reads prisma.config.ts which requires DATABASE_URL via
+# env(). It doesn't connect to a DB at generate time — it just needs the
+# variable resolvable. Provide a build-time placeholder; docker-compose
+# overrides at runtime.
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 RUN npx prisma generate
 RUN npm run build
 
@@ -34,6 +39,10 @@ COPY --from=builder /app/prisma.config.ts ./
 COPY --from=builder /app/server.ts ./
 COPY --from=builder /app/src/server/lib ./src/server/lib
 COPY --from=builder /app/src/lib ./src/lib
+# Static catalog data consumed by seeders (commissioning JSON + WAGO module
+# metadata + K-bus cost table). Required at runtime when the entrypoint
+# refreshes per-row JSON columns on existing catalog rows.
+COPY --from=builder /app/data ./data
 
 # Entrypoint script + seed files
 COPY --from=builder /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
