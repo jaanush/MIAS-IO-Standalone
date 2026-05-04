@@ -289,6 +289,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           sensorFailDelayMs: true,
           alarms: {
             select: {
+              id: true,
+              alarmNo: true,
+              iecAlarmPath: true,
               condition: true,
               setpoint: true,
               hysteresis: true,
@@ -297,7 +300,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
               delaySeconds: true,
               message: true,
             },
-            orderBy: { condition: "asc" },
+            orderBy: [{ alarmNo: "asc" }, { condition: "asc" }],
           },
         },
       },
@@ -310,13 +313,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           plcDataType: { select: { code: true } },
           alarms: {
             select: {
+              id: true,
+              alarmNo: true,
+              iecAlarmPath: true,
               condition: true,
               severity: true,
               alarmGroup: true,
               delaySeconds: true,
               message: true,
             },
-            orderBy: { condition: "asc" },
+            orderBy: [{ alarmNo: "asc" }, { condition: "asc" }],
           },
         },
       },
@@ -533,6 +539,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             sensorFailDelayMs: s.analogSignal.sensorFailDelayMs,
             alarms: s.analogSignal.alarms.map((a) => ({
               type: "ANALOG" as const,
+              // FR-? plugin alarm-render contract:
+              //  - id: stable DB row id (use as a primary key when patching).
+              //  - alarmNo: locked sequential index → drives `aAlarm[N]` /
+              //    `aAlarmText[N]` symbol slot. Null = pending; the JMobile
+              //    tab's "Lock numbering" mutation assigns a free integer.
+              //  - iecAlarmPath: full IEC expression of the triggered-state
+              //    var (e.g. `Application.GVL_ALARMS.fbAlarm_T101.HH`).
+              //    Plugin populates via POST /iec-paths during codegen;
+              //    null until codegen has run.
+              id: a.id,
+              alarmNo: a.alarmNo,
+              iecAlarmPath: a.iecAlarmPath,
               condition: a.condition,
               setpoint: a.setpoint,
               hysteresis: a.hysteresis,
@@ -552,6 +570,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             plcDataType: s.discreteSignal.plcDataType?.code ?? "BOOL",
             alarms: s.discreteSignal.alarms.map((a) => ({
               type: "DISCRETE" as const,
+              // See AnalogSignal.alarms above for id / alarmNo / iecAlarmPath rationale.
+              id: a.id,
+              alarmNo: a.alarmNo,
+              iecAlarmPath: a.iecAlarmPath,
               condition: a.condition,
               severity: a.severity,
               alarmGroup: a.alarmGroup ?? s.alarmGroup,

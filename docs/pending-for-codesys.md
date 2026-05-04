@@ -1057,3 +1057,75 @@ PATCH to `MANUAL_ONLY` before bench smoke-test starts. Removed per the
 ### Heads-up on the running prod
 
 Standalone Docker on `:3000` rebuilt + restarted with v0.6.13 + this migration. Coolify production lags behind master; needs a deploy when you're ready to roll FR-023 there.
+
+---
+
+## NOTIF-030: Alarm-render fields (`id`, `alarmNo`, `iecAlarmPath`) now on every alarm
+
+**From:** `mias-io`
+**Date:** 2026-05-05
+
+### Why
+
+You said the plugin needs to render alarms based on mias-io data. Today's payload had `condition / severity / alarmGroup / delaySeconds / setpoint / hysteresis / message` but **was missing**:
+- `id` — stable DB PK for posting `iec_alarm_path` back
+- `alarmNo` — the locked sequential index that drives `aAlarm[N]` / `aAlarmText[N]` symbol slots in Älvelie-style codegen
+- `iecAlarmPath` — round-trip of what the plugin wrote via FR-011
+
+Without `alarmNo`, you couldn't render array-indexed symbols deterministically — symbol slots would shift on every IO-list edit. Without `id`, you couldn't PATCH a specific alarm row.
+
+### What changed
+
+`GET /api/codesys/project/{id}` — every entry under `signals[].analogSignal.alarms[]` and `signals[].discreteSignal.alarms[]` now carries the three new fields:
+
+```jsonc
+{
+  "type": "DISCRETE",
+  "id": 165,                   // ← new — discrete_alarm.id
+  "alarmNo": 19,                // ← new — locked sequential, null = pending
+  "iecAlarmPath": null,         // ← new — plugin populates via POST /iec-paths
+  "condition": "OFF_TRIGGER",
+  "severity": "ALARM",
+  "alarmGroup": "B",
+  "delaySeconds": 0,
+  "message": "DC Distribution 871-MSB DC : Section 1 isolation fault"
+}
+```
+
+Same shape for analog alarms (with `setpoint` + `hysteresis` already in payload).
+
+Sort order changed: `[alarmNo asc nulls last, condition asc]` so you can walk in symbol-array order.
+
+### Render expectations
+
+Render Älvelie-style symbols (`aAlarm[N]`, `aAlarmText[N]`, packed `axAlarmDigitalState[]` / `axAlarmAnalogueState[]` DWORD arrays — `MIAS-Docs/MIAS-Legacy/Älveli/Alarm System.md` is the architecture reference). The mapping:
+
+- `aAlarm[alarmNo]` ← FB instance call (`FB_AlarmDigital` / `FB_AlarmAnalogue`)
+- `aAlarmText[alarmNo]` ← `message`
+- `axAlarmDigitalState[alarmNo / 16].bit(alarmNo % 16)` packed encoding
+- Class on `AssignSettingsDig/Ana` ← `severity` mapped per project convention (memory: 0=A critical, 1=B non-critical, 2=C informational; but you decide the mapping)
+- `delay_s` ← `delaySeconds`
+- For analog: `setpoint` + `hysteresis` per condition (HIGH / HIGH_HIGH / LOW / LOW_LOW)
+
+Pending alarms (`alarmNo` null) — recommend skipping the symbol emit, or emitting at end-of-array as a temporary slot until the operator hits "Lock numbering" in the JMobile tab.
+
+### Status of the data
+
+LasseMaja currently has 57 alarm rows (33 discrete + 24 analog). All have `alarmNo` locked (1..57 sequentially) by the JMobile tab. None have `alarmGroup` set yet — your render should treat null as B-class fallback or whatever default fits your codegen.
+
+The remaining ~1180 LasseMaja signals don't have alarm rows yet. Operator will create them via mias-io UI as engineering completes the alarm matrix; each new alarm gets a new sequential `alarmNo` via the JMobile tab. Symbol indices for already-locked alarms stay frozen across edits.
+
+### Contract
+
+`docs/codesys-api-contract.md` — new "Notes on `analogSignal.alarms[]` and `discreteSignal.alarms[]`" section under `GET /api/codesys/project/{id}` documents the full render contract (each field's source, plugin use, ordering rule).
+
+### What's left for you
+
+1. Read the new fields from the API response.
+2. Render alarm symbols using `alarmNo` as the array index.
+3. After IEC codegen, POST the resolved `iec_alarm_path` for each alarm via the existing `POST /api/codesys/project/{id}/iec-paths` endpoint (FR-011 — already wired with `alarmId` + `alarmKind`).
+4. Ack and remove this notif when consumed.
+
+### Heads-up on the running prod
+
+Standalone Docker on `:3000` rebuilt + restarted with these fields. Coolify production lags behind master; needs a deploy when you're ready.

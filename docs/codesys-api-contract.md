@@ -264,8 +264,12 @@ and derive everything they need from it.
       "alarms": [
         {
           "type": "DISCRETE",
+          "id": 165,
+          "alarmNo": 19,
+          "iecAlarmPath": null,
           "condition": "OFF_TRIGGER",
           "severity": "WARNING",
+          "alarmGroup": "B",
           "delaySeconds": 5,
           "message": "Valve failed to open"
         }
@@ -274,6 +278,34 @@ and derive everything they need from it.
   ]
 }
 ```
+
+**Notes on `analogSignal.alarms[]` and `discreteSignal.alarms[]`:**
+
+The plugin renders Älvelie-style alarm symbols (`aAlarm[N]`,
+`aAlarmText[N]`, packed `axAlarmDigitalState[]` / `axAlarmAnalogueState[]`
+DWORD arrays — see `MIAS-Docs/MIAS-Legacy/Älveli/Alarm System.md`) from
+these rows. The render contract:
+
+| Field | Source | Plugin use |
+|---|---|---|
+| `id` | `discrete_alarm.id` / `analog_alarm.id` (DB primary key) | Stable PATCH key when posting `iec_alarm_path` back via `POST /api/codesys/project/{id}/iec-paths` |
+| `alarmNo` | locked sequential int from the JMobile tab | Drives the `aAlarm[N]` / `aAlarmText[N]` symbol slot. **Null = pending** — plugin should not emit a symbol for these (or emit at end-of-array as a temporary slot until the operator locks numbering) |
+| `iecAlarmPath` | populated by the plugin via `POST /iec-paths` (FR-011) | Echoed back so the plugin can verify its own emit; null means codegen has not yet run for this alarm |
+| `condition` | `ON_TRIGGER` / `OFF_TRIGGER` (discrete) or `HIGH` / `HIGH_HIGH` / `LOW` / `LOW_LOW` (analog) | Picks the FB and the level pin (e.g. `FB_AlarmAnalogue.HH := …`) |
+| `severity` | `INFO` / `WARNING` / `ALARM` / `CRITICAL` | Maps to Älvelie's `class` (0=critical / 1=non-critical / 2=informational) — plugin picks per project convention |
+| `alarmGroup` | `A` / `B` / `C` or null | METS_Lib priority tier. Falls back to `signal.alarmGroup` when null. Drives `AssignSettingsDig/Ana(... class)` |
+| `delaySeconds` | int | `delay_s` parameter on `AssignSettingsDig/Ana` |
+| `setpoint` / `hysteresis` | analog only | Per-level setpoint + hysteresis on `AssignSettingsAna` |
+| `message` | varchar | `aAlarmText[alarmNo]` content |
+
+Ordering: alarms are returned sorted by `alarmNo asc` with null last;
+within a single signal, by `condition asc`. The plugin can therefore
+walk the response in symbol-array order.
+
+The plugin populates `iec_alarm_path` after generating the IEC code for
+each alarm (e.g. `Application.GVL_ALARMS.fbAlarm_T101.HH`) via the
+`/iec-paths` endpoint. Once written, the path round-trips through this
+field on subsequent reads.
 
 **Notes on `instance`:**
 - `null` when the signal has no component instance binding (`instanceSignalId = null`)

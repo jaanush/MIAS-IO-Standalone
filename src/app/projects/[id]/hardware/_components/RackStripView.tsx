@@ -5,7 +5,13 @@ import type { Plc, IoCard, Carrier, WagoFrontPanel } from "@/lib/types/hardware"
 import { cn } from "@/lib/utils";
 
 type Props = {
-  plc: Plc;
+  /** Parent PLC. Required when no carrier is passed (rendered as the rack
+   *  anchor). Optional when a carrier is passed — the carrier's coupler
+   *  front-panel becomes the anchor instead of the PLC controller. */
+  plc?: Plc | null;
+  /** Single carrier to render. When set, only this carrier's cards are
+   *  shown, anchored by the carrier's coupler image (or the PLC controller
+   *  if `plc` is also passed and the carrier is the local-bus carrier). */
   carrier?: Carrier | null;
   /**
    * Pixel height of the strip rendering. Module images render at their natural
@@ -16,29 +22,39 @@ type Props = {
 };
 
 /**
- * Visual rack strip — renders the PLC controller + each IO card front-panel
- * image side-by-side at proportional sizes. Mirrors the physical "front of
- * the rack" view that operators see when standing at the cabinet.
+ * Visual rack strip — renders an anchor (PLC controller or coupler) + each
+ * IO card front-panel image side-by-side at proportional sizes. Mirrors the
+ * physical "front of the rack" view operators see at the cabinet.
  *
  * Data source: catalog.frontPanel JSON column on DeviceCatalog (controllers /
  * couplers) and ModuleCatalog (IO modules), populated by
  * `prisma/seed_wago_front_panels.ts` from local WAGO-IO-CHECK 3 imagery.
  *
- * If `carrier` is passed, only that carrier's cards are shown (with the
- * controller still rendered first as a visual anchor). Without `carrier`,
- * shows the controller + all local-bus carriers' cards in slot order.
+ * Modes:
+ *   <RackStripView plc={plc} />                — PLC controller anchor + ALL local carriers' cards (PlcDetail)
+ *   <RackStripView carrier={c} />              — coupler anchor + that carrier's cards (CarrierDetail, remote)
+ *   <RackStripView plc={plc} carrier={c} />    — coupler/PLC anchor + that carrier's cards (CarrierDetail, local)
  */
 export function RackStripView({ plc, carrier, height = 180 }: Props) {
   const [zoom, setZoom] = useState<number>(height);
 
-  // Build the ordered list: controller first, then either the named carrier's
-  // cards or all local-bus carriers' cards.
-  const carriers = carrier ? [carrier] : plc.carriers;
+  // Card set: a single named carrier's cards, or all local carriers if only PLC is given.
+  const carriers = carrier ? [carrier] : (plc?.carriers ?? []);
   const cards = carriers.flatMap((c) => [...c.cards].sort((a, b) => a.slotPosition - b.slotPosition));
 
-  const controllerPanel = (plc.catalog as any)?.frontPanel as WagoFrontPanel | null | undefined;
+  // Anchor: prefer carrier's catalog (coupler) when a carrier is named — that's
+  // what's physically on the leftmost rail of the distributed-IO unit. Fall
+  // back to PLC controller for the PLC-level view.
+  const anchorIsCarrier = !!carrier && carrier.catalog != null;
+  const anchorPanel = anchorIsCarrier
+    ? ((carrier!.catalog as any)?.frontPanel as WagoFrontPanel | null | undefined)
+    : ((plc?.catalog as any)?.frontPanel as WagoFrontPanel | null | undefined);
+  const anchorLabel = anchorIsCarrier ? carrier!.name : (plc?.name ?? "");
+  const anchorSublabel = anchorIsCarrier
+    ? (carrier!.catalog?.articleNumber ?? null)
+    : (plc?.catalog?.articleNumber ?? null);
 
-  if (!controllerPanel?.image && cards.every((c) => !((c.catalog as any)?.frontPanel?.image))) {
+  if (!anchorPanel?.image && cards.every((c) => !((c.catalog as any)?.frontPanel?.image))) {
     return null; // No imagery to render — silently hide the strip
   }
 
@@ -63,14 +79,14 @@ export function RackStripView({ plc, carrier, height = 180 }: Props) {
       </div>
       <div className="overflow-x-auto">
         <div className="flex items-end gap-px bg-neutral-900/5 dark:bg-neutral-100/5 rounded p-2 min-h-[100px]">
-          {/* Controller anchor */}
+          {/* Anchor (PLC controller or carrier coupler) */}
           <ModuleRender
-            label={plc.name}
-            sublabel={plc.catalog?.articleNumber ?? null}
-            panel={controllerPanel ?? null}
+            label={anchorLabel}
+            sublabel={anchorSublabel}
+            panel={anchorPanel ?? null}
             height={zoom}
           />
-          {/* Visual gap between controller and cards */}
+          {/* Visual gap between anchor and cards */}
           {cards.length > 0 && <div className="w-1" />}
           {cards.map((card) => (
             <ModuleRender

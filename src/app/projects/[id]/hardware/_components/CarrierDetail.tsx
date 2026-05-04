@@ -12,6 +12,7 @@ import { Trash2, ExternalLink } from "lucide-react";
 import { CardList } from "./CardList";
 import { PortNetworkEditor } from "./PortNetworkEditor";
 import { KbusHealthCheck } from "./KbusHealthCheck";
+import { RackStripView } from "./RackStripView";
 import { wagoDatasheetUrl } from "@/lib/utils";
 import type { Carrier, Plc } from "@/lib/types/hardware";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -169,6 +170,9 @@ export function CarrierDetail({ carrier, projectId, parentPlc, onRefresh }: Prop
           </div>
         </div>
       )}
+
+      {/* Rack front view — coupler anchor + this carrier's modules */}
+      <RackStripView plc={parentPlc ?? null} carrier={carrier} />
 
       {/* Card list */}
       <CardList
