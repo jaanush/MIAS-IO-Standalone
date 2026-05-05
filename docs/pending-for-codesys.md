@@ -1128,4 +1128,200 @@ The remaining ~1180 LasseMaja signals don't have alarm rows yet. Operator will c
 
 ### Heads-up on the running prod
 
-Standalone Docker on `:3000` rebuilt + restarted with these fields. Coolify production lags behind master; needs a deploy when you're ready.
+Standalone Docker on `:3000` and Coolify production at `https://io.demo.neptun.ztna` both at v0.6.14 with these fields live.
+
+---
+
+### Render reference — exact symbol shape + IEC code templates
+
+Reference architecture: `MIAS-Docs/MIAS-Legacy/Älveli/Alarm System.md`. The plugin emits three GVLs + two programs + one initialization function.
+
+#### Severity → class mapping (recommendation)
+
+Älvelie's `class` parameter on `AssignSettingsDig/Ana` is integer 0..2:
+
+| mias-io `severity` | Älvelie `class` | Meaning |
+|---|---|---|
+| `CRITICAL` | 0 | A — critical (alarm) |
+| `ALARM` | 1 | B — non-critical (warning) |
+| `WARNING` | 1 | B — non-critical (warning) |
+| `INFO` | 2 | C — informational |
+
+`alarmGroup` (A/B/C string) is independent of `severity` (memory: A/B/C *priority tier* vs class). When both are set, `alarmGroup` wins for the class arg; otherwise fall back to severity-mapped class. When neither is set, default to class 1 (B).
+
+#### Packed-DWORD array sizing
+
+```
+DigitalAlarmStateArrayLen   := CEIL(maxDigitalAlarmNo  / 16)   (* 2 bits × 16 alarms = 32-bit DWORD *)
+AnalogAlarmStateArrayLen    := CEIL(maxAnalogAlarmNo   /  3)   (* 2 bits × 5 levels × 3 alarms = 30-bit / DWORD *)
+DigitalAlarmAcksArrayLen    := CEIL(maxDigitalAlarmNo  / 32)
+AnalogAlarmAcksArrayLen     := CEIL(maxAnalogAlarmNo   /  6)   (* 5 ack bits per analog × 6 = 30-bit *)
+```
+
+Compute `maxDigitalAlarmNo` / `maxAnalogAlarmNo` from the API response — pick the highest `alarmNo` per kind. Round up. Re-emit when count grows (not on every alarm-add — let the array grow with headroom, e.g. round up to nearest 16/32).
+
+#### GVL_Alarms.gvl — FB instances + state arrays
+
+```iecst
+{attribute 'qualified_only'}
+VAR_GLOBAL
+    (* Digital alarm FB instances — one per discrete_alarm row *)
+    fbAlarm_<tag_or_alarmNo> : METS_Lib.FB_AlarmDigital;   // per alarmNo
+
+    (* Analog alarm FB instances — one per analog signal (not per condition) *)
+    fbAlarm_<tag_or_alarmNo> : METS_Lib.FB_AlarmAnalogue;  // per analog signal
+
+    (* Packed state arrays for HMI — sized per formula above *)
+    axAlarmDigitalState  : ARRAY[0..N_DIG-1]  OF DWORD;
+    axAlarmAnalogueState : ARRAY[0..N_ANA-1]  OF DWORD;
+    axAlarmDigitalAcks   : ARRAY[0..M_DIG-1]  OF DWORD;
+    axAlarmAnalogueAcks  : ARRAY[0..M_ANA-1]  OF DWORD;
+
+    (* HMI banner *)
+    LatestAlarmText : STRING;
+    LatestAlarmTimestamp : DT;
+    LatestAlarmIsActive : BOOL;
+    LatestAlarmIsAcknowledged : BOOL;
+    LatestAlarmStatus : INT;     (* 0=inactive, 1=active+acked, 2=active, 3=inactive+unacked *)
+    HideBanner : BOOL;
+    AcknowledgeAllAlarms : BOOL;
+
+    (* Ordered alarm lists for HMI *)
+    AlarmAckInOrder : ARRAY[1..MaxAlarmNo] OF BOOL;
+    AlarmInOrder    : ARRAY[1..MaxAlarmNo] OF BOOL;
+    AlarmOccurence  : ARRAY[1..MaxAlarmNo] OF DINT;
+    Alarms          : ARRAY[1..MaxAlarmNo] OF METS_Lib.strAlarmInfo;
+END_VAR
+```
+
+#### GVL_AlarmText.gvl — alarm text strings (1:1 with `message`)
+
+```iecst
+{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+    aAlarmText : ARRAY[1..MaxAlarmNo] OF STRING := [
+        1  := 'Propulsion AFT 625-A01: Not in remote',          // alarmNo 1
+        2  := 'Propulsion FWD 625-A02: Not in remote',          // alarmNo 2
+        ...                                                       // one entry per alarmNo
+        N  := ''                                                  // gaps if alarmNo skipped
+    ];
+END_VAR
+```
+
+Source: `alarms[].message`. Gaps in `alarmNo` produce empty string entries — keep array dense by length but allow holes in content.
+
+#### GVL_AlarmSettings.gvl — settings arrays (PERSISTENT)
+
+```iecst
+{attribute 'qualified_only'}
+VAR_GLOBAL PERSISTENT
+    AlarmSettingsDigital  : ARRAY[1..MaxDigAlarmNo] OF METS_Lib.strAlarmSettingsDig;
+    AlarmSettingsAnalogue : ARRAY[1..MaxAnaAlarmNo] OF METS_Lib.strAlarmSettingsAna;
+    AlarmSettingsInitiated : BOOL;        // false on first boot, AlarmInit sets true
+END_VAR
+
+VAR_GLOBAL CONSTANT
+    FactoryAlarmSettingsDigital  : ARRAY[1..MaxDigAlarmNo] OF METS_Lib.strAlarmSettingsDig;
+    FactoryAlarmSettingsAnalogue : ARRAY[1..MaxAnaAlarmNo] OF METS_Lib.strAlarmSettingsAna;
+END_VAR
+```
+
+#### Alarms.prg.st — main cycle
+
+One `FB_AlarmDigital` call per discrete_alarm row, one `FB_AlarmAnalogue` call per analog *signal* (the FB handles all 5 levels internally — dedupe across condition entries for the same signal_id). Walk the API response in alarmNo-asc order.
+
+```iecst
+PROGRAM Alarms
+(* === Auto-gen from MIAS-IO project_id=N — DO NOT EDIT === *)
+
+(* Discrete alarms — one call per discrete_alarm row *)
+GVL_Alarms.fbAlarm_PropulsionAft_NotInRemote(  // alarmNo=1
+    xInput      := <signal.gvl_path_resolved_to_BOOL>,           // mias-io signal binding
+    xEnable     := NOT GVL_AlarmSuppression.SuppressAlarm_001,   // hand-written suppression
+    Settings    := GVL_AlarmSettings.AlarmSettingsDigital[1],
+    State       := GVL_Alarms.axAlarmDigitalState[0],            // alarmNo 1 → array idx 0, bits 0-1
+    AnyUnack    := GVL_Alarms.AnyDigitalUnackAlarm,
+    LatestInfo  := GVL_Alarms.Alarms[1]
+);
+
+(* Analog alarms — one call per analog signal, all 5 levels packed in *)
+GVL_Alarms.fbAlarm_WindingTemp_M01_4(          // alarmNo=58
+    rInput       := <signal.gvl_path_resolved_to_REAL>,
+    bSensorFault := <derived_from_diagnostic_signal_or_NAMUR_NE43>,
+    xEnable      := TRUE,
+    Settings     := GVL_AlarmSettings.AlarmSettingsAnalogue[58],
+    State        := GVL_Alarms.axAlarmAnalogueState[19],         // 58/3 = idx 19
+    AnyUnack     := GVL_Alarms.AnyAnalogueUnackAlarm,
+    LatestInfo   := GVL_Alarms.Alarms[58]
+);
+```
+
+#### AlarmInit.fn.st — factory defaults (called once when `AlarmSettingsInitiated = FALSE`)
+
+```iecst
+FUNCTION AlarmInit : BOOL
+
+(* one AssignSettingsDig per discrete_alarm row, one AssignSettingsAna per analog signal *)
+
+METS_Lib.AssignSettingsDig(
+    Settings    := GVL_AlarmSettings.FactoryAlarmSettingsDigital[1],
+    alarmNo     := 1,
+    suppressed  := FALSE,
+    enabled     := TRUE,
+    delay_s     := <alarms[].delaySeconds>,
+    class       := <severity_or_alarmGroup_mapping>
+);
+
+METS_Lib.AssignSettingsAna(
+    Settings        := GVL_AlarmSettings.FactoryAlarmSettingsAnalogue[58],
+    alarmNo         := 58,
+    LL_suppressed   := FALSE, LL_setpoint := <LOW_LOW.setpoint>, LL_delay := <LOW_LOW.delaySeconds>,
+    L_suppressed    := FALSE, L_setpoint  := <LOW.setpoint>,    L_delay  := <LOW.delaySeconds>,
+    H_suppressed    := FALSE, H_setpoint  := <HIGH.setpoint>,   H_delay  := <HIGH.delaySeconds>,
+    HH_suppressed   := FALSE, HH_setpoint := <HIGH_HIGH.setpoint>, HH_delay := <HIGH_HIGH.delaySeconds>,
+    SF_suppressed   := FALSE, SF_delay := 5,
+    enabled         := TRUE,
+    class           := <severity_or_alarmGroup_mapping>,
+    unit            := METS_Lib.eUnit.<map-from-analogSignal.engineeringUnit>
+);
+
+(* After all assignments: copy factory → active *)
+GVL_AlarmSettings.AlarmSettingsDigital  := GVL_AlarmSettings.FactoryAlarmSettingsDigital;
+GVL_AlarmSettings.AlarmSettingsAnalogue := GVL_AlarmSettings.FactoryAlarmSettingsAnalogue;
+GVL_AlarmSettings.AlarmSettingsInitiated := TRUE;
+
+AlarmInit := TRUE;
+END_FUNCTION
+```
+
+For analog signals with missing levels (only HIGH defined, no LOW), set the missing-level `*_setpoint` to a safe extreme (e.g. `9.99e9` for HIGH/HH if not present; `-9.99e9` for LOW/LL) and `*_suppressed := TRUE` — FB never trips that level.
+
+#### POST-render: the `iec_alarm_path` round-trip (FR-011)
+
+For each emitted FB call, build the IEC dotted path that resolves to the *triggered* state for that alarm/condition and POST it via `POST /api/codesys/project/{id}/iec-paths`:
+
+| Alarm shape | iecAlarmPath |
+|---|---|
+| Discrete alarm `id=165` | `Application.GVL_Alarms.fbAlarm_PropulsionAft_NotInRemote.xTriggered` |
+| Analog HIGH on `id=240` | `Application.GVL_Alarms.fbAlarm_WindingTemp_M01_4.xTriggered_H` |
+| Analog HIGH_HIGH on `id=241` | `Application.GVL_Alarms.fbAlarm_WindingTemp_M01_4.xTriggered_HH` |
+| Analog LOW on `id=242` | `Application.GVL_Alarms.fbAlarm_WindingTemp_M01_4.xTriggered_L` |
+| Analog LOW_LOW on `id=243` | `Application.GVL_Alarms.fbAlarm_WindingTemp_M01_4.xTriggered_LL` |
+| Analog SF (sensor fault) | `Application.GVL_Alarms.fbAlarm_WindingTemp_M01_4.xTriggered_SF` |
+
+Use `id` from the API response as `alarmId` in the POST. `alarmKind` = `discrete` | `analog`. Existing FR-011 endpoint already accepts these — see `docs/codesys-api-contract.md` `POST /api/codesys/project/{id}/iec-paths`.
+
+If the METS_Lib FB version you target doesn't expose individual-level triggered pins (e.g. some older versions only expose a packed `dwState`), use `<fb>.dwState.<bit-offset>` and let the JMobile tab's filter resolve from the bit position. Document which version you used so future ports stay aligned.
+
+#### Pending alarms (alarmNo = null)
+
+Skip in symbol emit. mias-io's JMobile tab has a "Lock numbering" mutation that assigns next-free integers; until the operator clicks it, alarm rows exist in the DB without a slot. Re-running codegen after lock includes them.
+
+#### What to NOT auto-generate
+
+- `AlarmSuppression.prg.st` — hand-written engineering judgment per Älvelie ("hydraulic alarms suppressed when pump not running"). mias-io has no `suppressionExpression` field today; emit a stub with `// Suppression conditions — operator-maintained` and let operator fill.
+- `SMS_Sender.prg.st` — Älvelie maps 8 critical conditions to physical DOs. Project-specific. Same — emit stub.
+
+#### When mias-io adds a `suppressionExpression` column or similar
+
+If you need it auto-populated, raise an FR; we'll wire a column on `discrete_alarm`/`analog_alarm` and surface it on the API. Today: hand-written.
