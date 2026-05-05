@@ -67,7 +67,7 @@ export default function MonitoringPage({ params }: { params: Promise<{ id: strin
   }, [signals]);
 
   return (
-    <div className="px-8 py-6 max-w-6xl space-y-4">
+    <div className="flex flex-col flex-1 min-h-0 px-8 py-6 max-w-6xl gap-4">
       <div>
         <h1 className="text-xl font-semibold">Live Monitoring</h1>
         <p className="text-sm text-muted-foreground">
@@ -101,9 +101,9 @@ export default function MonitoringPage({ params }: { params: Promise<{ id: strin
         </Select>
       </div>
 
-      <div className="rounded-md border overflow-hidden">
+      <div className="rounded-md border overflow-auto flex-1 min-h-0">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-xs">
+          <thead className="bg-muted/50 text-xs sticky top-0 z-10 shadow-[inset_0_-1px_0_var(--border)]">
             <tr>
               <th rowSpan={2} className="text-left px-3 py-2 font-medium w-56 border-r align-bottom">Tag / Description</th>
               <th rowSpan={2} className="text-left px-3 py-2 font-medium w-20 border-r align-bottom">Origin</th>

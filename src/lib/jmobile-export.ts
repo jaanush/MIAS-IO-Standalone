@@ -84,12 +84,21 @@ const ANALOG_LEVEL_SUFFIX: Record<string, string> = {
   HIGH_HIGH: "_HH",
   SF: "_SF",
 };
+/** Description suffix per Älvelie convention (col J prefix in the AlarmsToExor macro). */
 const ANALOG_LEVEL_LABEL: Record<string, string> = {
-  LOW_LOW: "Low Low",
+  LOW_LOW: "Critically low",
   LOW: "Low",
   HIGH: "High",
-  HIGH_HIGH: "High High",
+  HIGH_HIGH: "Critically high",
   SF: "Sensor Fault",
+};
+/** Per-level letter in the description prefix (A=LL, B=L, C=H, D=HH, E=SF). */
+const ANALOG_LEVEL_LETTER: Record<string, string> = {
+  LOW_LOW: "A",
+  LOW: "B",
+  HIGH: "C",
+  HIGH_HIGH: "D",
+  SF: "E",
 };
 /** Offset within analog block of 5 (LL=0, L=1, H=2, HH=3, SF=4). */
 const ANALOG_LEVEL_OFFSET: Record<string, number> = {
@@ -103,6 +112,19 @@ const ANALOG_LEVEL_OFFSET: Record<string, number> = {
 /** Pad alarm number for the JMobile alarm name (Alarm001..Alarm999). */
 function alarmName(no: number): string {
   return `Alarm${String(no).padStart(3, "0")}`;
+}
+
+/**
+ * Strip per-condition level wording from a message so the JMobile description
+ * doesn't duplicate it. mias-io tends to append " (H)", " - HIGH_HIGH", etc.
+ * to per-row alarm messages; the renderer adds its own level suffix.
+ */
+function stripLevelSuffix(s: string): string {
+  return s
+    .replace(/\s*\((HH|H|LL|L|SF)\)\s*$/i, "")
+    .replace(/\s*-\s*(High[\s-]?High|HighHigh|Low[\s-]?Low|LowLow|High|Low|Sensor[\s-]?Fault|SF|HH|LL)\s*$/i, "")
+    .replace(/\s+_(HH|H|LL|L|SF)\s*$/i, "")
+    .trim();
 }
 
 /** XML-escape text content (description, message). */
@@ -278,23 +300,34 @@ function buildEntries(alarms: AlarmInput[]): RenderEntry[] {
     const masterNo = sig.minAlarmNo;
     const masterGroup =
       (sig.rows[0].alarmGroup as "A" | "B" | "C" | null) ?? severityToGroup(sig.rows[0].severity);
-    const baseDescription = sig.rows[0].message ?? `Analog signal ${sig.sigId}`;
+    // Source description: strip per-condition suffix (e.g. " - HighHigh", "(H)")
+    // that the operator adds in mias-io for HMI clarity. The JMobile description
+    // already gets a level letter prefix + level label, so a re-suffixed source
+    // double-tags. Älvelie convention: "<sigDescription>" without level wording.
+    const masterMessage = sig.rows[0].message ?? `Analog signal ${sig.sigId}`;
+    const baseDescription = stripLevelSuffix(masterMessage);
 
+    // Älvelie convention: only emit XML rows for conditions actually defined
+    // in the DB. Indexing reserves 5 slots per analog signal regardless (so
+    // `abAlarmAnalogueStateHMI[anaIdx*5+0..4]` is allocated by the PLC), but
+    // the JMobile XML stays terse.
     for (const level of [...ANALOG_LEVELS, "SF"] as const) {
-      const offset = ANALOG_LEVEL_OFFSET[level];
       const matching = sig.rows.find((r) => r.condition === level);
-      const enabled = matching != null;
-      const description = `${masterNo}. ${baseDescription} - ${ANALOG_LEVEL_LABEL[level]}`;
+      if (!matching) continue;  // skip levels with no DB row
+
+      const offset = ANALOG_LEVEL_OFFSET[level];
+      const letter = ANALOG_LEVEL_LETTER[level];
+      const description = `${masterNo}${letter}. ${baseDescription} - ${ANALOG_LEVEL_LABEL[level]}`;
       out.push({
         name: `${alarmName(masterNo)}${ANALOG_LEVEL_SUFFIX[level]}`,
-        group: matching?.alarmGroup ?? masterGroup,
+        group: matching.alarmGroup ?? masterGroup,
         sourceArray: "abAlarmAnalogueStateHMI",
         ackArray: "axAlarmAnalogueAcksHMI",
         sourceIndex: anaIdx * 5 + offset,
         customField2: "ANA",
         alarmNo: masterNo,
         description,
-        enabled,
+        enabled: true,
         signalId: sig.sigId,
         level,
       });
@@ -362,13 +395,13 @@ export function renderSetAlarmTableJs(input: ProjectExportInput): string {
       lines.push(`aT(${pos++},"${e.alarmNo}",${e.alarmNo},"${e.name}","","","","","");`);
     } else if (!seenAnalog.has(e.signalId)) {
       seenAnalog.add(e.signalId);
-      const ll = entries.find((x) => x.signalId === e.signalId && x.level === "LOW_LOW")!;
-      const l = entries.find((x) => x.signalId === e.signalId && x.level === "LOW")!;
-      const h = entries.find((x) => x.signalId === e.signalId && x.level === "HIGH")!;
-      const hh = entries.find((x) => x.signalId === e.signalId && x.level === "HIGH_HIGH")!;
-      const sf = entries.find((x) => x.signalId === e.signalId && x.level === "SF")!;
+      // Each level may or may not exist in the entries (renderer skips
+      // levels with no DB row). Fall back to "" — matches Älvelie's JS
+      // table convention for absent levels.
+      const lookup = (lvl: string) =>
+        entries.find((x) => x.signalId === e.signalId && x.level === lvl)?.name ?? "";
       lines.push(
-        `aT(${pos++},"${e.alarmNo}",${e.alarmNo},"${alarmName(e.alarmNo)}","${ll.name}","${l.name}","${h.name}","${hh.name}","${sf.name}");`,
+        `aT(${pos++},"${e.alarmNo}",${e.alarmNo},"${alarmName(e.alarmNo)}","${lookup("LOW_LOW")}","${lookup("LOW")}","${lookup("HIGH")}","${lookup("HIGH_HIGH")}","${lookup("SF")}");`,
       );
     }
   }

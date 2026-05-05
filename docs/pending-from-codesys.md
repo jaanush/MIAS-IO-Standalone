@@ -15,4 +15,10 @@ LasseMaja's 7 Editron converters backfilled by componentName parsing
 plugin's CommissioningRenderer walks them. FR-025 closed 2026-05-05 via
 NOTIF-031 round-trip — Q1 (drop analog severity, use level convention),
 Q2 (plugin-side eUnit alias table; LasseMaja distinct units listed),
-Q3a/b (SF stays default-armed, IEC path stays by convention).)
+Q3a/b (SF stays default-armed, IEC path stays by convention).
+FR-026 closed 2026-05-05 via NOTIF-032 round-trip — Q1 (DAO α/β plugin's
+call), Q2 (`exports/PLC/*` retired; consume API + JMobile XML), Q3
+(emit unqualified), Q4 (4-symbol HMI contract `ab/axAlarm{Digital,Analogue}{State,Acks}HMI`),
+Q5 (Param.gvl plugin-emitted from API counts), Q6 (suppression stays
+empty), Q7 (Factory + Live PERSISTENT pattern; runtime HMI edits do not
+propagate back to mias-io DB).)

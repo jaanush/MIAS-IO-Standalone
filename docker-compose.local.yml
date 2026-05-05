@@ -29,7 +29,11 @@ services:
       DATABASE_URL: postgresql://mias:mias_local@postgres:5432/mias_io
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: mias-local-dev-secret-change-if-needed
-      CODESYS_API_KEY: local-dev-key
+      # Match the dev-workflow default (.env.local CODESYS_API_KEY) so the
+      # CODESYS plugin's config.dev.ini works against either standalone
+      # Docker or `npm run dev` without re-keying. Override via env if you
+      # want a separate key per offline-deploy box.
+      CODESYS_API_KEY: dev-key-change-me
       MIAS_START_CMD: ws
     depends_on:
       postgres:
