@@ -1325,3 +1325,95 @@ Skip in symbol emit. mias-io's JMobile tab has a "Lock numbering" mutation that 
 #### When mias-io adds a `suppressionExpression` column or similar
 
 If you need it auto-populated, raise an FR; we'll wire a column on `discrete_alarm`/`analog_alarm` and surface it on the API. Today: hand-written.
+
+---
+
+## NOTIF-031: FR-025 answers — analog severity, eUnit mapping, sensor-fault
+
+**From:** `mias-io`
+**Date:** 2026-05-05
+**Re:** FR-025 in `pending-from-codesys.md` (Q1/Q2/Q3 on `AlarmRenderer.cs` codegen).
+
+### Q1 — analog per-row severity → which option?
+
+**Answer: option (1) — drop from IEC codegen.**
+
+The plugin should use a **fixed per-level convention** for analog FB criticality:
+
+| Level | Implicit class on `FB_AlarmAnalogue` | METS_Lib `AnyCriticalAlarmActive` includes? |
+|---|---|---|
+| `LOW_LOW` (LL) | Critical | yes |
+| `HIGH_HIGH` (HH) | Critical | yes |
+| `LOW` (L) | Non-critical | no |
+| `HIGH` (H) | Non-critical | no |
+| `SF` (sensor fault) | Informational | no |
+
+This matches the Älvelie convention. The mias-io `severity` field on analog rows still carries semantic meaning (used by the JMobile XML export's `<severity>` int — A→5/B→3/C→1) but the plugin's IEC codegen ignores it on analog rows and uses level position instead.
+
+If you ever find that some MIAS-Lib version exposes a per-level Severity field via a struct extension, raise an FR and we'll surface a per-row code; until then, fixed convention is what we ship.
+
+### Q2 — `engineeringUnit` → `eUnit` mapping
+
+**Answer: option (B) — plugin-side alias table.**
+
+mias-io's `engineering_unit` table holds display-friendly Unicode strings (`°C`, `kW`, `V DC`, etc.) — used in the UI, the live-monitoring tooltips, and the JMobile XML's `customField` text. We don't want to constrain it to your enum names; instead the plugin keeps a small alias table.
+
+**Distinct EU values across all 881 LasseMaja analog signals (with usage counts):**
+
+| symbol | description | quantity | signals | eUnit alias (suggested) |
+|---|---|---|---|---|
+| (null) | — | — | 451 | `None` |
+| `°C` | Degrees Celsius | TEMPERATURE | 85 | `DegreesC` |
+| `V DC` | Volt DC | VOLTAGE | 74 | `VoltsDC` |
+| `kW` | Kilowatt | POWER_ACTIVE | 48 | `kW` |
+| `A DC` | Ampere DC | CURRENT | 43 | `AmpereDC` |
+| `V` | Volt | VOLTAGE | 28 | `Volts` |
+| `A` | Ampere | CURRENT | 24 | `Ampere` |
+| `%` | Percent | RATIO | 21 | `Percent` |
+| `RPM` | Revolutions per minute | ANGULAR_SPEED | 10 | `RPM` |
+| `kWh` | Kilowatt-hour | ENERGY | 8 | `kWh` |
+| `kOhm` | Kilohm | RESISTANCE | 8 | `None` (not in eUnit) |
+| `NM` | Newton-meter | TORQUE | 8 | `Nm` |
+| `Hz` | Hertz | FREQUENCY | 8 | `Hz` |
+| `kVAr` | Kilovolt-ampere reactive | POWER_REACTIVE | 6 | `kVAr` |
+| `MWh` | Megawatt-hour | ENERGY | 4 | `kWh` (closest; or `None`) |
+| `V AC` | Volt AC | VOLTAGE | 4 | `VoltsAC` |
+| `mOhm` | Milliohm | RESISTANCE | 4 | `None` |
+| `mBar` | Millibar | PRESSURE | 4 | `Bar` (closest; or `None`) |
+| `kVA` | Kilovolt-ampere | POWER_APPARENT | 2 | `kVA` |
+| `As` | Ampere-second | CHARGE | 2 | `None` |
+| `km` | Kilometer | LENGTH | 2 | `None` |
+| `Pa` | Pascal | PRESSURE | 1 | `Pa` |
+
+Of the 24 signals with both an alarm row and an EU set, only `°C` is used (other alarmed signals have null EU). Plugin can ship with the alias table above and emit a build-warning when it falls back to `None` — that's a cue for engineering to either set the right unit on the signal or extend `eUnit` upstream.
+
+For the rare cases (kOhm, mOhm, mBar, MWh, As, km), let the plugin decide whether to ship them as `None` + warning, or use the closest-fit (e.g. `Bar` for `mBar`) — both are pragmatic.
+
+### Q3a — should mias-io add a `condition: SENSOR_FAULT` alarm row?
+
+**Answer: not now — keep plugin's default-armed behaviour.**
+
+Rationale:
+- Sensor fault detection is configured on the signal (`detectWireBreak`, `detectShortCircuit`, `detectOutOfRange`, `namurNe43`) — those flags are already on `analogSignal.alarms[]`'s parent and the plugin already reads them per the existing API contract.
+- Reaction (`Block_SF / Delay_SF_s / Deactivate_SF`) is project-level convention, not per-signal. Defaulting to armed (`Block_SF=FALSE, Delay_SF_s=0, Deactivate_SF=FALSE`) matches what an operator wants on every analog with a sensor — they want to know if the sensor breaks.
+- Adding a per-row SENSOR_FAULT condition means polluting every analog with a 5th alarm row that's almost always default. Costly UI clutter for marginal value.
+
+**If the operator wants per-signal SF tuning later** (e.g. one signal where SF should be suppressed because the wire-break detection is unreliable), we'll add a `sensorFaultPolicy` field on `analog_signal` rather than a new alarm row. Raise an FR when you hit a project that needs it.
+
+### Q3b — expose resolved IEC path of sensor-fault flag?
+
+**Answer: keep the convention.** Plugin assumes `<sigpath>_SensorFaultAlarm` per Älvelie. Mias-io won't push a separate `sensorFaultIecPath` — convention is stable across projects today, and adding a column for an inferable suffix is overhead.
+
+If a project deviates (e.g. sensor-fault flag named differently in legacy code being lifted into mias-io), we can add a project-level override field then. Until then: stick with `<sigpath>_SensorFaultAlarm`.
+
+### Coordination — JMobile export now also exists in mias-io
+
+While answering this, I built `GET /api/project/{id}/jmobile-export` (returns ZIP with `ExportedAlarms.xml` + `AlarmTexter.xml` + `setAlarmTable.js`). It uses the same conventions you're targeting (severity → group, group → integer, A=5/B=3/C=1, bitMaskAlarm with mask=2). The XML's `<source index="N" arrayType="true">abAlarmDigitalStateHMI</source>` references the **same array names** I asked you to emit in NOTIF-030. Two pieces lock together — the plugin's IEC GVL emits `abAlarmDigitalStateHMI` / `abAlarmAnalogueStateHMI`, mias-io's XML refers to those same names, JMobile reads the imported XML and binds at runtime to the running PFC's GVL.
+
+If your IEC codegen ends up using different array names than NOTIF-030 specs, ping me — the JMobile export's array names need to match what's actually in the running GVL or the HMI binding fails at runtime.
+
+### Acceptance
+
+I'll mark FR-025 closed once you confirm the answers work for `AlarmRenderer.cs`. If any of (1)/(2)/(3) need different framing, reply here and I'll revise.
+
+Removing FR-025 from `pending-from-codesys.md` per the round-trip rule.

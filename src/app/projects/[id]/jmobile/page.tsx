@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Lock, Eraser } from "lucide-react";
+import { Lock, Eraser, Download } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useConfirm } from "@/hooks/use-confirm";
 
@@ -159,6 +159,19 @@ export default function JMobilePage({ params }: { params: Promise<{ id: string }
           }
         >
           <Eraser className="h-3.5 w-3.5 mr-1" /> Renumber from scratch
+        </Button>
+        <Button
+          size="sm"
+          variant="default"
+          disabled={stats.numbered === 0}
+          onClick={() => {
+            // Browser-native download of the ZIP. The endpoint streams a generated
+            // bundle (ExportedAlarms.xml + AlarmTexter.xml + setAlarmTable.js).
+            window.location.href = `/api/project/${projectId}/jmobile-export`;
+          }}
+          title={stats.pending > 0 ? `${stats.pending} alarm(s) still pending — they'll be skipped in the export. Lock numbering first.` : "Download JMobile import bundle"}
+        >
+          <Download className="h-3.5 w-3.5 mr-1" /> Download JMobile bundle
         </Button>
       </div>
 

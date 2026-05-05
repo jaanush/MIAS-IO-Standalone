@@ -1107,6 +1107,54 @@ alarm ids in one round-trip, so per-entry membership checks are O(1).
 
 ---
 
+### `GET /api/project/{id}/jmobile-export`
+
+Generates the JMobile (Exor SCADA HMI) alarm-import bundle for the named
+project and returns a ZIP with three files:
+
+| File | Contents |
+|---|---|
+| `ExportedAlarms.xml` | Alarm definitions — 1 row per discrete alarm (`abAlarmDigitalStateHMI[N]` source), 5 rows per analog signal for LL/L/H/HH/SF levels (`abAlarmAnalogueStateHMI[N×5+offset]` source). Pending alarms (alarmNo=null) are skipped. |
+| `AlarmTexter.xml` | Per-alarm message text indexed sequentially. |
+| `setAlarmTable.js` | JS startup snippet — `aT(pos, posNoTxt, alarmNo, master, lL, l, h, hh, sf)` calls. Paste into JMobile's Startup script after `//PASTE FROM EXCEL`. |
+
+**Auth:** session cookie (the route lives under `/api/project/*` which is in
+the proxy public-paths list — same as the JSON project export).
+
+**Response:** `200 OK` `application/zip` with
+`Content-Disposition: attachment`. Filename:
+`jmobile-import_<projectName>_<YYYY-MM-DD>.zip`.
+
+**Render rules** (mirrors legacy AlarmsToExor macro):
+
+- `<groups>` = `alarm.alarmGroup` (A/B/C); when null, falls back to severity:
+  CRITICAL→A, ALARM/WARNING→B, INFO→C.
+- `<severity>` int = group-mapped: A→5, B→3, C→1.
+- `<alarmType>` = `bitMaskAlarm`; `<bitMask>` = `2` (always — encodes the
+  triggered bit in the 2-bit packed state).
+- `<source index="N" arrayType="true">…StateHMI</source>` references match
+  the plugin's GVL_Alarms convention (`abAlarmDigitalStateHMI` /
+  `abAlarmAnalogueStateHMI`). The plugin must emit those array names per
+  NOTIF-030's render reference.
+- Analog signals always emit 5 rows; missing levels (e.g. signal has only
+  HIGH defined, no LOW) come out with `<enabled>false</enabled>`.
+- Color block + actions block + audit settings are fixed defaults (matching
+  the Älvelie template).
+
+**Errors**
+
+| Status | Reason |
+|---|---|
+| `400` | Invalid project id |
+| `404` | Project not found |
+
+**Workflow note.** Operator visits `/projects/{id}/jmobile`, hits "Lock
+numbering" to assign sequential alarmNo to any pending alarms, then clicks
+"Download JMobile bundle". The 3 files inside the ZIP go straight into
+JMobile's import dialog (Alarms / AlarmText pages) + the Startup script.
+
+---
+
 ### `GET /api/codesys/projects`
 
 Lists all projects. Used for discovery / selection dialogs in scripts.

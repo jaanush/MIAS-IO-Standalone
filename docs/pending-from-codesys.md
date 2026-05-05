@@ -12,4 +12,7 @@ NOTIF-028 round-trip; FR-023 closed 2026-05-04 via NOTIF-029 round-trip
 landed on `signals[].instance.commissioning` + `instanceUpdate` tRPC + UI;
 LasseMaja's 7 Editron converters backfilled by componentName parsing
 (4 dcdc + 2 mc + 2 afe). `nodeId` left null — operator must assign before
-plugin's CommissioningRenderer walks them.)
+plugin's CommissioningRenderer walks them. FR-025 closed 2026-05-05 via
+NOTIF-031 round-trip — Q1 (drop analog severity, use level convention),
+Q2 (plugin-side eUnit alias table; LasseMaja distinct units listed),
+Q3a/b (SF stays default-armed, IEC path stays by convention).)
